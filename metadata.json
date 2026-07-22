@@ -1,0 +1,6 @@
+{
+  "name": "AI365 @ CCE",
+  "description": "AI Activity Tracking Platform for Department of Computer and Communication Engineering",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

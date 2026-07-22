@@ -1,0 +1,265 @@
+import { Router, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import { db } from '../_db/client';
+import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth';
+import { roleGuard } from '../_middleware/roleGuard';
+
+const router = Router();
+
+router.use(authMiddleware);
+router.use(roleGuard(['admin']));
+
+// GET /api/admin/dashboard
+router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const allUsers = await db.getAllUsers();
+    const students = allUsers.filter(u => u.role === 'student');
+    const faculty = allUsers.filter(u => u.role === 'faculty');
+    const pendingStudents = students.filter(u => u.status === 'pending_approval');
+
+    const target = await db.getTargets('2026');
+
+    const allApprovedHours = await db.getLearningHours(undefined, undefined, 'Approved');
+    const allApprovedCerts = await db.getCertificates(undefined, undefined, 'Approved');
+    const allApprovedPapers = await db.getResearchPapers(undefined, undefined, 'Approved');
+    const allApprovedProjects = await db.getProjects(undefined, undefined, 'Approved');
+
+    const totalHoursCount = allApprovedHours.reduce((acc, h) => acc + Number(h.hours), 0);
+    const totalCertsCount = allApprovedCerts.length;
+    const totalPapersCount = allApprovedPapers.length;
+    const totalProjectsCount = allApprovedProjects.length;
+    const totalStartupsCount = 3;
+
+    const activityLogs = await db.getActivityLogs();
+
+    return res.json({
+      admin: req.user,
+      stats: {
+        totalStudents: students.length,
+        totalFaculty: faculty.length,
+        pendingRegistrationsCount: pendingStudents.length,
+        totalApprovedHoursCount: totalHoursCount,
+        totalApprovedCertsCount: totalCertsCount,
+        totalApprovedPapersCount: totalPapersCount,
+        totalApprovedProjectsCount: totalProjectsCount,
+        totalStartupsCount,
+      },
+      targets: target,
+      missionProgress: {
+        learningHoursProgress: Math.min(100, Math.round((totalHoursCount / target.target_learning_hours) * 100)),
+        certificationsProgress: Math.min(100, Math.round((totalCertsCount / target.target_certifications) * 100)),
+        researchPapersProgress: Math.min(100, Math.round((totalPapersCount / target.target_research_papers) * 100)),
+        projectsProgress: Math.min(100, Math.round((totalProjectsCount / target.target_projects) * 100)),
+        startupsProgress: Math.min(100, Math.round((totalStartupsCount / target.target_startups) * 100)),
+      },
+      latestActivities: activityLogs.slice(0, 15),
+    });
+  } catch (err: any) {
+    console.error('Admin Dashboard Error:', err);
+    return res.status(500).json({ error: 'Server error loading admin dashboard.' });
+  }
+});
+
+// GET & POST /api/admin/users
+router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { role, department, year, status } = req.query;
+    const users = await db.getAllUsers({
+      role: role ? String(role) : undefined,
+      department: department ? String(department) : undefined,
+      year: year ? String(year) : undefined,
+      status: status ? String(status) : undefined,
+    });
+
+    const sanitizedUsers = users.map(({ password, ...u }) => u);
+    return res.json({ users: sanitizedUsers });
+  } catch (err) {
+    return res.status(500).json({ error: 'Error loading users.' });
+  }
+});
+
+router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { full_name, email, password, role, department, register_number, year, phone, mentor_id, is_department_wide } = req.body;
+
+    if (!full_name || !email || !password || !role) {
+      return res.status(400).json({ error: 'Full Name, Email, Password, and Role are required.' });
+    }
+
+    const existing = await db.findUserByEmail(email);
+    if (existing) {
+      return res.status(400).json({ error: 'An account with this email already exists.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await db.createUser({
+      full_name,
+      email,
+      password: hashedPassword,
+      role,
+      department: department || 'Computer & Communication Engineering',
+      register_number,
+      year,
+      phone,
+      profile_photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      status: 'approved',
+      mentor_id: mentor_id ? Number(mentor_id) : null,
+      is_department_wide: Boolean(is_department_wide),
+    });
+
+    await db.logActivity(req.user!.id, 'Created User Account', `Created ${role} account for ${full_name} (${email})`, newUser.id);
+
+    const { password: _, ...userWithoutPass } = newUser;
+    return res.status(201).json({ message: 'User created successfully.', user: userWithoutPass });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to create user.' });
+  }
+});
+
+// PUT /api/admin/users/:id
+router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = Number(req.params.id);
+    const { status, role, mentor_id, is_department_wide, full_name, register_number, year, department, password } = req.body;
+
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (role) updateData.role = role;
+    if (mentor_id !== undefined) updateData.mentor_id = mentor_id ? Number(mentor_id) : null;
+    if (is_department_wide !== undefined) updateData.is_department_wide = Boolean(is_department_wide);
+    if (full_name) updateData.full_name = full_name;
+    if (register_number) updateData.register_number = register_number;
+    if (year) updateData.year = year;
+    if (department) updateData.department = department;
+
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await db.updateUser(userId, updateData);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // If approving pending student, send notification
+    if (status === 'approved') {
+      await db.createNotification({
+        user_id: userId,
+        title: 'Account Approved!',
+        message: 'Your CCE student account has been approved by Admin. You can now access your AI Passport dashboard.',
+        type: 'approval',
+        link: '/student',
+      });
+    }
+
+    await db.logActivity(req.user!.id, 'Updated User Account', `Updated profile/status for ${updatedUser.full_name}`, userId);
+
+    const { password: _, ...userWithoutPass } = updatedUser;
+    return res.json({ message: 'User updated successfully.', user: userWithoutPass });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update user.' });
+  }
+});
+
+// DELETE /api/admin/users/:id
+router.delete('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = Number(req.params.id);
+    if (userId === req.user!.id) {
+      return res.status(400).json({ error: 'You cannot delete your own admin account.' });
+    }
+
+    const deleted = await db.deleteUser(userId);
+    if (!deleted) return res.status(404).json({ error: 'User not found.' });
+
+    await db.logActivity(req.user!.id, 'Deleted User Account', `Deleted user account #${userId}`);
+    return res.json({ message: 'User deleted successfully.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete user.' });
+  }
+});
+
+// GET & PUT /api/admin/targets
+router.get('/targets', async (req: AuthenticatedRequest, res: Response) => {
+  const target = await db.getTargets('2026');
+  return res.json(target);
+});
+
+router.put('/targets', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { target_learning_hours, target_certifications, target_research_papers, target_projects, target_startups } = req.body;
+
+    const updated = await db.updateTargets('2026', {
+      target_learning_hours: Number(target_learning_hours),
+      target_certifications: Number(target_certifications),
+      target_research_papers: Number(target_research_papers),
+      target_projects: Number(target_projects),
+      target_startups: Number(target_startups),
+    });
+
+    await db.logActivity(req.user!.id, 'Updated Department Targets', `Updated 2026 CCE Targets`);
+    return res.json({ message: 'Yearly targets updated successfully.', target: updated });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update targets.' });
+  }
+});
+
+// GET /api/admin/reports
+router.get('/reports', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { format } = req.query;
+
+    const hours = await db.getLearningHours();
+    const certs = await db.getCertificates();
+    const papers = await db.getResearchPapers();
+    const projects = await db.getProjects();
+    const users = await db.getAllUsers();
+
+    const reportData = {
+      department: 'Computer & Communication Engineering',
+      generated_at: new Date().toISOString(),
+      generated_by: req.user!.full_name,
+      summary: {
+        total_students: users.filter(u => u.role === 'student').length,
+        total_faculty: users.filter(u => u.role === 'faculty').length,
+        approved_learning_hours: hours.filter(h => h.status === 'Approved').reduce((a, b) => a + Number(b.hours), 0),
+        approved_certificates: certs.filter(c => c.status === 'Approved').length,
+        approved_research_papers: papers.filter(p => p.status === 'Approved').length,
+        approved_projects: projects.filter(p => p.status === 'Approved').length,
+      },
+      details: {
+        learning_hours: hours,
+        certificates: certs,
+        research_papers: papers,
+        projects: projects,
+      },
+    };
+
+    if (format === 'csv') {
+      let csv = 'Type,Student Name,Register Number,Title/Activity,Value/Hours,Status,Date\n';
+      hours.forEach(h => {
+        csv += `"Learning Hour","${h.student_name}","${h.register_number}","${h.activity_name}",${h.hours},"${h.status}","${h.date}"\n`;
+      });
+      certs.forEach(c => {
+        csv += `"Certificate","${c.student_name}","${c.register_number}","${c.title}",1,"${c.status}","${c.completion_date}"\n`;
+      });
+      papers.forEach(p => {
+        csv += `"Research Paper","${p.student_name}","${p.register_number}","${p.title}",1,"${p.status}","${p.created_at.split('T')[0]}"\n`;
+      });
+      projects.forEach(p => {
+        csv += `"AI Project","${p.student_name}","${p.register_number}","${p.title}",1,"${p.status}","${p.created_at.split('T')[0]}"\n`;
+      });
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="AI365_CCE_Report.csv"');
+      return res.send(csv);
+    }
+
+    return res.json(reportData);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to generate report.' });
+  }
+});
+
+export default router;
