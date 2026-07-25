@@ -113,40 +113,22 @@ export const Home: React.FC = () => {
   }, []);
 
   const stats = visitorStats?.stats || {
-    learningHours: 4280,
-    certifications: 142,
-    researchPapers: 28,
-    projects: 86,
-    studentsCount: 240,
+    learningHours: 0,
+    certifications: 0,
+    researchPapers: 0,
+    projects: 0,
   };
 
-  const featuredProjects = visitorStats?.featuredProjects || [
-    {
-      id: 1,
-      title: 'NeuralSight — Real-Time AI Traffic Signal Synthesizer',
-      tech_stack: 'PyTorch, OpenCV, React, FastAPI',
-      ai_contribution: 'Custom trained YOLOv8 model with 94.2% mAP',
-      student_name: 'Alex Mercer',
-      year: '3rd Year CCE',
-    },
-    {
-      id: 2,
-      title: 'GenDoc AI — Automated Medical Prescription OCR',
-      tech_stack: 'Transformers, TrOCR, Python, Docker',
-      ai_contribution: 'Fine-tuned Vision-Language Transformer',
-      student_name: 'Elena Rostova',
-      year: '4th Year CCE',
-    },
-  ];
+  const featuredProjects: any[] = visitorStats?.featuredProjects || [];
 
   return (
     <div className="space-y-16 pb-12 font-['Poppins',sans-serif]">
       {/* 3D Floating Interactive Constellation Hero Section */}
-      <section className="relative w-full h-[480px] sm:h-[540px] flex items-center justify-center overflow-hidden select-none border-b border-blue-100/60 shadow-xs">
+      <section className="relative w-full h-[400px] sm:h-[500px] flex items-center justify-center overflow-hidden select-none border-b border-blue-100/60 shadow-xs">
         <ParticleCanvas />
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center animate-float-3d space-y-5">
-          <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-4 font-black tracking-tight text-5xl sm:text-7xl lg:text-8xl">
+          <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-4 font-black tracking-tight text-4xl sm:text-6xl lg:text-8xl">
             <span className="text-[#1A56C4] drop-shadow-sm">AI365</span>
             <span className="inline-flex items-center justify-center w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-blue-100/90 text-[#3B82F6] text-3xl sm:text-5xl font-bold font-sans shadow-sm border border-blue-200/80 mx-1 sm:mx-2">
               @
@@ -181,7 +163,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* Live Aggregated Statistics Bar */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-12 relative z-20">
         <div className="bg-white rounded-[24px] border border-slate-200/80 shadow-xl p-6 lg:p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
           <div className="space-y-1">
             <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#004990] flex items-center justify-center mx-auto mb-2">
@@ -341,32 +323,33 @@ export const Home: React.FC = () => {
       {/* 6-Step Visual Winding Road Graphic Section */}
       <WindingRoadmap />
 
-      {/* Featured AI Projects Showcase */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Featured Student AI Prototypes</h2>
-          <p className="text-xs text-slate-500 font-medium mt-2">
-            Innovative solutions developed by Computer & Communication Engineering students in our AI Labs.
-          </p>
-        </div>
+      {/* Featured AI Projects Showcase — only shown when real approved projects exist */}
+      {featuredProjects?.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="text-center max-w-2xl mx-auto">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Featured Student AI Prototypes</h2>
+            <p className="text-xs text-slate-500 font-medium mt-2">
+              Innovative solutions developed by Computer & Communication Engineering students in our AI Labs.
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {featuredProjects.map((p: any) => (
-            <div key={p.id} className="bg-white rounded-[24px] border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all">
-              <span className="inline-block px-3 py-1 bg-blue-50 text-[#004990] font-bold text-[10px] rounded-full uppercase mb-3">
-                {p.year}
-              </span>
-              <h3 className="text-lg font-extrabold text-slate-900 mb-2">{p.title}</h3>
-              <p className="text-xs text-slate-600 mb-4">{p.ai_contribution}</p>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
-                <span>By {p.student_name}</span>
-                <span className="text-[#004990]">{p.tech_stack}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {featuredProjects.map((p: any) => (
+              <div key={p.id} className="bg-white rounded-[24px] border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all">
+                <span className="inline-block px-3 py-1 bg-blue-50 text-[#004990] font-bold text-[10px] rounded-full uppercase mb-3">
+                  {p.year}
+                </span>
+                <h3 className="text-lg font-extrabold text-slate-900 mb-2">{p.title}</h3>
+                <p className="text-xs text-slate-600 mb-4">{p.ai_contribution}</p>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <span>By {p.student_name}</span>
+                  <span className="text-[#004990]">{p.tech_stack}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };
-

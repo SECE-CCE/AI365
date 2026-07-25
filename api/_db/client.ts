@@ -13,9 +13,8 @@ export const pool = DATABASE_URL
 
 export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
-// Pre-computed bcrypt hashes (cost=10) for seed demo accounts — avoids blocking cold-start
-// admin123, faculty123, student123
-const HASHED_ADMIN_PASS = '$2b$10$Vy1lUl0uDRS00rRAq7WRBuT/BzwU2zlZ/dV2UgegXwgg3Y7xzRgJC';
+// Pre-computed bcrypt hash (cost=10) for admin account — password: $ece@2739
+const HASHED_ADMIN_PASS = '$2b$10$fnHGtIY9MePG3vUlc7M2JeyxmVUiBCtWgaRc7EZIS/SC3R.ft7yAe';
 const HASHED_FACULTY_PASS = '$2b$10$AV6knQtK/66NTqQXBStDVOTPQNvf.UIsdyRA4TVJo40P8PZsFoZDe';
 const HASHED_STUDENT_PASS = '$2b$10$myxE12Mu90RdnBya.YejZeipT8BhYV6WIXzXHPM6l28rVWFuW9UT6';
 
@@ -175,451 +174,45 @@ export interface AnnouncementRow {
   created_at: string;
 }
 
-// Initial Memory Store Seed Data
+// Initial Memory Store Seed Data — only admin bootstrapped, all real data lives in Neon DB
 const initialStore = {
   users: [
     {
       id: 1,
-      full_name: 'Dr. Ananya Roy',
-      email: 'admin@cce.edu',
+      full_name: 'Dhamodharan S',
+      email: 'dhamodharan.s@sece.ac.in',
       password: HASHED_ADMIN_PASS,
       role: 'admin',
       department: 'Computer & Communication Engineering',
-      phone: '+91 98765 43210',
+      phone: '',
       profile_photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
       status: 'approved',
       mentor_id: null,
       is_department_wide: true,
       created_at: '2026-01-01T00:00:00Z',
     },
-    {
-      id: 2,
-      full_name: 'Dr. Rajesh Sharma',
-      email: 'dr.sharma@cce.edu',
-      password: HASHED_FACULTY_PASS,
-      role: 'faculty',
-      department: 'Computer & Communication Engineering',
-      phone: '+91 98765 12345',
-      profile_photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      status: 'approved',
-      mentor_id: null,
-      is_department_wide: true,
-      created_at: '2026-01-02T00:00:00Z',
-    },
-    {
-      id: 3,
-      full_name: 'Prof. Vikram Kapoor',
-      email: 'prof.kapoor@cce.edu',
-      password: HASHED_FACULTY_PASS,
-      role: 'faculty',
-      department: 'Computer & Communication Engineering',
-      phone: '+91 98765 67890',
-      profile_photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      status: 'approved',
-      mentor_id: null,
-      is_department_wide: false,
-      created_at: '2026-01-03T00:00:00Z',
-    },
-    {
-      id: 4,
-      full_name: 'Alex Mercer',
-      email: 'alex.student@cce.edu',
-      password: HASHED_STUDENT_PASS,
-      role: 'student',
-      department: 'Computer & Communication Engineering',
-      register_number: '21CCE042',
-      year: '3rd Year',
-      phone: '+91 99887 76655',
-      profile_photo: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150',
-      status: 'approved',
-      mentor_id: 2,
-      is_department_wide: false,
-      created_at: '2026-01-10T00:00:00Z',
-    },
-    {
-      id: 5,
-      full_name: 'Priya Patel',
-      email: 'priya.patel@cce.edu',
-      password: HASHED_STUDENT_PASS,
-      role: 'student',
-      department: 'Computer & Communication Engineering',
-      register_number: '21CCE088',
-      year: '3rd Year',
-      phone: '+91 99887 11223',
-      profile_photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-      status: 'approved',
-      mentor_id: 2,
-      is_department_wide: false,
-      created_at: '2026-01-12T00:00:00Z',
-    },
-    {
-      id: 6,
-      full_name: 'Rahul Verma',
-      email: 'rahul.verma@cce.edu',
-      password: HASHED_STUDENT_PASS,
-      role: 'student',
-      department: 'Computer & Communication Engineering',
-      register_number: '22CCE015',
-      year: '2nd Year',
-      phone: '+91 99887 33445',
-      profile_photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-      status: 'approved',
-      mentor_id: 3,
-      is_department_wide: false,
-      created_at: '2026-01-15T00:00:00Z',
-    },
-    {
-      id: 7,
-      full_name: 'Sanya Singh',
-      email: 'sanya.singh@cce.edu',
-      password: HASHED_STUDENT_PASS,
-      role: 'student',
-      department: 'Computer & Communication Engineering',
-      register_number: '23CCE091',
-      year: '1st Year',
-      phone: '+91 99887 99887',
-      profile_photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-      status: 'pending_approval',
-      mentor_id: 2,
-      is_department_wide: false,
-      created_at: '2026-02-01T00:00:00Z',
-    },
   ] as UserRow[],
 
-  learning_hours: [
-    {
-      id: 1,
-      student_id: 4,
-      activity_name: 'Deep Learning Specialization - Neural Networks',
-      platform: 'Coursera',
-      date: '2026-02-10',
-      hours: 28,
-      description: 'Completed 4 modules covering backpropagation, hyperparameter tuning, and activation functions.',
-      certificate_url: 'https://coursera.org/verify/dl-spec-123',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Excellent coverage of foundational neural network architectures.',
-      created_at: '2026-02-11T10:00:00Z',
-    },
-    {
-      id: 2,
-      student_id: 4,
-      activity_name: 'Transformer Architectures & Vision Models Workshop',
-      platform: 'NVIDIA Deep Learning Institute',
-      date: '2026-02-18',
-      hours: 16,
-      description: 'Hands-on training on Vision Transformers (ViT) and fine-tuning BERT for classification.',
-      certificate_url: 'https://nvidia.dli.com/verify/vit-991',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Well documented practical implementation.',
-      created_at: '2026-02-19T14:20:00Z',
-    },
-    {
-      id: 3,
-      student_id: 4,
-      activity_name: 'LLM Fine-Tuning with LoRA & QLoRA',
-      platform: 'Hugging Face Academy',
-      date: '2026-03-01',
-      hours: 24,
-      description: 'Fine-tuned Llama-3-8B model on specialized CCE engineering datasets.',
-      certificate_url: 'https://huggingface.co/certificates/hf-8812',
-      status: 'Pending',
-      faculty_id: 2,
-      faculty_remarks: '',
-      created_at: '2026-03-02T09:15:00Z',
-    },
-    {
-      id: 4,
-      student_id: 5,
-      activity_name: 'Generative AI & Prompt Engineering Bootcamp',
-      platform: 'Google Cloud Skills Boost',
-      date: '2026-02-12',
-      hours: 32,
-      description: 'Learned Vertex AI, Gemini API integration, and structured output prompting.',
-      certificate_url: 'https://cloud.google.com/skillsboost/verify/gcp-8821',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Good progress in GenAI stack.',
-      created_at: '2026-02-13T11:00:00Z',
-    },
-    {
-      id: 5,
-      student_id: 6,
-      activity_name: 'Computer Vision with OpenCV & PyTorch',
-      platform: 'Udemy',
-      date: '2026-02-20',
-      hours: 20,
-      description: 'Built real-time object detection models using YOLOv8.',
-      certificate_url: 'https://udemy.com/certificate/UC-881293',
-      status: 'Approved',
-      faculty_id: 3,
-      faculty_remarks: 'Great effort!',
-      created_at: '2026-02-21T08:00:00Z',
-    },
-  ] as LearningHourRow[],
-
-  certificates: [
-    {
-      id: 1,
-      student_id: 4,
-      title: 'AWS Certified Machine Learning - Specialty',
-      issuer: 'Amazon Web Services',
-      completion_date: '2026-01-25',
-      certificate_url: 'https://aws.amazon.com/verification/aws-ml-spec-441',
-      skills_learned: 'AWS SageMaker, Feature Engineering, Model Deployment, MLOps',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Prestigious industry certification achieved.',
-      created_at: '2026-01-26T12:00:00Z',
-    },
-    {
-      id: 2,
-      student_id: 4,
-      title: 'TensorFlow Developer Certificate',
-      issuer: 'Google TensorFlow',
-      completion_date: '2026-02-05',
-      certificate_url: 'https://www.credential.net/tf-dev-9012',
-      skills_learned: 'Deep Learning, Computer Vision, Time Series Forecasting, NLP',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Verified Google Certification.',
-      created_at: '2026-02-06T15:30:00Z',
-    },
-    {
-      id: 3,
-      student_id: 5,
-      title: 'Microsoft Certified: Azure AI Engineer Associate',
-      issuer: 'Microsoft',
-      completion_date: '2026-02-14',
-      certificate_url: 'https://learn.microsoft.com/credentials/az-ai-301',
-      skills_learned: 'Azure Cognitive Services, Azure Machine Learning, Bot Framework',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Approved.',
-      created_at: '2026-02-15T09:00:00Z',
-    },
-    {
-      id: 4,
-      student_id: 6,
-      title: 'Deep Learning for Autonomous Vehicles',
-      issuer: 'Udacity Nanodegree',
-      completion_date: '2026-02-28',
-      certificate_url: 'https://confirm.udacity.com/e/ud-99812',
-      skills_learned: 'Sensor Fusion, Lane Finding, Kalman Filters, PyTorch',
-      status: 'Pending',
-      faculty_id: 3,
-      faculty_remarks: '',
-      created_at: '2026-03-01T16:00:00Z',
-    },
-  ] as CertificateRow[],
-
-  research_papers: [
-    {
-      id: 1,
-      student_id: 4,
-      title: 'Edge-AI Optimization for Low-Power IoT Communication Networks in CCE Labs',
-      conference_journal: 'IEEE International Conference on Communications & Signal Processing (ICCSP 2026)',
-      authors: 'Alex Mercer, Dr. Rajesh Sharma',
-      abstract: 'We propose a novel quantized neural network framework deployed on microcontroller-based edge nodes to reduce network latency by 42% while retaining 96.4% classification accuracy.',
-      pdf_url: 'https://ieee.org/papers/iccsp-2026-alex-mercer.pdf',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Accepted and presented at IEEE conference.',
-      created_at: '2026-02-01T10:00:00Z',
-    },
-    {
-      id: 2,
-      student_id: 5,
-      title: 'Hybrid Transformer-CNN Architectures for Automated Defect Detection in CCE Hardware',
-      conference_journal: 'Journal of Intelligent Systems & Automation',
-      authors: 'Priya Patel, Dr. Ananya Roy',
-      abstract: 'A combined vision transformer and convolutional backbone designed to detect micro-cracks in PCB boards during automated assembly lines.',
-      pdf_url: 'https://springer.com/articles/jisa-2026-priya-patel.pdf',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Published in Q2 Scopus Journal.',
-      created_at: '2026-02-15T14:00:00Z',
-    },
-  ] as ResearchPaperRow[],
-
-  projects: [
-    {
-      id: 1,
-      student_id: 4,
-      title: 'NeuralSight — Real-Time AI Traffic & Pedestrian Signal Synthesizer',
-      description: 'An AI-driven smart traffic monitoring platform utilizing YOLOv8 and Jetson Nano edge boards for adaptive traffic light timing.',
-      github_link: 'https://github.com/alexmercer/neuralsight-cce',
-      demo_link: 'https://neuralsight-cce.app',
-      tech_stack: 'PyTorch, OpenCV, FastAPI, React, Tailwind, MQTT',
-      ai_contribution: 'Custom trained YOLOv8 model on localized campus traffic dataset with 94.2% mAP.',
-      image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'Outstanding practical project with clear CCE application.',
-      created_at: '2026-01-20T10:00:00Z',
-    },
-    {
-      id: 2,
-      student_id: 5,
-      title: 'AuraVoice — AI Real-Time Sign Language Translator',
-      description: 'Computer vision web application converting Indian Sign Language (ISL) gestures into audible speech in real time.',
-      github_link: 'https://github.com/priyapatel/auravoice-isl',
-      demo_link: 'https://auravoice.cce.edu',
-      tech_stack: 'MediaPipe, TensorFlow.js, Web Speech API, React',
-      ai_contribution: '3D hand landmark tracking coupled with an LSTM sequence classifier.',
-      image_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600',
-      status: 'Approved',
-      faculty_id: 2,
-      faculty_remarks: 'High social impact project.',
-      created_at: '2026-02-10T12:00:00Z',
-    },
-    {
-      id: 3,
-      student_id: 6,
-      title: 'CCE-Genius — Campus AI Academic Advisor Assistant',
-      description: 'A RAG-powered student advisor chatbot trained on CCE syllabus, timetables, and research publications.',
-      github_link: 'https://github.com/rahulverma/cce-genius',
-      demo_link: 'https://cce-genius.dev',
-      tech_stack: 'LangChain, Gemini API, Pinecone, Express, React',
-      ai_contribution: 'Retrieval-Augmented Generation system with custom vector database indexing CCE departmental PDFs.',
-      image_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600',
-      status: 'Pending',
-      faculty_id: 3,
-      faculty_remarks: '',
-      created_at: '2026-03-02T11:00:00Z',
-    },
-  ] as ProjectRow[],
-
-  events: [
-    {
-      id: 1,
-      created_by: 2,
-      title: 'CCE National AI & Robotics Hackathon 2026',
-      description: 'A 36-hour continuous build hackathon focusing on Generative AI, Edge Computing, and Smart Communication Systems.',
-      venue: 'CCE Central Innovation Lab, Main Academic Block',
-      event_date: '2026-08-15',
-      event_time: '09:00 AM',
-      max_participants: 150,
-      poster_url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600',
-      category: 'Hackathon',
-      created_at: '2026-02-01T00:00:00Z',
-    },
-    {
-      id: 2,
-      created_by: 2,
-      title: 'Hands-on Workshop: Building Agentic AI with Gemini & LangGraph',
-      description: 'Learn to design multi-agent systems, tool-calling pipelines, and autonomous workflow orchestrators.',
-      venue: 'CCE Seminar Hall 2',
-      event_date: '2026-08-22',
-      event_time: '10:00 AM',
-      max_participants: 80,
-      poster_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600',
-      category: 'Workshop',
-      created_at: '2026-02-10T00:00:00Z',
-    },
-    {
-      id: 3,
-      created_by: 3,
-      title: 'Guest Lecture: AI in 6G Telecommunications & Quantum Networks',
-      description: 'Distinguished lecture by IEEE Senior Member Dr. Suresh Nair on machine learning in next-gen wireless networks.',
-      venue: 'Auditorium 1, CCE Department',
-      event_date: '2026-09-05',
-      event_time: '02:00 PM',
-      max_participants: 200,
-      poster_url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=600',
-      category: 'Seminar',
-      created_at: '2026-02-15T00:00:00Z',
-    },
-  ] as EventRow[],
-
-  event_registrations: [
-    { id: 1, event_id: 1, student_id: 4, registered_at: '2026-02-15T10:00:00Z' },
-    { id: 2, event_id: 2, student_id: 4, registered_at: '2026-02-16T11:30:00Z' },
-    { id: 3, event_id: 1, student_id: 5, registered_at: '2026-02-18T09:12:00Z' },
-    { id: 4, event_id: 2, student_id: 6, registered_at: '2026-02-20T14:45:00Z' },
-  ] as EventRegistrationRow[],
-
-  notifications: [
-    {
-      id: 1,
-      user_id: 4,
-      title: 'Submission Approved!',
-      message: 'Your Learning Hour submission "Deep Learning Specialization - Neural Networks" was approved by Dr. Rajesh Sharma.',
-      type: 'approval',
-      is_read: false,
-      link: '/student/learning-hours',
-      created_at: '2026-02-11T10:00:00Z',
-    },
-    {
-      id: 2,
-      user_id: 4,
-      title: 'Certificate Verified',
-      message: 'Your certificate "AWS Certified Machine Learning" has been verified and added to your AI Passport.',
-      type: 'approval',
-      is_read: true,
-      link: '/student/passport',
-      created_at: '2026-01-26T12:00:00Z',
-    },
-    {
-      id: 3,
-      user_id: 1,
-      title: 'New Student Registration Pending',
-      message: 'Sanya Singh (23CCE091, 1st Year) registered and requires admin approval.',
-      type: 'registration',
-      is_read: false,
-      link: '/admin/users',
-      created_at: '2026-02-01T00:00:00Z',
-    },
-    {
-      id: 4,
-      user_id: 2,
-      title: 'New Submissions Pending Review',
-      message: 'Alex Mercer submitted "LLM Fine-Tuning with LoRA" for approval.',
-      type: 'approval',
-      is_read: false,
-      link: '/faculty/approvals',
-      created_at: '2026-03-02T09:15:00Z',
-    },
-  ] as NotificationRow[],
-
-  activity_logs: [
-    {
-      id: 1,
-      user_id: 2,
-      action: 'Approved Learning Hour',
-      details: 'Approved 28 hours for Alex Mercer (Deep Learning Specialization)',
-      target_student_id: 4,
-      created_at: '2026-02-11T10:00:00Z',
-    },
-    {
-      id: 2,
-      user_id: 2,
-      action: 'Approved Certificate',
-      details: 'Approved AWS Certified Machine Learning for Alex Mercer',
-      target_student_id: 4,
-      created_at: '2026-01-26T12:00:00Z',
-    },
-    {
-      id: 3,
-      user_id: 1,
-      action: 'Updated Yearly Targets',
-      details: 'Updated CCE 2026 Target: 5,000 Hours, 300 Certificates, 50 Research Papers',
-      target_student_id: null,
-      created_at: '2026-01-05T09:00:00Z',
-    },
-  ] as ActivityLogRow[],
+  // All transactional data is stored in Neon DB — in-memory arrays start empty
+  learning_hours: [] as LearningHourRow[],
+  certificates: [] as CertificateRow[],
+  research_papers: [] as ResearchPaperRow[],
+  projects: [] as ProjectRow[],
+  events: [] as EventRow[],
+  event_registrations: [] as EventRegistrationRow[],
+  notifications: [] as NotificationRow[],
+  activity_logs: [] as ActivityLogRow[],
 
   targets: [
     {
       id: 1,
       year: '2026',
-      target_learning_hours: 5000,
+      target_learning_hours: 3000,
       target_certifications: 300,
-      target_research_papers: 50,
-      target_projects: 150,
-      target_startups: 10,
-      updated_at: '2026-01-05T09:00:00Z',
+      target_research_papers: 30,
+      target_projects: 30,
+      target_startups: 3,
+      updated_at: new Date().toISOString(),
     },
   ] as TargetRow[],
 
@@ -666,52 +259,16 @@ const initialStore = {
     },
   ] as RoadmapRow[],
 
-  gallery: [
-    {
-      id: 1,
-      title: 'IEEE CCE Best Student Research Award 2026',
-      category: 'Achievement',
-      image_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600',
-      description: 'CCE students Alex Mercer and Priya Patel honored for Edge-AI paper.',
-      is_public: true,
-      created_at: '2026-02-05T00:00:00Z',
-    },
-    {
-      id: 2,
-      title: 'AI Innovation Lab Inauguration',
-      category: 'Facility',
-      image_url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600',
-      description: 'State-of-the-art GPU server cluster installed for CCE students.',
-      is_public: true,
-      created_at: '2026-01-15T00:00:00Z',
-    },
-    {
-      id: 3,
-      title: 'Hands-on Vision Transformers Workshop',
-      category: 'Event',
-      image_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600',
-      description: 'Students working on NVIDIA Jetson Xavier development boards.',
-      is_public: true,
-      created_at: '2026-02-18T00:00:00Z',
-    },
-  ] as GalleryRow[],
+  gallery: [] as GalleryRow[],
 
   announcements: [
     {
       id: 1,
       title: 'Welcome to AI365 @ CCE Platform!',
-      content: 'All CCE students are requested to complete their profiles, link their faculty mentors, and log ongoing learning hours.',
+      content: 'All CCE students are requested to register, complete their profiles, and start logging AI learning hours.',
       author_id: 1,
       is_public: true,
-      created_at: '2026-01-01T00:00:00Z',
-    },
-    {
-      id: 2,
-      title: 'Call for Submissions: CCE National AI Hackathon',
-      content: 'Registrations are now open for the 2026 Hackathon. Form teams of 2-4 students.',
-      author_id: 2,
-      is_public: true,
-      created_at: '2026-02-01T00:00:00Z',
+      created_at: new Date().toISOString(),
     },
   ] as AnnouncementRow[],
 };
@@ -1440,45 +997,65 @@ class DbStore {
 
   // Visitor Aggregates (Strictly NO student names or sensitive info)
   async getPublicAggregateStats() {
-    const totalHours = this.store.learning_hours
-      .filter((lh: LearningHourRow) => lh.status === 'Approved')
-      .reduce((acc: number, curr: LearningHourRow) => acc + Number(curr.hours), 0);
+    let totalHours = 0;
+    let totalCerts = 0;
+    let totalPapers = 0;
+    let totalProjects = 0;
+    let featuredProjects: any[] = [];
 
-    const totalCerts = this.store.certificates.filter((c: CertificateRow) => c.status === 'Approved').length;
-    const totalPapers = this.store.research_papers.filter((p: ResearchPaperRow) => p.status === 'Approved').length;
-    const totalProjects = this.store.projects.filter((p: ProjectRow) => p.status === 'Approved').length;
-    const totalStartups = 3; // department startups metric
+    if (sql) {
+      try {
+        // Learning hours — sum of approved hours from DB
+        const hoursRows = await sql.query(
+          `SELECT COALESCE(SUM(hours), 0) AS total FROM learning_hours WHERE status = 'Approved'`
+        );
+        totalHours = Math.round(Number(hoursRows[0]?.total ?? 0));
+
+        // Certifications count
+        const certRows = await sql.query(
+          `SELECT COUNT(*) AS total FROM certificates WHERE status = 'Approved'`
+        );
+        totalCerts = Number(certRows[0]?.total ?? 0);
+
+        // Research papers count
+        const paperRows = await sql.query(
+          `SELECT COUNT(*) AS total FROM research_papers WHERE status = 'Approved'`
+        );
+        totalPapers = Number(paperRows[0]?.total ?? 0);
+
+        // Projects count
+        const projectRows = await sql.query(
+          `SELECT COUNT(*) AS total FROM projects WHERE status = 'Approved'`
+        );
+        totalProjects = Number(projectRows[0]?.total ?? 0);
+
+        // Featured projects — latest 4 approved projects with student name
+        const featuredRows = await sql.query(
+          `SELECT p.id, p.title, p.tech_stack, p.ai_contribution, u.full_name AS student_name, u.year
+           FROM projects p
+           JOIN users u ON u.id = p.student_id
+           WHERE p.status = 'Approved'
+           ORDER BY p.created_at DESC
+           LIMIT 4`
+        );
+        featuredProjects = featuredRows as any[];
+      } catch (err) {
+        console.error('[getPublicAggregateStats] DB error:', (err as Error).message);
+      }
+    }
 
     const target = await this.getTargets('2026');
 
     return {
-      totals: {
+      stats: {
         learningHours: totalHours,
-        certificates: totalCerts,
+        certifications: totalCerts,
         researchPapers: totalPapers,
         projects: totalProjects,
-        startups: totalStartups,
       },
+      featuredProjects,
       targets: target,
       roadmap: this.store.roadmap,
-      gallery: this.store.gallery.filter((g: GalleryRow) => g.is_public),
-      announcements: this.store.announcements.filter((a: AnnouncementRow) => a.is_public),
-      testimonials: [
-        {
-          id: 1,
-          name: 'Dr. Ananya Roy',
-          role: 'Head of CCE Department',
-          quote: 'AI365 @ CCE has revolutionized our student research tracking and AI certification pipeline across all four academic batches.',
-          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-        },
-        {
-          id: 2,
-          name: 'Alex Mercer',
-          role: 'CCE 3rd Year Student (Rank #1)',
-          quote: 'Logging my AI learning hours and AWS certification on AI365 helped me land my research internship at NVIDIA!',
-          avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150',
-        },
-      ],
     };
   }
 }
