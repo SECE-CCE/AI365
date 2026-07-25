@@ -1,16 +1,16 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 
-import authRoutes from './auth';
-import studentRoutes from './students';
-import facultyRoutes from './faculty';
-import adminRoutes from './admin';
-import eventRoutes from './events';
-import visitorRoutes from './visitor';
-import leaderboardRoutes from './leaderboard';
-import notificationRoutes from './notifications';
-import searchRoutes from './search';
-import uploadRoutes from './upload';
+import authRoutes from './auth/index.js';
+import studentRoutes from './students/index.js';
+import facultyRoutes from './faculty/index.js';
+import adminRoutes from './admin/index.js';
+import eventRoutes from './events/index.js';
+import visitorRoutes from './visitor/index.js';
+import leaderboardRoutes from './leaderboard/index.js';
+import notificationRoutes from './notifications/index.js';
+import searchRoutes from './search/index.js';
+import uploadRoutes from './upload/index.js';
 
 const app = express();
 
