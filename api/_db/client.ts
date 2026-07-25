@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { neon } from '@neondatabase/serverless';
 
@@ -14,14 +13,11 @@ export const pool = DATABASE_URL
 
 export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
-// Seeded Hashed Passwords — computed lazily to avoid blocking cold-start
-let _adminPass: string | null = null;
-let _facultyPass: string | null = null;
-let _studentPass: string | null = null;
-
-const HASHED_ADMIN_PASS = () => { if (!_adminPass) _adminPass = bcrypt.hashSync('admin123', 10); return _adminPass; };
-const HASHED_FACULTY_PASS = () => { if (!_facultyPass) _facultyPass = bcrypt.hashSync('faculty123', 10); return _facultyPass; };
-const HASHED_STUDENT_PASS = () => { if (!_studentPass) _studentPass = bcrypt.hashSync('student123', 10); return _studentPass; };
+// Pre-computed bcrypt hashes (cost=10) for seed demo accounts — avoids blocking cold-start
+// admin123, faculty123, student123
+const HASHED_ADMIN_PASS = '$2b$10$Vy1lUl0uDRS00rRAq7WRBuT/BzwU2zlZ/dV2UgegXwgg3Y7xzRgJC';
+const HASHED_FACULTY_PASS = '$2b$10$AV6knQtK/66NTqQXBStDVOTPQNvf.UIsdyRA4TVJo40P8PZsFoZDe';
+const HASHED_STUDENT_PASS = '$2b$10$myxE12Mu90RdnBya.YejZeipT8BhYV6WIXzXHPM6l28rVWFuW9UT6';
 
 export interface UserRow {
   id: number;
@@ -186,7 +182,7 @@ const initialStore = {
       id: 1,
       full_name: 'Dr. Ananya Roy',
       email: 'admin@cce.edu',
-      password: HASHED_ADMIN_PASS(),
+      password: HASHED_ADMIN_PASS,
       role: 'admin',
       department: 'Computer & Communication Engineering',
       phone: '+91 98765 43210',
@@ -200,7 +196,7 @@ const initialStore = {
       id: 2,
       full_name: 'Dr. Rajesh Sharma',
       email: 'dr.sharma@cce.edu',
-      password: HASHED_FACULTY_PASS(),
+      password: HASHED_FACULTY_PASS,
       role: 'faculty',
       department: 'Computer & Communication Engineering',
       phone: '+91 98765 12345',
@@ -214,7 +210,7 @@ const initialStore = {
       id: 3,
       full_name: 'Prof. Vikram Kapoor',
       email: 'prof.kapoor@cce.edu',
-      password: HASHED_FACULTY_PASS(),
+      password: HASHED_FACULTY_PASS,
       role: 'faculty',
       department: 'Computer & Communication Engineering',
       phone: '+91 98765 67890',
@@ -228,7 +224,7 @@ const initialStore = {
       id: 4,
       full_name: 'Alex Mercer',
       email: 'alex.student@cce.edu',
-      password: HASHED_STUDENT_PASS(),
+      password: HASHED_STUDENT_PASS,
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '21CCE042',
@@ -244,7 +240,7 @@ const initialStore = {
       id: 5,
       full_name: 'Priya Patel',
       email: 'priya.patel@cce.edu',
-      password: HASHED_STUDENT_PASS(),
+      password: HASHED_STUDENT_PASS,
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '21CCE088',
@@ -260,7 +256,7 @@ const initialStore = {
       id: 6,
       full_name: 'Rahul Verma',
       email: 'rahul.verma@cce.edu',
-      password: HASHED_STUDENT_PASS(),
+      password: HASHED_STUDENT_PASS,
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '22CCE015',
@@ -276,7 +272,7 @@ const initialStore = {
       id: 7,
       full_name: 'Sanya Singh',
       email: 'sanya.singh@cce.edu',
-      password: HASHED_STUDENT_PASS(),
+      password: HASHED_STUDENT_PASS,
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '23CCE091',
