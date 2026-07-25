@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { db, UserRow } from '../_db/client';
+import { db, UserRow } from '../_db/client.js';
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'ai365-cce-super-secret-jwt-key-2026';
 

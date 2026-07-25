@@ -1,8 +1,8 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { db } from '../_db/client';
-import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth';
-import { roleGuard } from '../_middleware/roleGuard';
+import { db } from '../_db/client.js';
+import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
+import { roleGuard } from '../_middleware/roleGuard.js';
 
 const router = Router();
 
