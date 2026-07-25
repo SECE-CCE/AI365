@@ -2,7 +2,6 @@ import { Router, Response } from 'express';
 import { db } from '../_db/client';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth';
 import { roleGuard } from '../_middleware/roleGuard';
-import { deleteFromDrive } from '../_services/drive';
 
 const router = Router();
 
@@ -27,18 +26,41 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
     const approvedCerts = await db.getCertificates(undefined, facultyId, 'Approved');
     const approvedPapers = await db.getResearchPapers(undefined, facultyId, 'Approved');
     const approvedProjects = await db.getProjects(undefined, facultyId, 'Approved');
+    const rejectedHours = await db.getLearningHours(undefined, facultyId, 'Rejected');
+    const rejectedCerts = await db.getCertificates(undefined, facultyId, 'Rejected');
+    const rejectedPapers = await db.getResearchPapers(undefined, facultyId, 'Rejected');
+    const rejectedProjects = await db.getProjects(undefined, facultyId, 'Rejected');
 
     const totalApprovedHoursCount = approvedHours.reduce((acc, h) => acc + Number(h.hours), 0);
+    const totalRejectedCount = rejectedHours.length + rejectedCerts.length + rejectedPapers.length + rejectedProjects.length;
+
+    // Assigned mentees count
+    const allUsers = await db.getAllUsers({ role: 'student' });
+    const facultyUser = await db.findUserById(facultyId);
+    const assignedMentees = allUsers.filter((u: any) => u.mentor_id === facultyId || facultyUser?.is_department_wide).length;
+
+    // Flat pending queue for the frontend table
+    const pendingQueue = [
+      ...pendingHours.map(h => ({ ...h, type: 'learning_hour', title: h.activity_name, document_url: h.certificate_url, date: h.date })),
+      ...pendingCerts.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url, date: c.completion_date })),
+      ...pendingPapers.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url, date: r.created_at?.split('T')[0] })),
+      ...pendingProjects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_link, date: p.created_at?.split('T')[0] })),
+    ];
 
     return res.json({
       faculty: req.user,
       stats: {
+        pendingCount: totalPendingCount,
         pendingApprovalsCount: totalPendingCount,
+        assignedMentees: allUsers.filter((u: any) => u.mentor_id === facultyId).length,
+        approvedToday: approvedCerts.length + approvedHours.length + approvedPapers.length + approvedProjects.length,
+        rejectedCount: totalRejectedCount,
         approvedHoursTotal: totalApprovedHoursCount,
         approvedCertsTotal: approvedCerts.length,
         approvedPapersTotal: approvedPapers.length,
         approvedProjectsTotal: approvedProjects.length,
       },
+      pendingQueue,
       pendingItems: {
         hours: pendingHours,
         certificates: pendingCerts,
@@ -64,7 +86,15 @@ router.get('/approvals', async (req: AuthenticatedRequest, res: Response) => {
     const research = await db.getResearchPapers(undefined, facultyId, statusFilter);
     const projects = await db.getProjects(undefined, facultyId, statusFilter);
 
+    const submissions = [
+      ...hours.map(h => ({ ...h, type: 'learning_hours', title: h.activity_name, document_url: h.certificate_url })),
+      ...certificates.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url })),
+      ...research.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url })),
+      ...projects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_repo })),
+    ];
+
     return res.json({
+      submissions,
       hours,
       certificates,
       research,
@@ -75,50 +105,57 @@ router.get('/approvals', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// POST /api/faculty/approve-reject
-router.post('/approve-reject', async (req: AuthenticatedRequest, res: Response) => {
+// Helper handler for approval processing
+const handleApproveReject = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const facultyId = req.user!.id;
-    const { item_type, item_id, action, remarks } = req.body; // action = 'Approved' | 'Rejected'
+    const rawType = req.body.submission_type || req.body.item_type || req.body.type;
+    const rawId = req.body.submission_id || req.body.item_id || req.body.id;
+    const rawStatus = req.body.status || req.body.action; // 'Approved' | 'Rejected' | 'approve' | 'reject'
+    const remarks = req.body.faculty_remarks || req.body.remarks || '';
 
-    if (!item_type || !item_id || !action) {
-      return res.status(400).json({ error: 'item_type, item_id, and action are required.' });
+    if (!rawType || !rawId || !rawStatus) {
+      return res.status(400).json({ error: 'Submission type, ID, and status are required.' });
     }
 
-    if (!['Approved', 'Rejected'].includes(action)) {
-      return res.status(400).json({ error: 'Action must be "Approved" or "Rejected".' });
+    let normType = String(rawType).toLowerCase();
+    if (normType === 'learning_hours') normType = 'learning_hour';
+
+    let action: 'Approved' | 'Rejected' = 'Approved';
+    if (String(rawStatus).toLowerCase().includes('reject')) {
+      action = 'Rejected';
     }
 
     let updatedItem: any = null;
     let studentId: number = 0;
     let title: string = '';
 
-    if (item_type === 'learning_hour') {
-      updatedItem = await db.updateLearningHourStatus(Number(item_id), action, facultyId, remarks || '');
+    if (normType === 'learning_hour') {
+      updatedItem = await db.updateLearningHourStatus(Number(rawId), action, facultyId, remarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.activity_name;
       }
-    } else if (item_type === 'certificate') {
-      updatedItem = await db.updateCertificateStatus(Number(item_id), action, facultyId, remarks || '');
+    } else if (normType === 'certificate') {
+      updatedItem = await db.updateCertificateStatus(Number(rawId), action, facultyId, remarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
       }
-    } else if (item_type === 'research') {
-      updatedItem = await db.updateResearchPaperStatus(Number(item_id), action, facultyId, remarks || '');
+    } else if (normType === 'research') {
+      updatedItem = await db.updateResearchPaperStatus(Number(rawId), action, facultyId, remarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
       }
-    } else if (item_type === 'project') {
-      updatedItem = await db.updateProjectStatus(Number(item_id), action, facultyId, remarks || '');
+    } else if (normType === 'project') {
+      updatedItem = await db.updateProjectStatus(Number(rawId), action, facultyId, remarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
       }
     } else {
-      return res.status(400).json({ error: 'Invalid item_type provided.' });
+      return res.status(400).json({ error: 'Invalid submission type provided.' });
     }
 
     if (!updatedItem) {
@@ -129,27 +166,18 @@ router.post('/approve-reject', async (req: AuthenticatedRequest, res: Response) 
     await db.createNotification({
       user_id: studentId,
       title: `Submission ${action}`,
-      message: `Your ${item_type.replace('_', ' ')} "${title}" was ${action.toLowerCase()} by ${req.user!.full_name}. Remarks: ${remarks || 'None'}`,
+      message: `Your ${normType.replace('_', ' ')} "${title}" was ${action.toLowerCase()} by ${req.user!.full_name}. Remarks: ${remarks || 'None'}`,
       type: 'approval',
-      link: `/student/${item_type === 'learning_hour' ? 'learning-hours' : item_type === 'certificate' ? 'certificates' : item_type === 'research' ? 'research' : 'projects'}`,
+      link: `/student/${normType === 'learning_hour' ? 'learning-hours' : normType === 'certificate' ? 'certificates' : normType === 'research' ? 'research' : 'projects'}`,
     });
 
     // 2. Log Activity
     await db.logActivity(
       facultyId,
-      `${action} ${item_type.replace('_', ' ')}`,
+      `${action} ${normType.replace('_', ' ')}`,
       `${req.user!.full_name} ${action.toLowerCase()} "${title}" for student ID #${studentId}. Remarks: ${remarks || 'N/A'}`,
       studentId
     );
-
-    // 3. Post-approval file payload cleanup to conserve storage
-    if (action === 'Approved') {
-      if (item_type === 'certificate' && updatedItem.certificate_url) {
-        await deleteFromDrive(updatedItem.certificate_url);
-      } else if (item_type === 'research' && updatedItem.pdf_url) {
-        await deleteFromDrive(updatedItem.pdf_url);
-      }
-    }
 
     return res.json({
       message: `Submission successfully ${action.toLowerCase()}.`,
@@ -159,7 +187,11 @@ router.post('/approve-reject', async (req: AuthenticatedRequest, res: Response) 
     console.error('Approve/Reject Error:', err);
     return res.status(500).json({ error: 'Failed to process approval action.' });
   }
-});
+};
+
+// Handle POST for both /approvals and /approve-reject
+router.post('/approvals', handleApproveReject);
+router.post('/approve-reject', handleApproveReject);
 
 // GET /api/faculty/reports (Faculty scoped reports)
 router.get('/reports', async (req: AuthenticatedRequest, res: Response) => {

@@ -219,9 +219,9 @@ export const StudentDashboard: React.FC = () => {
         }
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {badges.map((b) => (
+          {badges.map((b, idx) => (
             <div
-              key={b.id}
+              key={b.id || idx}
               className={`p-4 rounded-2xl border text-center transition-all flex flex-col items-center justify-between ${
                 b.unlocked
                   ? 'bg-gradient-to-b from-amber-50/80 to-amber-100/40 border-amber-300 shadow-xs'

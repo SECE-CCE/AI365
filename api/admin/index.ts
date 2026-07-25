@@ -16,6 +16,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
     const students = allUsers.filter(u => u.role === 'student');
     const faculty = allUsers.filter(u => u.role === 'faculty');
     const pendingStudents = students.filter(u => u.status === 'pending_approval');
+    const pendingFaculty = faculty.filter(u => u.status === 'pending_approval');
 
     const target = await db.getTargets('2026');
 
@@ -35,9 +36,12 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
     return res.json({
       admin: req.user,
       stats: {
-        totalStudents: students.length,
-        totalFaculty: faculty.length,
-        pendingRegistrationsCount: pendingStudents.length,
+        totalStudents: students.filter(u => u.status === 'approved').length,
+        totalFaculty: faculty.filter(u => u.status === 'approved').length,
+        pendingRegistrations: pendingStudents.length,
+        pendingFacultyRegistrations: pendingFaculty.length,
+        totalDepartmentHours: totalHoursCount,
+        avgAiScore: students.length > 0 ? Math.round(totalHoursCount * 2 / students.length) : 0,
         totalApprovedHoursCount: totalHoursCount,
         totalApprovedCertsCount: totalCertsCount,
         totalApprovedPapersCount: totalPapersCount,
@@ -52,6 +56,8 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
         projectsProgress: Math.min(100, Math.round((totalProjectsCount / target.target_projects) * 100)),
         startupsProgress: Math.min(100, Math.round((totalStartupsCount / target.target_startups) * 100)),
       },
+      pendingUsers: pendingStudents.map(({ password, ...u }) => u),
+      pendingFaculty: pendingFaculty.map(({ password, ...u }) => u),
       latestActivities: activityLogs.slice(0, 15),
     });
   } catch (err: any) {
@@ -72,7 +78,9 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
     });
 
     const sanitizedUsers = users.map(({ password, ...u }) => u);
-    return res.json({ users: sanitizedUsers });
+    const allUsers = await db.getAllUsers();
+    const faculty = allUsers.filter(u => u.role === 'faculty').map(({ password, ...u }) => u);
+    return res.json({ users: sanitizedUsers, faculty });
   } catch (err) {
     return res.status(500).json({ error: 'Error loading users.' });
   }
@@ -159,6 +167,42 @@ router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
     return res.json({ message: 'User updated successfully.', user: userWithoutPass });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update user.' });
+  }
+});
+
+// POST /api/admin/users/approve
+router.post('/users/approve', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { user_id, action } = req.body;
+    const targetUserId = Number(user_id);
+    if (!targetUserId || !action) {
+      return res.status(400).json({ error: 'User ID and action are required.' });
+    }
+
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    const updatedUser = await db.updateUser(targetUserId, { status: newStatus });
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (newStatus === 'approved') {
+      const roleLabel = updatedUser.role === 'faculty' ? 'faculty mentor' : 'student';
+      const link = updatedUser.role === 'faculty' ? '/faculty' : '/student';
+      await db.createNotification({
+        user_id: targetUserId,
+        title: 'Account Approved!',
+        message: `Your CCE ${roleLabel} account has been approved by Admin. You can now log in.`,
+        type: 'approval',
+        link,
+      });
+    }
+
+    await db.logActivity(req.user!.id, `${newStatus === 'approved' ? 'Approved' : 'Rejected'} User Account`, `Set status for ${updatedUser.full_name} (${updatedUser.role}) to ${newStatus}`, targetUserId);
+
+    const { password: _, ...userWithoutPass } = updatedUser;
+    return res.json({ message: `User status set to ${newStatus}.`, user: userWithoutPass });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update user approval status.' });
   }
 });
 

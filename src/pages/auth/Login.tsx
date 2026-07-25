@@ -197,9 +197,9 @@ export const Login: React.FC = () => {
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
-            <span>New Student?</span>
+            <span>New to CCE Portal?</span>
             <Link to="/register" className="text-[#004990] hover:underline font-bold">
-              Register Student Account →
+              Register Account →
             </Link>
           </div>
         </div>

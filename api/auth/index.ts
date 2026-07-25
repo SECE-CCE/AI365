@@ -105,6 +105,10 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Find first available faculty to assign as default mentor
+    const allFaculty = await db.getAllUsers({ role: 'faculty', status: 'approved' });
+    const defaultMentorId = allFaculty.length > 0 ? allFaculty[0].id : null;
+
     const newUser = await db.createUser({
       full_name,
       email,
@@ -116,7 +120,7 @@ router.post('/register', async (req, res) => {
       phone: phone || '',
       profile_photo: profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       status: 'pending_approval',
-      mentor_id: 2, // Default assigned to Dr. Rajesh Sharma
+      mentor_id: defaultMentorId,
       is_department_wide: false,
     });
 
@@ -141,6 +145,58 @@ router.post('/register', async (req, res) => {
   } catch (err: any) {
     console.error('Register Error:', err);
     return res.status(500).json({ error: 'Server error during registration.' });
+  }
+});
+
+// POST /api/auth/register-faculty
+router.post('/register-faculty', async (req, res) => {
+  try {
+    const { full_name, email, phone, password, department, designation } = req.body;
+
+    if (!full_name || !email || !password || !designation) {
+      return res.status(400).json({ error: 'Full Name, Email, Password, and Designation are required.' });
+    }
+
+    const existing = await db.findUserByEmail(email);
+    if (existing) {
+      return res.status(400).json({ error: 'An account with this email address already exists.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await db.createUser({
+      full_name,
+      email,
+      password: hashedPassword,
+      role: 'faculty',
+      department: department || 'Computer & Communication Engineering',
+      register_number: '',
+      year: designation,
+      phone: phone || '',
+      profile_photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      status: 'pending_approval',
+      mentor_id: null,
+      is_department_wide: false,
+    });
+
+    await db.createNotification({
+      user_id: 1,
+      title: 'New Faculty Registration Pending',
+      message: `Faculty ${full_name} (${designation}) registered and requires admin approval.`,
+      type: 'registration',
+      link: '/admin/users',
+    });
+
+    await db.logActivity(newUser.id, 'Registered Faculty Account', `Faculty ${full_name} registered and pending approval`, newUser.id);
+
+    const { password: _, ...userWithoutPass } = newUser;
+    return res.status(201).json({
+      message: 'Faculty registration submitted! Your account is pending CCE Admin approval before you can log in.',
+      user: userWithoutPass,
+    });
+  } catch (err: any) {
+    console.error('Faculty Register Error:', err);
+    return res.status(500).json({ error: 'Server error during faculty registration.' });
   }
 });
 

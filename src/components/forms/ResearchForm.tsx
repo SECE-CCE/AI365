@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Loader2, CheckCircle } from 'lucide-react';
+import { Link, Loader2, CheckCircle, ExternalLink, Info } from 'lucide-react';
 import { apiFetch } from '../../services/api';
 
 interface ResearchFormProps {
@@ -11,57 +11,43 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
   const [conferenceJournal, setConferenceJournal] = useState('');
   const [authors, setAuthors] = useState('');
   const [abstract, setAbstract] = useState('');
+  const [driveLink, setDriveLink] = useState('');
   const [pdfUrl, setPdfUrl] = useState('');
 
-  const [uploading, setUploading] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-    if (file.size > MAX_SIZE_BYTES) {
-      setError(`File size exceeds 5 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please select a smaller file.`);
-      return;
-    }
-
+  const handleValidateLink = async () => {
+    if (!driveLink.trim()) return setError('Please paste your Google Drive link first.');
     setError('');
-    setUploading(true);
+    setValidating(true);
     try {
       const res = await apiFetch<{ url: string }>('/api/upload', {
         method: 'POST',
-        body: JSON.stringify({ filename: file.name, fileSize: file.size, type: 'pdf' }),
+        body: JSON.stringify({ driveLink }),
       });
       setPdfUrl(res.url);
     } catch (err: any) {
-      setError(err.message || 'Failed to upload research PDF.');
+      setError(err.message || 'Invalid Drive link. Make sure sharing is set to "Anyone with link".');
     } finally {
-      setUploading(false);
+      setValidating(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
     if (!title.trim()) return setError('Paper Title is required.');
     if (!conferenceJournal.trim()) return setError('Conference or Journal name is required.');
     if (!authors.trim()) return setError('Authors list is required.');
-    if (!pdfUrl) return setError('Please upload paper PDF manuscript.');
+    if (!pdfUrl) return setError('Please validate your Google Drive PDF link first.');
 
     setSubmitting(true);
     try {
       await apiFetch('/api/students/research', {
         method: 'POST',
-        body: JSON.stringify({
-          title,
-          conference_journal: conferenceJournal,
-          authors,
-          abstract,
-          pdf_url: pdfUrl,
-        }),
+        body: JSON.stringify({ title, conference_journal: conferenceJournal, authors, abstract, pdf_url: pdfUrl }),
       });
       onSuccess();
     } catch (err: any) {
@@ -73,85 +59,73 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-      {error && (
-        <div className="p-3 bg-rose-50 text-rose-700 rounded-xl border border-rose-200 font-medium">
-          {error}
-        </div>
-      )}
+      {error && <div className="p-3 bg-rose-50 text-rose-700 rounded-xl border border-rose-200 font-medium">{error}</div>}
 
       <div>
         <label className="block font-bold text-slate-700 mb-1">Paper Title *</label>
-        <input
-          type="text"
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+        <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Edge-AI Optimization for Low-Power IoT Communication Networks"
-          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
-        />
+          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block font-bold text-slate-700 mb-1">Conference / Journal Name *</label>
-          <input
-            type="text"
-            required
-            value={conferenceJournal}
-            onChange={(e) => setConferenceJournal(e.target.value)}
+          <input type="text" required value={conferenceJournal} onChange={(e) => setConferenceJournal(e.target.value)}
             placeholder="e.g. IEEE ICCSP 2026, Springer JISA"
-            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
-          />
+            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
         </div>
-
         <div>
           <label className="block font-bold text-slate-700 mb-1">Co-Authors *</label>
-          <input
-            type="text"
-            required
-            value={authors}
-            onChange={(e) => setAuthors(e.target.value)}
+          <input type="text" required value={authors} onChange={(e) => setAuthors(e.target.value)}
             placeholder="e.g., Alex Mercer, Dr. Rajesh Sharma"
-            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
-          />
+            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
         </div>
       </div>
 
       <div>
         <label className="block font-bold text-slate-700 mb-1">Abstract Summary</label>
-        <textarea
-          rows={3}
-          value={abstract}
-          onChange={(e) => setAbstract(e.target.value)}
+        <textarea rows={3} value={abstract} onChange={(e) => setAbstract(e.target.value)}
           placeholder="Brief summary of methodology, experimental setup, and key results..."
-          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
-        />
+          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+      </div>
+
+      {/* Google Drive Link Section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
+        <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+        <p className="text-blue-700 leading-relaxed">
+          Upload your paper PDF to <strong>Google Drive</strong>, right-click → <strong>Share</strong> → set to <strong>"Anyone with the link can view"</strong>, then paste the link below.
+        </p>
       </div>
 
       <div>
-        <label className="block font-bold text-slate-700 mb-1">Upload Full Paper PDF *</label>
-        <div className="flex items-center space-x-3">
-          <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold border border-slate-200 transition-colors">
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin text-[#004990]" /> : <Upload className="w-4 h-4" />}
-            <span>{uploading ? 'Uploading PDF...' : 'Choose PDF'}</span>
-            <input type="file" onChange={handleFileUpload} accept=".pdf" className="hidden" />
-          </label>
-          {pdfUrl && (
-            <span className="text-emerald-600 font-medium flex items-center gap-1 text-[11px]">
-              <CheckCircle className="w-3.5 h-3.5" /> Manuscript Attached
-            </span>
-          )}
+        <label className="block font-bold text-slate-700 mb-1">Google Drive PDF Link *</label>
+        <div className="flex gap-2">
+          <input type="url" value={driveLink} onChange={(e) => { setDriveLink(e.target.value); setPdfUrl(''); }}
+            placeholder="https://drive.google.com/file/d/..."
+            className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+          <button type="button" onClick={handleValidateLink} disabled={validating}
+            className="px-4 py-2.5 bg-slate-700 hover:bg-slate-900 text-white rounded-xl font-semibold flex items-center gap-1.5 disabled:opacity-50 shrink-0">
+            {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link className="w-3.5 h-3.5" />}
+            Validate
+          </button>
         </div>
+        {pdfUrl && (
+          <div className="mt-2 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
+            <span className="text-emerald-700 font-semibold">Link validated!</span>
+            <a href={pdfUrl} target="_blank" rel="noreferrer" className="text-[#004990] hover:underline flex items-center gap-1">
+              Preview <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
       </div>
 
-      <div className="pt-2 flex justify-end gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="px-5 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-semibold transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
-        >
+      <div className="pt-2 flex justify-end">
+        <button type="submit" disabled={submitting}
+          className="px-5 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-semibold transition-all shadow-md flex items-center gap-2 disabled:opacity-50">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          <span>Submit Research Paper</span>
+          Submit Research Paper
         </button>
       </div>
     </form>

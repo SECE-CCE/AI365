@@ -35,15 +35,18 @@ export function Table<T>({ columns, data, emptyMessage = 'No records found.', ke
               </td>
             </tr>
           ) : (
-            data.map((row, rowIdx) => (
-              <tr key={keyExtractor(row, rowIdx)} className="hover:bg-slate-50/80 transition-colors">
-                {columns.map((col, colIdx) => (
-                  <td key={colIdx} className={`py-3.5 px-4 ${col.className || ''}`}>
-                    {col.cell ? col.cell(row) : (row[col.accessorKey!] as any)}
-                  </td>
-                ))}
-              </tr>
-            ))
+            data.map((row, rowIdx) => {
+              const rawKey = keyExtractor ? keyExtractor(row, rowIdx) : rowIdx;
+              return (
+                <tr key={`${rawKey}-${rowIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                  {columns.map((col, colIdx) => (
+                    <td key={colIdx} className={`py-3.5 px-4 ${col.className || ''}`}>
+                      {col.cell ? col.cell(row) : (row[col.accessorKey!] as any)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>

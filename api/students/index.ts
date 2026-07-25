@@ -82,7 +82,9 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
 router.get('/learning-hours', async (req: AuthenticatedRequest, res: Response) => {
   const studentId = req.user!.id;
   const items = await db.getLearningHours(studentId);
-  return res.json({ items });
+  const totalApproved = items.filter((r: any) => r.status === 'Approved').reduce((acc: number, r: any) => acc + Number(r.hours), 0);
+  const target = await db.getTargets('2026');
+  return res.json({ entries: items, totalApproved, target: target.target_learning_hours });
 });
 
 router.post('/learning-hours', async (req: AuthenticatedRequest, res: Response) => {
@@ -128,7 +130,9 @@ router.post('/learning-hours', async (req: AuthenticatedRequest, res: Response) 
 router.get('/certificates', async (req: AuthenticatedRequest, res: Response) => {
   const studentId = req.user!.id;
   const items = await db.getCertificates(studentId);
-  return res.json({ items });
+  const totalApproved = items.filter((r: any) => r.status === 'Approved').length;
+  const target = await db.getTargets('2026');
+  return res.json({ entries: items, totalApproved, target: target.target_certifications });
 });
 
 router.post('/certificates', async (req: AuthenticatedRequest, res: Response) => {
@@ -172,7 +176,9 @@ router.post('/certificates', async (req: AuthenticatedRequest, res: Response) =>
 router.get('/research', async (req: AuthenticatedRequest, res: Response) => {
   const studentId = req.user!.id;
   const items = await db.getResearchPapers(studentId);
-  return res.json({ items });
+  const totalApproved = items.filter((r: any) => r.status === 'Approved').length;
+  const target = await db.getTargets('2026');
+  return res.json({ entries: items, totalApproved, target: target.target_research_papers });
 });
 
 router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
@@ -216,7 +222,9 @@ router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
 router.get('/projects', async (req: AuthenticatedRequest, res: Response) => {
   const studentId = req.user!.id;
   const items = await db.getProjects(studentId);
-  return res.json({ items });
+  const totalApproved = items.filter((r: any) => r.status === 'Approved').length;
+  const target = await db.getTargets('2026');
+  return res.json({ entries: items, totalApproved, target: target.target_projects });
 });
 
 router.post('/projects', async (req: AuthenticatedRequest, res: Response) => {

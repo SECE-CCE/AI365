@@ -51,10 +51,12 @@ export const AdminDashboard: React.FC = () => {
     totalStudents: 0,
     totalFaculty: 0,
     pendingRegistrations: 0,
+    pendingFacultyRegistrations: 0,
     totalDepartmentHours: 0,
     avgAiScore: 0,
   };
   const pendingUsers = dashboardData?.pendingUsers || [];
+  const pendingFaculty = dashboardData?.pendingFaculty || [];
 
   const columns: Column<any>[] = [
     {
@@ -140,11 +142,14 @@ export const AdminDashboard: React.FC = () => {
         <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs">
           <p className="text-xs font-bold text-slate-500">Pending Registrations</p>
           <p className="text-2xl font-black text-amber-600 mt-1">{stats.pendingRegistrations}</p>
+          {stats.pendingFacultyRegistrations > 0 && (
+            <p className="text-[11px] text-indigo-600 font-semibold mt-0.5">{stats.pendingFacultyRegistrations} faculty pending</p>
+          )}
         </div>
 
         <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs">
           <p className="text-xs font-bold text-slate-500">Total Dept Hours</p>
-          <p className="text-2xl font-black text-[#004990] mt-1">{stats.totalDepartmentHours} hrs</p>
+          <p className="text-2xl font-black text-[#004990] mt-1">{stats.totalApprovedHoursCount || stats.totalDepartmentHours} hrs</p>
         </div>
 
         <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs col-span-2 lg:col-span-1">
@@ -155,11 +160,52 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Pending Student Account Registrations Queue */}
       <Card
-        title="Pending Student Registrations"
+        title={`Pending Student Registrations (${pendingUsers.length})`}
         subtitle="Approve or reject new student account requests for CCE"
       >
         <Table columns={columns} data={pendingUsers} keyExtractor={(r) => r.id} />
       </Card>
+
+      {/* Pending Faculty Registrations Queue */}
+      {pendingFaculty.length > 0 && (
+        <Card
+          title={`Pending Faculty Registrations (${pendingFaculty.length})`}
+          subtitle="Approve or reject faculty mentor account requests"
+        >
+          <Table
+            columns={[
+              {
+                header: 'Faculty Name',
+                cell: (row: any) => (
+                  <div>
+                    <p className="font-bold text-slate-900">{row.full_name}</p>
+                    <p className="text-[11px] text-slate-500">{row.email}</p>
+                  </div>
+                ),
+              },
+              { header: 'Designation', cell: (row: any) => <span className="font-medium text-slate-700">{row.year}</span> },
+              { header: 'Applied On', cell: (row: any) => new Date(row.created_at).toLocaleDateString() },
+              {
+                header: 'Action',
+                cell: (row: any) => (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleApproveRegistration(row.id, 'approve')}
+                      className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-200 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Approve
+                    </button>
+                    <button onClick={() => handleApproveRegistration(row.id, 'reject')}
+                      className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 flex items-center gap-1">
+                      <X className="w-3.5 h-3.5" /> Reject
+                    </button>
+                  </div>
+                ),
+              },
+            ]}
+            data={pendingFaculty}
+            keyExtractor={(r: any) => r.id}
+          />
+        </Card>
+      )}
     </div>
   );
 };

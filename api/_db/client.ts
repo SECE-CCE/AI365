@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { neon } from '@neondatabase/serverless';
 
-export const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_2tLrYAIG9SiQ@ep-rapid-dew-auq7msaw-pooler.c-10.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+export const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) throw new Error('DATABASE_URL environment variable is not set.');
 
 export const pool = new pg.Pool({
   connectionString: DATABASE_URL,
@@ -724,23 +725,33 @@ class DbStore {
     return Math.max(...list.map(item => item.id || 0)) + 1;
   }
 
+  private async queryDb(text: string, params: any[] = []): Promise<any[]> {
+    // Use neon HTTP driver (works without TCP/port 5432 access, unlike pg.Pool)
+    try {
+      const rows = await sql.query(text, params);
+      return rows as any[];
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // Users
   async findUserByEmail(email: string): Promise<UserRow | undefined> {
     try {
-      const rows = await sql.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+      const rows = await this.queryDb('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
       if (rows && rows.length > 0) return rows[0] as UserRow;
     } catch (err) {
-      console.warn('Neon DB findUserByEmail fallback:', (err as Error).message);
+      // Graceful fallback to local store if DB is starting up
     }
     return this.store.users.find((u: UserRow) => u.email.toLowerCase() === email.toLowerCase());
   }
 
   async findUserById(id: number): Promise<UserRow | undefined> {
     try {
-      const rows = await sql.query('SELECT * FROM users WHERE id = $1', [id]);
+      const rows = await this.queryDb('SELECT * FROM users WHERE id = $1', [id]);
       if (rows && rows.length > 0) return rows[0] as UserRow;
     } catch (err) {
-      console.warn('Neon DB findUserById fallback:', (err as Error).message);
+      // Graceful fallback to local store if DB is starting up
     }
     return this.store.users.find((u: UserRow) => u.id === id);
   }
@@ -784,6 +795,32 @@ class DbStore {
   }
 
   async updateUser(id: number, data: Partial<UserRow>): Promise<UserRow | undefined> {
+    // Build dynamic SET clause for SQL UPDATE
+    const fields = Object.keys(data) as (keyof UserRow)[];
+    if (fields.length === 0) return this.store.users.find((u: UserRow) => u.id === id);
+
+    try {
+      const setClauses = fields.map((key, i) => `${key} = $${i + 1}`).join(', ');
+      const values = fields.map((key) => (data as any)[key]);
+      values.push(id); // last param is the WHERE id
+
+      const rows = await this.queryDb(
+        `UPDATE users SET ${setClauses} WHERE id = $${fields.length + 1} RETURNING *`,
+        values
+      );
+      if (rows && rows.length > 0) {
+        const updatedUser = rows[0] as UserRow;
+        // Sync local store
+        const idx = this.store.users.findIndex((u: UserRow) => u.id === id);
+        if (idx !== -1) this.store.users[idx] = updatedUser;
+        else this.store.users.push(updatedUser);
+        return updatedUser;
+      }
+    } catch (err) {
+      console.error('Neon DB updateUser error:', (err as Error).message);
+    }
+
+    // Fallback: update in-memory store only
     const idx = this.store.users.findIndex((u: UserRow) => u.id === id);
     if (idx === -1) return undefined;
     this.store.users[idx] = { ...this.store.users[idx], ...data };
@@ -791,12 +828,40 @@ class DbStore {
   }
 
   async deleteUser(id: number): Promise<boolean> {
+    try {
+      const rows = await this.queryDb('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+      if (rows && rows.length > 0) {
+        this.store.users = this.store.users.filter((u: UserRow) => u.id !== id);
+        return true;
+      }
+    } catch (err) {
+      console.error('Neon DB deleteUser error:', (err as Error).message);
+    }
     const initialLen = this.store.users.length;
     this.store.users = this.store.users.filter((u: UserRow) => u.id !== id);
     return this.store.users.length < initialLen;
   }
 
   async getAllUsers(filters?: { role?: string; department?: string; year?: string; status?: string }): Promise<UserRow[]> {
+    try {
+      let query = `SELECT u.*, m.full_name AS mentor_name FROM users u LEFT JOIN users m ON u.mentor_id = m.id WHERE 1=1`;
+      const params: any[] = [];
+      let idx = 1;
+      if (filters?.role) { query += ` AND u.role = $${idx++}`; params.push(filters.role); }
+      if (filters?.department) { query += ` AND u.department = $${idx++}`; params.push(filters.department); }
+      if (filters?.year) { query += ` AND u.year = $${idx++}`; params.push(filters.year); }
+      if (filters?.status) { query += ` AND u.status = $${idx++}`; params.push(filters.status); }
+      query += ` ORDER BY u.id`;
+      const rows = await this.queryDb(query, params);
+      if (rows && rows.length > 0) {
+        // Sync local store with live DB data
+        this.store.users = rows;
+        return rows as UserRow[];
+      }
+    } catch (err) {
+      console.error('Neon DB getAllUsers error:', (err as Error).message);
+    }
+    // Fallback: return filtered in-memory store
     return this.store.users.filter((u: UserRow) => {
       if (filters?.role && u.role !== filters.role) return false;
       if (filters?.department && u.department !== filters.department) return false;
@@ -808,199 +873,270 @@ class DbStore {
 
   // Learning Hours
   async getLearningHours(studentId?: number, facultyIdScope?: number, statusFilter?: string): Promise<any[]> {
-    let rows = this.store.learning_hours;
-    if (studentId) {
-      rows = rows.filter((r: LearningHourRow) => r.student_id === studentId);
+    try {
+      let query = `SELECT lh.*, u.full_name AS student_name, u.register_number, u.year FROM learning_hours lh LEFT JOIN users u ON lh.student_id = u.id WHERE 1=1`;
+      const params: any[] = [];
+      let idx = 1;
+      if (studentId) { query += ` AND lh.student_id = $${idx++}`; params.push(studentId); }
+      if (facultyIdScope) {
+        const faculty = await this.findUserById(facultyIdScope);
+        if (faculty && !faculty.is_department_wide) {
+          query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
+        }
+      }
+      if (statusFilter) { query += ` AND lh.status = $${idx++}`; params.push(statusFilter); }
+      query += ` ORDER BY lh.created_at DESC`;
+      const rows = await this.queryDb(query, params);
+      if (rows && rows.length >= 0) {
+        if (!studentId && !facultyIdScope) this.store.learning_hours = rows;
+        return rows;
+      }
+    } catch (err) {
+      console.error('Neon DB getLearningHours error:', (err as Error).message);
     }
+    let rows = this.store.learning_hours;
+    if (studentId) rows = rows.filter((r: LearningHourRow) => r.student_id === studentId);
     if (facultyIdScope) {
       const faculty = await this.findUserById(facultyIdScope);
       if (faculty && !faculty.is_department_wide) {
-        // Only student mentees assigned to this faculty
-        const menteeIds = this.store.users
-          .filter((u: UserRow) => u.mentor_id === facultyIdScope)
-          .map((u: UserRow) => u.id);
+        const menteeIds = this.store.users.filter((u: UserRow) => u.mentor_id === facultyIdScope).map((u: UserRow) => u.id);
         rows = rows.filter((r: LearningHourRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) {
-      rows = rows.filter((r: LearningHourRow) => r.status === statusFilter);
-    }
-
+    if (statusFilter) rows = rows.filter((r: LearningHourRow) => r.status === statusFilter);
     return rows.map((r: LearningHourRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
-      return {
-        ...r,
-        student_name: student?.full_name || 'Unknown Student',
-        register_number: student?.register_number || 'N/A',
-        year: student?.year || 'N/A',
-      };
+      return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
     });
   }
 
   async createLearningHour(data: Omit<LearningHourRow, 'id' | 'created_at'>): Promise<LearningHourRow> {
-    const newItem: LearningHourRow = {
-      ...data,
-      id: this.nextId('learning_hours'),
-      created_at: new Date().toISOString(),
-    };
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO learning_hours (student_id, activity_name, platform, date, hours, description, certificate_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [data.student_id, data.activity_name, data.platform, data.date, data.hours, data.description, data.certificate_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
+      );
+      if (rows && rows.length > 0) { const item = rows[0] as LearningHourRow; this.store.learning_hours.unshift(item); return item; }
+    } catch (err) { console.error('Neon DB createLearningHour error:', (err as Error).message); }
+    const newItem: LearningHourRow = { ...data, id: this.nextId('learning_hours'), created_at: new Date().toISOString() };
     this.store.learning_hours.unshift(newItem);
     return newItem;
   }
 
   async updateLearningHourStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<LearningHourRow | undefined> {
+    try {
+      const rows = await this.queryDb(
+        `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+        [status, facultyId, remarks, id]
+      );
+      if (rows && rows.length > 0) {
+        const updated = rows[0] as LearningHourRow;
+        const idx = this.store.learning_hours.findIndex((lh: LearningHourRow) => lh.id === id);
+        if (idx !== -1) this.store.learning_hours[idx] = updated;
+        return updated;
+      }
+    } catch (err) { console.error('Neon DB updateLearningHourStatus error:', (err as Error).message); }
     const item = this.store.learning_hours.find((lh: LearningHourRow) => lh.id === id);
     if (!item) return undefined;
-    item.status = status;
-    item.faculty_id = facultyId;
-    item.faculty_remarks = remarks;
-    item.updated_at = new Date().toISOString();
+    item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     return item;
   }
 
   // Certificates
   async getCertificates(studentId?: number, facultyIdScope?: number, statusFilter?: string): Promise<any[]> {
+    try {
+      let query = `SELECT c.*, u.full_name AS student_name, u.register_number, u.year FROM certificates c LEFT JOIN users u ON c.student_id = u.id WHERE 1=1`;
+      const params: any[] = [];
+      let idx = 1;
+      if (studentId) { query += ` AND c.student_id = $${idx++}`; params.push(studentId); }
+      if (facultyIdScope) {
+        const faculty = await this.findUserById(facultyIdScope);
+        if (faculty && !faculty.is_department_wide) {
+          query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
+        }
+      }
+      if (statusFilter) { query += ` AND c.status = $${idx++}`; params.push(statusFilter); }
+      query += ` ORDER BY c.created_at DESC`;
+      const rows = await this.queryDb(query, params);
+      if (rows && rows.length >= 0) return rows;
+    } catch (err) { console.error('Neon DB getCertificates error:', (err as Error).message); }
     let rows = this.store.certificates;
-    if (studentId) {
-      rows = rows.filter((r: CertificateRow) => r.student_id === studentId);
-    }
+    if (studentId) rows = rows.filter((r: CertificateRow) => r.student_id === studentId);
     if (facultyIdScope) {
       const faculty = await this.findUserById(facultyIdScope);
       if (faculty && !faculty.is_department_wide) {
-        const menteeIds = this.store.users
-          .filter((u: UserRow) => u.mentor_id === facultyIdScope)
-          .map((u: UserRow) => u.id);
+        const menteeIds = this.store.users.filter((u: UserRow) => u.mentor_id === facultyIdScope).map((u: UserRow) => u.id);
         rows = rows.filter((r: CertificateRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) {
-      rows = rows.filter((r: CertificateRow) => r.status === statusFilter);
-    }
-
+    if (statusFilter) rows = rows.filter((r: CertificateRow) => r.status === statusFilter);
     return rows.map((r: CertificateRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
-      return {
-        ...r,
-        student_name: student?.full_name || 'Unknown Student',
-        register_number: student?.register_number || 'N/A',
-        year: student?.year || 'N/A',
-      };
+      return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
     });
   }
 
   async createCertificate(data: Omit<CertificateRow, 'id' | 'created_at'>): Promise<CertificateRow> {
-    const newItem: CertificateRow = {
-      ...data,
-      id: this.nextId('certificates'),
-      created_at: new Date().toISOString(),
-    };
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO certificates (student_id, title, issuer, completion_date, certificate_url, skills_learned, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [data.student_id, data.title, data.issuer, data.completion_date, data.certificate_url, data.skills_learned, data.status, data.faculty_id || null, data.faculty_remarks || '']
+      );
+      if (rows && rows.length > 0) { const item = rows[0] as CertificateRow; this.store.certificates.unshift(item); return item; }
+    } catch (err) { console.error('Neon DB createCertificate error:', (err as Error).message); }
+    const newItem: CertificateRow = { ...data, id: this.nextId('certificates'), created_at: new Date().toISOString() };
     this.store.certificates.unshift(newItem);
     return newItem;
   }
 
   async updateCertificateStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<CertificateRow | undefined> {
+    try {
+      const rows = await this.queryDb(
+        `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+        [status, facultyId, remarks, id]
+      );
+      if (rows && rows.length > 0) {
+        const updated = rows[0] as CertificateRow;
+        const idx = this.store.certificates.findIndex((c: CertificateRow) => c.id === id);
+        if (idx !== -1) this.store.certificates[idx] = updated;
+        return updated;
+      }
+    } catch (err) { console.error('Neon DB updateCertificateStatus error:', (err as Error).message); }
     const item = this.store.certificates.find((c: CertificateRow) => c.id === id);
     if (!item) return undefined;
-    item.status = status;
-    item.faculty_id = facultyId;
-    item.faculty_remarks = remarks;
+    item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     return item;
   }
 
   // Research Papers
   async getResearchPapers(studentId?: number, facultyIdScope?: number, statusFilter?: string): Promise<any[]> {
+    try {
+      let query = `SELECT rp.*, u.full_name AS student_name, u.register_number, u.year FROM research_papers rp LEFT JOIN users u ON rp.student_id = u.id WHERE 1=1`;
+      const params: any[] = [];
+      let idx = 1;
+      if (studentId) { query += ` AND rp.student_id = $${idx++}`; params.push(studentId); }
+      if (facultyIdScope) {
+        const faculty = await this.findUserById(facultyIdScope);
+        if (faculty && !faculty.is_department_wide) {
+          query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
+        }
+      }
+      if (statusFilter) { query += ` AND rp.status = $${idx++}`; params.push(statusFilter); }
+      query += ` ORDER BY rp.created_at DESC`;
+      const rows = await this.queryDb(query, params);
+      if (rows && rows.length >= 0) return rows;
+    } catch (err) { console.error('Neon DB getResearchPapers error:', (err as Error).message); }
     let rows = this.store.research_papers;
-    if (studentId) {
-      rows = rows.filter((r: ResearchPaperRow) => r.student_id === studentId);
-    }
+    if (studentId) rows = rows.filter((r: ResearchPaperRow) => r.student_id === studentId);
     if (facultyIdScope) {
       const faculty = await this.findUserById(facultyIdScope);
       if (faculty && !faculty.is_department_wide) {
-        const menteeIds = this.store.users
-          .filter((u: UserRow) => u.mentor_id === facultyIdScope)
-          .map((u: UserRow) => u.id);
+        const menteeIds = this.store.users.filter((u: UserRow) => u.mentor_id === facultyIdScope).map((u: UserRow) => u.id);
         rows = rows.filter((r: ResearchPaperRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) {
-      rows = rows.filter((r: ResearchPaperRow) => r.status === statusFilter);
-    }
-
+    if (statusFilter) rows = rows.filter((r: ResearchPaperRow) => r.status === statusFilter);
     return rows.map((r: ResearchPaperRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
-      return {
-        ...r,
-        student_name: student?.full_name || 'Unknown Student',
-        register_number: student?.register_number || 'N/A',
-        year: student?.year || 'N/A',
-      };
+      return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
     });
   }
 
   async createResearchPaper(data: Omit<ResearchPaperRow, 'id' | 'created_at'>): Promise<ResearchPaperRow> {
-    const newItem: ResearchPaperRow = {
-      ...data,
-      id: this.nextId('research_papers'),
-      created_at: new Date().toISOString(),
-    };
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO research_papers (student_id, title, conference_journal, authors, abstract, pdf_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [data.student_id, data.title, data.conference_journal, data.authors, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
+      );
+      if (rows && rows.length > 0) { const item = rows[0] as ResearchPaperRow; this.store.research_papers.unshift(item); return item; }
+    } catch (err) { console.error('Neon DB createResearchPaper error:', (err as Error).message); }
+    const newItem: ResearchPaperRow = { ...data, id: this.nextId('research_papers'), created_at: new Date().toISOString() };
     this.store.research_papers.unshift(newItem);
     return newItem;
   }
 
   async updateResearchPaperStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<ResearchPaperRow | undefined> {
+    try {
+      const rows = await this.queryDb(
+        `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+        [status, facultyId, remarks, id]
+      );
+      if (rows && rows.length > 0) {
+        const updated = rows[0] as ResearchPaperRow;
+        const idx = this.store.research_papers.findIndex((p: ResearchPaperRow) => p.id === id);
+        if (idx !== -1) this.store.research_papers[idx] = updated;
+        return updated;
+      }
+    } catch (err) { console.error('Neon DB updateResearchPaperStatus error:', (err as Error).message); }
     const item = this.store.research_papers.find((p: ResearchPaperRow) => p.id === id);
     if (!item) return undefined;
-    item.status = status;
-    item.faculty_id = facultyId;
-    item.faculty_remarks = remarks;
+    item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     return item;
   }
 
   // Projects
   async getProjects(studentId?: number, facultyIdScope?: number, statusFilter?: string): Promise<any[]> {
+    try {
+      let query = `SELECT p.*, u.full_name AS student_name, u.register_number, u.year FROM projects p LEFT JOIN users u ON p.student_id = u.id WHERE 1=1`;
+      const params: any[] = [];
+      let idx = 1;
+      if (studentId) { query += ` AND p.student_id = $${idx++}`; params.push(studentId); }
+      if (facultyIdScope) {
+        const faculty = await this.findUserById(facultyIdScope);
+        if (faculty && !faculty.is_department_wide) {
+          query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
+        }
+      }
+      if (statusFilter) { query += ` AND p.status = $${idx++}`; params.push(statusFilter); }
+      query += ` ORDER BY p.created_at DESC`;
+      const rows = await this.queryDb(query, params);
+      if (rows && rows.length >= 0) return rows;
+    } catch (err) { console.error('Neon DB getProjects error:', (err as Error).message); }
     let rows = this.store.projects;
-    if (studentId) {
-      rows = rows.filter((r: ProjectRow) => r.student_id === studentId);
-    }
+    if (studentId) rows = rows.filter((r: ProjectRow) => r.student_id === studentId);
     if (facultyIdScope) {
       const faculty = await this.findUserById(facultyIdScope);
       if (faculty && !faculty.is_department_wide) {
-        const menteeIds = this.store.users
-          .filter((u: UserRow) => u.mentor_id === facultyIdScope)
-          .map((u: UserRow) => u.id);
+        const menteeIds = this.store.users.filter((u: UserRow) => u.mentor_id === facultyIdScope).map((u: UserRow) => u.id);
         rows = rows.filter((r: ProjectRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) {
-      rows = rows.filter((r: ProjectRow) => r.status === statusFilter);
-    }
-
+    if (statusFilter) rows = rows.filter((r: ProjectRow) => r.status === statusFilter);
     return rows.map((r: ProjectRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
-      return {
-        ...r,
-        student_name: student?.full_name || 'Unknown Student',
-        register_number: student?.register_number || 'N/A',
-        year: student?.year || 'N/A',
-      };
+      return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
     });
   }
 
   async createProject(data: Omit<ProjectRow, 'id' | 'created_at'>): Promise<ProjectRow> {
-    const newItem: ProjectRow = {
-      ...data,
-      id: this.nextId('projects'),
-      created_at: new Date().toISOString(),
-    };
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO projects (student_id, title, description, github_link, demo_link, tech_stack, ai_contribution, image_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [data.student_id, data.title, data.description, data.github_link, data.demo_link, data.tech_stack, data.ai_contribution, data.image_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
+      );
+      if (rows && rows.length > 0) { const item = rows[0] as ProjectRow; this.store.projects.unshift(item); return item; }
+    } catch (err) { console.error('Neon DB createProject error:', (err as Error).message); }
+    const newItem: ProjectRow = { ...data, id: this.nextId('projects'), created_at: new Date().toISOString() };
     this.store.projects.unshift(newItem);
     return newItem;
   }
 
   async updateProjectStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<ProjectRow | undefined> {
+    try {
+      const rows = await this.queryDb(
+        `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+        [status, facultyId, remarks, id]
+      );
+      if (rows && rows.length > 0) {
+        const updated = rows[0] as ProjectRow;
+        const idx = this.store.projects.findIndex((p: ProjectRow) => p.id === id);
+        if (idx !== -1) this.store.projects[idx] = updated;
+        return updated;
+      }
+    } catch (err) { console.error('Neon DB updateProjectStatus error:', (err as Error).message); }
     const item = this.store.projects.find((p: ProjectRow) => p.id === id);
     if (!item) return undefined;
-    item.status = status;
-    item.faculty_id = facultyId;
-    item.faculty_remarks = remarks;
+    item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     return item;
   }
 
