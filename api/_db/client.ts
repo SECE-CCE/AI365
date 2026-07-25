@@ -3,19 +3,25 @@ import pg from 'pg';
 import { neon } from '@neondatabase/serverless';
 
 export const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) throw new Error('DATABASE_URL environment variable is not set.');
+if (!DATABASE_URL) {
+  console.warn('[AI365] WARNING: DATABASE_URL is not set. DB operations will use in-memory fallback only.');
+}
 
-export const pool = new pg.Pool({
-  connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+// Only initialize DB clients if DATABASE_URL is available
+export const pool = DATABASE_URL
+  ? new pg.Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } })
+  : null;
 
-export const sql = neon(DATABASE_URL);
+export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
-// Seeded Hashed Password for default accounts ('admin123', 'faculty123', 'student123')
-const HASHED_ADMIN_PASS = bcrypt.hashSync('admin123', 10);
-const HASHED_FACULTY_PASS = bcrypt.hashSync('faculty123', 10);
-const HASHED_STUDENT_PASS = bcrypt.hashSync('student123', 10);
+// Seeded Hashed Passwords — computed lazily to avoid blocking cold-start
+let _adminPass: string | null = null;
+let _facultyPass: string | null = null;
+let _studentPass: string | null = null;
+
+const HASHED_ADMIN_PASS = () => { if (!_adminPass) _adminPass = bcrypt.hashSync('admin123', 10); return _adminPass; };
+const HASHED_FACULTY_PASS = () => { if (!_facultyPass) _facultyPass = bcrypt.hashSync('faculty123', 10); return _facultyPass; };
+const HASHED_STUDENT_PASS = () => { if (!_studentPass) _studentPass = bcrypt.hashSync('student123', 10); return _studentPass; };
 
 export interface UserRow {
   id: number;
@@ -180,7 +186,7 @@ const initialStore = {
       id: 1,
       full_name: 'Dr. Ananya Roy',
       email: 'admin@cce.edu',
-      password: HASHED_ADMIN_PASS,
+      password: HASHED_ADMIN_PASS(),
       role: 'admin',
       department: 'Computer & Communication Engineering',
       phone: '+91 98765 43210',
@@ -194,7 +200,7 @@ const initialStore = {
       id: 2,
       full_name: 'Dr. Rajesh Sharma',
       email: 'dr.sharma@cce.edu',
-      password: HASHED_FACULTY_PASS,
+      password: HASHED_FACULTY_PASS(),
       role: 'faculty',
       department: 'Computer & Communication Engineering',
       phone: '+91 98765 12345',
@@ -208,7 +214,7 @@ const initialStore = {
       id: 3,
       full_name: 'Prof. Vikram Kapoor',
       email: 'prof.kapoor@cce.edu',
-      password: HASHED_FACULTY_PASS,
+      password: HASHED_FACULTY_PASS(),
       role: 'faculty',
       department: 'Computer & Communication Engineering',
       phone: '+91 98765 67890',
@@ -222,7 +228,7 @@ const initialStore = {
       id: 4,
       full_name: 'Alex Mercer',
       email: 'alex.student@cce.edu',
-      password: HASHED_STUDENT_PASS,
+      password: HASHED_STUDENT_PASS(),
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '21CCE042',
@@ -238,7 +244,7 @@ const initialStore = {
       id: 5,
       full_name: 'Priya Patel',
       email: 'priya.patel@cce.edu',
-      password: HASHED_STUDENT_PASS,
+      password: HASHED_STUDENT_PASS(),
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '21CCE088',
@@ -254,7 +260,7 @@ const initialStore = {
       id: 6,
       full_name: 'Rahul Verma',
       email: 'rahul.verma@cce.edu',
-      password: HASHED_STUDENT_PASS,
+      password: HASHED_STUDENT_PASS(),
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '22CCE015',
@@ -270,7 +276,7 @@ const initialStore = {
       id: 7,
       full_name: 'Sanya Singh',
       email: 'sanya.singh@cce.edu',
-      password: HASHED_STUDENT_PASS,
+      password: HASHED_STUDENT_PASS(),
       role: 'student',
       department: 'Computer & Communication Engineering',
       register_number: '23CCE091',
@@ -727,6 +733,7 @@ class DbStore {
 
   private async queryDb(text: string, params: any[] = []): Promise<any[]> {
     // Use neon HTTP driver (works without TCP/port 5432 access, unlike pg.Pool)
+    if (!sql) throw new Error('Database not configured: DATABASE_URL is missing.');
     try {
       const rows = await sql.query(text, params);
       return rows as any[];
@@ -757,33 +764,35 @@ class DbStore {
   }
 
   async createUser(data: Omit<UserRow, 'id' | 'created_at'>): Promise<UserRow> {
-    try {
-      const rows = await sql.query(
-        `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, is_department_wide)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-         RETURNING *`,
-        [
-          data.full_name,
-          data.email,
-          data.password || '',
-          data.role,
-          data.department || 'Computer & Communication Engineering',
-          data.register_number || null,
-          data.year || null,
-          data.phone || null,
-          data.profile_photo || null,
-          data.status || 'approved',
-          data.mentor_id || null,
-          data.is_department_wide || false,
-        ]
-      );
-      if (rows && rows.length > 0) {
-        const newUser = rows[0] as UserRow;
-        this.store.users.push(newUser);
-        return newUser;
+    if (sql) {
+      try {
+        const rows = await sql.query(
+          `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, is_department_wide)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           RETURNING *`,
+          [
+            data.full_name,
+            data.email,
+            data.password || '',
+            data.role,
+            data.department || 'Computer & Communication Engineering',
+            data.register_number || null,
+            data.year || null,
+            data.phone || null,
+            data.profile_photo || null,
+            data.status || 'approved',
+            data.mentor_id || null,
+            data.is_department_wide || false,
+          ]
+        );
+        if (rows && rows.length > 0) {
+          const newUser = rows[0] as UserRow;
+          this.store.users.push(newUser);
+          return newUser;
+        }
+      } catch (err) {
+        console.error('Neon DB createUser error:', (err as Error).message);
       }
-    } catch (err) {
-      console.error('Neon DB createUser error:', (err as Error).message);
     }
     const newUser: UserRow = {
       ...data,
