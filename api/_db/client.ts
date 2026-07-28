@@ -1,9 +1,12 @@
+import 'dotenv/config';
 import pg from 'pg';
 import { neon } from '@neondatabase/serverless';
 
 export const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.warn('[AI365] WARNING: DATABASE_URL is not set. DB operations will use in-memory fallback only.');
+} else {
+  console.log('[AI365] Connected to Neon Postgres database.');
 }
 
 // Only initialize DB clients if DATABASE_URL is available
@@ -29,6 +32,7 @@ export interface UserRow {
   year?: string;
   phone?: string;
   profile_photo?: string;
+  gender?: 'boy' | 'girl';
   status: 'pending_approval' | 'approved' | 'rejected';
   mentor_id?: number | null;
   is_department_wide?: boolean;
@@ -70,6 +74,7 @@ export interface ResearchPaperRow {
   title: string;
   conference_journal: string;
   authors: string;
+  total_hours?: number;
   abstract: string;
   pdf_url: string;
   status: 'Pending' | 'Approved' | 'Rejected';
@@ -191,11 +196,38 @@ const initialStore = {
       is_department_wide: true,
       created_at: '2026-01-01T00:00:00Z',
     },
+    {
+      id: 2,
+      full_name: 'Tanya R',
+      email: 'tanya.r@sece.ac.in',
+      password: HASHED_STUDENT_PASS,
+      role: 'student',
+      department: 'Computer & Communication Engineering',
+      register_number: '73782414042',
+      year: 'III Year - CCE',
+      profile_photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      gender: 'girl',
+      status: 'pending_approval',
+      mentor_id: null,
+      created_at: '2026-07-26T10:00:00Z',
+    },
   ] as UserRow[],
 
-  // All transactional data is stored in Neon DB — in-memory arrays start empty
+  // Seed initial pending certificate for Tanya
   learning_hours: [] as LearningHourRow[],
-  certificates: [] as CertificateRow[],
+  certificates: [
+    {
+      id: 1,
+      student_id: 2,
+      title: 'AWS AI Cloud Practitioner',
+      issuer: 'Amazon Web Services',
+      completion_date: '2026-07-26',
+      certificate_url: 'https://drive.google.com/file/d/demo_aws_cert/view',
+      skills_learned: 'IAM user creation, S3 bucket management, CloudWatch monitoring, Rekognition API',
+      status: 'Pending',
+      created_at: '2026-07-26T18:30:00Z',
+    },
+  ] as CertificateRow[],
   research_papers: [] as ResearchPaperRow[],
   projects: [] as ProjectRow[],
   events: [] as EventRow[],
@@ -415,7 +447,7 @@ class DbStore {
       if (filters?.status) { query += ` AND u.status = $${idx++}`; params.push(filters.status); }
       query += ` ORDER BY u.id`;
       const rows = await this.queryDb(query, params);
-      if (rows && rows.length > 0) {
+      if (rows) {
         // Sync local store with live DB data
         this.store.users = rows;
         return rows as UserRow[];
@@ -446,10 +478,10 @@ class DbStore {
           query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
         }
       }
-      if (statusFilter) { query += ` AND lh.status = $${idx++}`; params.push(statusFilter); }
+      if (statusFilter) { query += ` AND LOWER(lh.status) LIKE $${idx++}`; params.push(`%${statusFilter.toLowerCase()}%`); }
       query += ` ORDER BY lh.created_at DESC`;
       const rows = await this.queryDb(query, params);
-      if (rows && rows.length >= 0) {
+      if (rows) {
         if (!studentId && !facultyIdScope) this.store.learning_hours = rows;
         return rows;
       }
@@ -465,7 +497,7 @@ class DbStore {
         rows = rows.filter((r: LearningHourRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) rows = rows.filter((r: LearningHourRow) => r.status === statusFilter);
+    if (statusFilter) rows = rows.filter((r: LearningHourRow) => r.status?.toLowerCase().includes(statusFilter.toLowerCase()));
     return rows.map((r: LearningHourRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
       return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
@@ -517,10 +549,10 @@ class DbStore {
           query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
         }
       }
-      if (statusFilter) { query += ` AND c.status = $${idx++}`; params.push(statusFilter); }
+      if (statusFilter) { query += ` AND LOWER(c.status) LIKE $${idx++}`; params.push(`%${statusFilter.toLowerCase()}%`); }
       query += ` ORDER BY c.created_at DESC`;
       const rows = await this.queryDb(query, params);
-      if (rows && rows.length >= 0) return rows;
+      if (rows) return rows;
     } catch (err) { console.error('Neon DB getCertificates error:', (err as Error).message); }
     let rows = this.store.certificates;
     if (studentId) rows = rows.filter((r: CertificateRow) => r.student_id === studentId);
@@ -531,7 +563,7 @@ class DbStore {
         rows = rows.filter((r: CertificateRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) rows = rows.filter((r: CertificateRow) => r.status === statusFilter);
+    if (statusFilter) rows = rows.filter((r: CertificateRow) => r.status?.toLowerCase().includes(statusFilter.toLowerCase()));
     return rows.map((r: CertificateRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
       return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
@@ -583,10 +615,10 @@ class DbStore {
           query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
         }
       }
-      if (statusFilter) { query += ` AND rp.status = $${idx++}`; params.push(statusFilter); }
+      if (statusFilter) { query += ` AND LOWER(rp.status) LIKE $${idx++}`; params.push(`%${statusFilter.toLowerCase()}%`); }
       query += ` ORDER BY rp.created_at DESC`;
       const rows = await this.queryDb(query, params);
-      if (rows && rows.length >= 0) return rows;
+      if (rows) return rows;
     } catch (err) { console.error('Neon DB getResearchPapers error:', (err as Error).message); }
     let rows = this.store.research_papers;
     if (studentId) rows = rows.filter((r: ResearchPaperRow) => r.student_id === studentId);
@@ -597,7 +629,7 @@ class DbStore {
         rows = rows.filter((r: ResearchPaperRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) rows = rows.filter((r: ResearchPaperRow) => r.status === statusFilter);
+    if (statusFilter) rows = rows.filter((r: ResearchPaperRow) => r.status?.toLowerCase().includes(statusFilter.toLowerCase()));
     return rows.map((r: ResearchPaperRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
       return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
@@ -773,7 +805,7 @@ class DbStore {
     const badges = [
       {
         id: 'explorer',
-        name: 'AI Explorer',
+        name: 'CCE AI Explorer',
         level: 'Level 1',
         description: 'Complete 10+ AI Learning Hours',
         unlocked: approvedHours >= 10,
@@ -781,8 +813,8 @@ class DbStore {
         icon: 'Compass',
       },
       {
-        id: 'certified',
-        name: 'Certified AI Practitioner',
+        id: 'practitioner',
+        name: 'CCE AI Practitioner',
         level: 'Level 2',
         description: 'Earn at least 2 AI Certifications',
         unlocked: approvedCerts >= 2,
@@ -790,8 +822,8 @@ class DbStore {
         icon: 'Award',
       },
       {
-        id: 'builder',
-        name: 'AI Solution Architect',
+        id: 'innovator',
+        name: 'CCE AI Innovator',
         level: 'Level 3',
         description: 'Build 2+ Approved AI Projects',
         unlocked: approvedProjects >= 2,
@@ -799,8 +831,8 @@ class DbStore {
         icon: 'Code',
       },
       {
-        id: 'researcher',
-        name: 'AI Scholar & Researcher',
+        id: 'scholar',
+        name: 'CCE AI Scholar & Researcher',
         level: 'Level 4',
         description: 'Publish 1+ AI Research Paper',
         unlocked: approvedPapers >= 1,
@@ -818,7 +850,7 @@ class DbStore {
       },
       {
         id: 'entrepreneur',
-        name: 'AI Innovator & Entrepreneur',
+        name: 'CCE AI Entrepreneur',
         level: 'Level 6',
         description: 'Achieve 100+ Hours & 3+ Projects & 1 Paper',
         unlocked: approvedHours >= 100 && approvedProjects >= 3 && approvedPapers >= 1,

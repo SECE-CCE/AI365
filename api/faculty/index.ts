@@ -5,6 +5,13 @@ import { roleGuard } from '../_middleware/roleGuard.js';
 
 const router = Router();
 
+function formatDate(val: any): string {
+  if (!val) return new Date().toISOString().split('T')[0];
+  if (val instanceof Date) return val.toISOString().split('T')[0];
+  const str = String(val);
+  return str.includes('T') ? str.split('T')[0] : str.slice(0, 10);
+}
+
 router.use(authMiddleware);
 router.use(roleGuard(['faculty', 'admin'])); // Admins can also access faculty endpoints if needed
 
@@ -41,10 +48,10 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
 
     // Flat pending queue for the frontend table
     const pendingQueue = [
-      ...pendingHours.map(h => ({ ...h, type: 'learning_hour', title: h.activity_name, document_url: h.certificate_url, date: h.date })),
-      ...pendingCerts.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url, date: c.completion_date })),
-      ...pendingPapers.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url, date: r.created_at?.split('T')[0] })),
-      ...pendingProjects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_link, date: p.created_at?.split('T')[0] })),
+      ...pendingHours.map(h => ({ ...h, type: 'learning_hour', title: h.activity_name, document_url: h.certificate_url, date: formatDate(h.date) })),
+      ...pendingCerts.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url, date: formatDate(c.completion_date) })),
+      ...pendingPapers.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url, date: formatDate(r.created_at) })),
+      ...pendingProjects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_link, date: formatDate(p.created_at) })),
     ];
 
     return res.json({
@@ -87,10 +94,10 @@ router.get('/approvals', async (req: AuthenticatedRequest, res: Response) => {
     const projects = await db.getProjects(undefined, facultyId, statusFilter);
 
     const submissions = [
-      ...hours.map(h => ({ ...h, type: 'learning_hours', title: h.activity_name, document_url: h.certificate_url })),
-      ...certificates.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url })),
-      ...research.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url })),
-      ...projects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_repo })),
+      ...hours.map(h => ({ ...h, type: 'learning_hours', title: h.activity_name, document_url: h.certificate_url, date: formatDate(h.date) })),
+      ...certificates.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url, date: formatDate(c.completion_date) })),
+      ...research.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url, date: formatDate(r.created_at) })),
+      ...projects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_link || p.github_repo, date: formatDate(p.created_at) })),
     ];
 
     return res.json({
@@ -141,12 +148,53 @@ const handleApproveReject = async (req: AuthenticatedRequest, res: Response) => 
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
+
+        // Auto-create approved learning hours for the student when certificate is approved
+        if (action === 'Approved') {
+          const awardedHours = Number(req.body.awarded_hours || req.body.hours || 20);
+          await db.createLearningHour({
+            student_id: studentId,
+            activity_name: `Verified Certificate: ${updatedItem.title} (${updatedItem.issuer})`,
+            platform: updatedItem.issuer || 'Certificate Drive',
+            date: updatedItem.completion_date || new Date().toISOString().split('T')[0],
+            hours: awardedHours,
+            description: `Assigned ${awardedHours} verified learning hours for certificate "${updatedItem.title}"`,
+            certificate_url: updatedItem.certificate_url || '',
+            status: 'Approved',
+            faculty_id: facultyId,
+            faculty_remarks: remarks || 'Approved by Faculty/Admin',
+          });
+        }
       }
     } else if (normType === 'research') {
       updatedItem = await db.updateResearchPaperStatus(Number(rawId), action, facultyId, remarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
+
+        // Calculate team author division and auto-create approved learning hours for the student
+        if (action === 'Approved') {
+          const totalPaperHours = Number(updatedItem.total_hours || req.body.total_hours || 80);
+          const authorsString = updatedItem.authors || '';
+          // Parse co-authors (by comma or "and")
+          const coAuthorsList = authorsString.split(/,| and /i).map((a: string) => a.trim()).filter((a: string) => a.length > 0);
+          // Total team members = 1 (submitting student) + number of co-authors
+          const totalAuthorsCount = Math.max(1, coAuthorsList.length);
+          const studentShareHours = Math.max(1, Math.round(totalPaperHours / totalAuthorsCount));
+
+          await db.createLearningHour({
+            student_id: studentId,
+            activity_name: `Research Paper: ${updatedItem.title} (${studentShareHours}h share)`,
+            platform: updatedItem.conference_journal || 'IEEE/Conference',
+            date: new Date().toISOString().split('T')[0],
+            hours: studentShareHours,
+            description: `Awarded ${studentShareHours} hrs (${totalPaperHours} total effort ÷ ${totalAuthorsCount} authors) for research publication`,
+            certificate_url: updatedItem.pdf_url || '',
+            status: 'Approved',
+            faculty_id: facultyId,
+            faculty_remarks: remarks || `Approved co-author share: ${studentShareHours}h of ${totalPaperHours}h`,
+          });
+        }
       }
     } else if (normType === 'project') {
       updatedItem = await db.updateProjectStatus(Number(rawId), action, facultyId, remarks);

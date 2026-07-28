@@ -91,6 +91,7 @@ router.post('/register', async (req, res) => {
       email,
       phone,
       password,
+      gender,
       profile_photo,
     } = req.body;
 
@@ -105,9 +106,10 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Find first available faculty to assign as default mentor
-    const allFaculty = await db.getAllUsers({ role: 'faculty', status: 'approved' });
-    const defaultMentorId = allFaculty.length > 0 ? allFaculty[0].id : null;
+    // Avatar assignment based on gender selection
+    const defaultAvatar = gender === 'girl'
+      ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300'
+      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300';
 
     const newUser = await db.createUser({
       full_name,
@@ -118,9 +120,10 @@ router.post('/register', async (req, res) => {
       register_number: register_number || '',
       year: year || '1st Year',
       phone: phone || '',
-      profile_photo: profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      gender: gender || 'boy',
+      profile_photo: profile_photo || defaultAvatar,
       status: 'pending_approval',
-      mentor_id: defaultMentorId,
+      mentor_id: null, // Submissions will go ONLY to Admin until Admin assigns a mentor!
       is_department_wide: false,
     });
 

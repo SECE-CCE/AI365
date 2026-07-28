@@ -21,13 +21,20 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
     const projects = await db.getProjects(studentId);
 
     // Collect all recent activities from own submissions
+function formatDate(val: any): string {
+  if (!val) return new Date().toISOString().split('T')[0];
+  if (val instanceof Date) return val.toISOString().split('T')[0];
+  const str = String(val);
+  return str.includes('T') ? str.split('T')[0] : str.slice(0, 10);
+}
+
     const recentActivities = [
       ...learningHours.map(lh => ({
         id: `lh-${lh.id}`,
-        type: 'Learning Hour',
+        type: 'Learning Hours',
         activity: lh.activity_name,
         hours: `${lh.hours} hrs`,
-        date: lh.date,
+        date: formatDate(lh.date),
         status: lh.status,
         remarks: lh.faculty_remarks || 'Pending Review',
         created_at: lh.created_at,
@@ -37,7 +44,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
         type: 'Certificate',
         activity: `${c.title} (${c.issuer})`,
         hours: 'N/A',
-        date: c.completion_date,
+        date: formatDate(c.completion_date),
         status: c.status,
         remarks: c.faculty_remarks || 'Pending Review',
         created_at: c.created_at,
@@ -47,7 +54,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
         type: 'Research Paper',
         activity: p.title,
         hours: 'N/A',
-        date: p.created_at.split('T')[0],
+        date: formatDate(p.created_at),
         status: p.status,
         remarks: p.faculty_remarks || 'Pending Review',
         created_at: p.created_at,
@@ -57,7 +64,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
         type: 'AI Project',
         activity: proj.title,
         hours: 'N/A',
-        date: proj.created_at.split('T')[0],
+        date: formatDate(proj.created_at),
         status: proj.status,
         remarks: proj.faculty_remarks || 'Pending Review',
         created_at: proj.created_at,
@@ -184,7 +191,7 @@ router.get('/research', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const studentId = req.user!.id;
-    const { title, conference_journal, authors, abstract, pdf_url } = req.body;
+    const { title, conference_journal, authors, total_hours, abstract, pdf_url } = req.body;
 
     if (!title || !conference_journal || !authors || !pdf_url) {
       return res.status(400).json({ error: 'Title, Conference/Journal, Authors, and PDF Document/URL are required.' });
@@ -195,6 +202,7 @@ router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
       title,
       conference_journal,
       authors,
+      total_hours: Number(total_hours) || 80,
       abstract: abstract || '',
       pdf_url,
       status: 'Pending',

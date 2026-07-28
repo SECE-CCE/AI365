@@ -11,20 +11,31 @@ import {
   Code,
   Rocket,
   Printer,
+  Trophy,
+  X
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { ProgressBar } from '../../components/common/ProgressBar';
+import { Confetti } from '../../components/common/Confetti';
+import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
 import { PassportBadge } from '../../types';
 
 export const DigitalPassport: React.FC = () => {
   const [passportData, setPassportData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [celebratingBadge, setCelebratingBadge] = useState<PassportBadge | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const fetchPassport = async () => {
     try {
       const data = await apiFetch('/api/students/passport');
       setPassportData(data);
+      // Trigger confetti if student has any unlocked badges
+      const unlockedCount = (data?.badges || []).filter((b: any) => b.unlocked).length;
+      if (unlockedCount > 0) {
+        setShowConfetti(true);
+      }
     } catch (err) {
       console.error('Failed to load digital passport:', err);
     } finally {
@@ -35,6 +46,13 @@ export const DigitalPassport: React.FC = () => {
   useEffect(() => {
     fetchPassport();
   }, []);
+
+  const handleBadgeClick = (badge: PassportBadge) => {
+    if (badge.unlocked) {
+      setCelebratingBadge(badge);
+      setShowConfetti(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -68,6 +86,9 @@ export const DigitalPassport: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 print:p-0 print:space-y-4">
+      {/* Confetti Animation Layer */}
+      {showConfetti && <Confetti durationMs={3500} />}
+
       {/* Action Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
         <div>
@@ -75,7 +96,7 @@ export const DigitalPassport: React.FC = () => {
             AI Digital Passport <ShieldCheck className="w-6 h-6 text-[#004990]" />
           </h2>
           <p className="text-xs text-slate-500 font-medium">
-            Official department-verified digital credential for industry placements & higher studies
+            Official department-verified digital credential for industry placements &amp; higher studies
           </p>
         </div>
 
@@ -179,14 +200,15 @@ export const DigitalPassport: React.FC = () => {
       </Card>
 
       {/* 6 Passport Badges Progression Grid */}
-      <Card title="Digital Passport Skill Badges" subtitle="6 Tiered Badges Unlocked through Verified Department Submissions">
+      <Card title="Digital Passport Skill Badges" subtitle="6 Tiered Badges Unlocked through Verified Department Submissions (Click unlocked badges to celebrate!)">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {badges.map((badge) => (
             <div
               key={badge.id}
-              className={`p-5 rounded-[20px] border transition-all flex flex-col justify-between ${
+              onClick={() => handleBadgeClick(badge)}
+              className={`p-5 rounded-[20px] border transition-all flex flex-col justify-between cursor-pointer ${
                 badge.unlocked
-                  ? 'bg-gradient-to-br from-amber-50/90 via-white to-amber-100/40 border-amber-300 shadow-sm'
+                  ? 'bg-gradient-to-br from-amber-50/90 via-white to-amber-100/40 border-amber-300 shadow-md hover:scale-105 transform duration-300 ring-2 ring-amber-300/40'
                   : 'bg-slate-50 border-slate-200/80 opacity-70'
               }`}
             >
@@ -195,15 +217,15 @@ export const DigitalPassport: React.FC = () => {
                   <div
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-md ${
                       badge.unlocked
-                        ? 'bg-[#F3B631] text-[#002B5C] ring-4 ring-amber-200'
+                        ? 'bg-[#F3B631] text-[#002B5C] ring-4 ring-amber-200 animate-pulse'
                         : 'bg-slate-200 text-slate-400'
                     }`}
                   >
-                    {badge.unlocked ? <Award className="w-6 h-6" /> : <Lock className="w-5 h-5" />}
+                    {badge.unlocked ? <Trophy className="w-6 h-6" /> : <Lock className="w-5 h-5" />}
                   </div>
                   <span
                     className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                      badge.unlocked ? 'bg-amber-200 text-amber-900' : 'bg-slate-200 text-slate-600'
+                      badge.unlocked ? 'bg-amber-200 text-amber-900 shadow-xs' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
                     {badge.unlocked ? 'Unlocked Gold' : `Level ${badge.level}`}
@@ -217,7 +239,7 @@ export const DigitalPassport: React.FC = () => {
               <div className="mt-4 pt-3 border-t border-slate-200/60">
                 <div className="flex justify-between items-center text-[11px] font-bold text-slate-700 mb-1">
                   <span>Requirement Status</span>
-                  <span>{badge.unlocked ? '100%' : `${badge.progress}%`}</span>
+                  <span>{badge.unlocked ? '100% Complete' : `${badge.progress}%`}</span>
                 </div>
                 <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
@@ -232,6 +254,42 @@ export const DigitalPassport: React.FC = () => {
           ))}
         </div>
       </Card>
+
+      {/* Congratulatory Celebration Modal */}
+      {celebratingBadge && (
+        <Modal
+          isOpen={!!celebratingBadge}
+          onClose={() => setCelebratingBadge(null)}
+          title={`🎉 Congratulations, ${student.full_name}!`}
+          subtitle="Department Credential Achievement Unlocked"
+        >
+          <div className="text-center space-y-4 py-4">
+            <div className="w-20 h-20 rounded-full bg-[#F3B631] text-[#002B5C] flex items-center justify-center mx-auto shadow-2xl ring-8 ring-amber-200/60 animate-bounce">
+              <Trophy className="w-10 h-10" />
+            </div>
+            <div>
+              <span className="px-3 py-1 bg-amber-100 text-amber-900 rounded-full font-black text-xs uppercase tracking-wider">
+                {celebratingBadge.level} • VERIFIED BADGE
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 mt-2">{celebratingBadge.name}</h3>
+              <p className="text-xs text-slate-600 font-medium max-w-sm mx-auto mt-1 leading-relaxed">
+                {celebratingBadge.description}
+              </p>
+            </div>
+
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-semibold max-w-sm mx-auto">
+              ✨ You have officially achieved Level Competency in CCE AI365 platform!
+            </div>
+
+            <button
+              onClick={() => setCelebratingBadge(null)}
+              className="px-6 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-bold text-xs transition-all shadow-md"
+            >
+              Keep Learning &amp; Elevating!
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

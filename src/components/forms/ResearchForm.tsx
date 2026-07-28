@@ -10,6 +10,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
   const [title, setTitle] = useState('');
   const [conferenceJournal, setConferenceJournal] = useState('');
   const [authors, setAuthors] = useState('');
+  const [totalHours, setTotalHours] = useState(80);
   const [abstract, setAbstract] = useState('');
   const [driveLink, setDriveLink] = useState('');
   const [pdfUrl, setPdfUrl] = useState('');
@@ -17,6 +18,11 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
   const [validating, setValidating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Calculate live team author division
+  const parsedCoAuthors = authors.split(/,| and /i).map(a => a.trim()).filter(a => a.length > 0);
+  const totalAuthorsCount = Math.max(1, 1 + parsedCoAuthors.length);
+  const individualShareHours = Math.max(1, Math.round(Number(totalHours || 80) / totalAuthorsCount));
 
   const handleValidateLink = async () => {
     if (!driveLink.trim()) return setError('Please paste your Google Drive link first.');
@@ -47,7 +53,14 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
     try {
       await apiFetch('/api/students/research', {
         method: 'POST',
-        body: JSON.stringify({ title, conference_journal: conferenceJournal, authors, abstract, pdf_url: pdfUrl }),
+        body: JSON.stringify({
+          title,
+          conference_journal: conferenceJournal,
+          authors,
+          total_hours: totalHours,
+          abstract,
+          pdf_url: pdfUrl,
+        }),
       });
       onSuccess();
     } catch (err: any) {
@@ -76,11 +89,31 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
         </div>
         <div>
-          <label className="block font-bold text-slate-700 mb-1">Co-Authors *</label>
-          <input type="text" required value={authors} onChange={(e) => setAuthors(e.target.value)}
-            placeholder="e.g., Alex Mercer, Dr. Rajesh Sharma"
+          <label className="block font-bold text-slate-700 mb-1">Total Effort Hours Invested *</label>
+          <input type="number" min={10} max={300} required value={totalHours} onChange={(e) => setTotalHours(Number(e.target.value))}
+            placeholder="e.g. 80 hours"
             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
         </div>
+      </div>
+
+      <div>
+        <label className="block font-bold text-slate-700 mb-1">Co-Authors * (comma separated)</label>
+        <input type="text" required value={authors} onChange={(e) => setAuthors(e.target.value)}
+          placeholder="e.g., Alex Mercer, Dr. Rajesh Sharma"
+          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+      </div>
+
+      {/* Live Co-Author Hours Division Preview Card */}
+      <div className="bg-indigo-50 border border-indigo-200/80 rounded-xl p-3.5 space-y-1">
+        <div className="flex items-center justify-between text-indigo-900 font-bold">
+          <span>Co-Author Hours Division Credit:</span>
+          <span className="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-[11px]">
+            {totalHours} hrs ÷ {totalAuthorsCount} authors = {individualShareHours} hrs for you
+          </span>
+        </div>
+        <p className="text-[11px] text-indigo-700 leading-relaxed font-medium">
+          Total paper hours are automatically split among team members. Upon approval, <strong>{individualShareHours} learning hours</strong> will be credited directly to your AI Passport &amp; main page.
+        </p>
       </div>
 
       <div>

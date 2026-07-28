@@ -52,7 +52,7 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-slate-100 font-['Poppins',sans-serif]">
       {/* Left Blue Gradient Panel */}
-      <div className="lg:w-1/2 bg-gradient-to-br from-[#001E42] via-[#002B5C] to-[#004990] text-white p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+      <div className="lg:w-1/2 bg-gradient-to-br from-[#001E42] via-[#002B5C] to-[#004990] text-white p-6 sm:p-10 lg:p-16 flex flex-col justify-between relative overflow-hidden min-h-[200px] lg:min-h-screen">
         <div className="absolute -right-20 -top-20 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-[#F3B631]/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -80,7 +80,7 @@ export const Login: React.FC = () => {
           <h2 className="text-3xl lg:text-5xl font-black tracking-tight leading-tight text-white mb-6">
             Building an <span className="text-[#F3B631]">AI-Ready</span> Generation
           </h2>
-          <p className="text-sm lg:text-base text-slate-300 font-medium max-w-xl mx-auto lg:mx-0 leading-relaxed mb-8">
+          <p className="hidden sm:block text-sm lg:text-base text-slate-300 font-medium max-w-xl mx-auto lg:mx-0 leading-relaxed mb-8">
             Empowering students and faculty in Computer & Communication Engineering to track learning hours, industry certifications, research publications, and AI solutions.
           </p>
 

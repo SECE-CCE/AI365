@@ -41,8 +41,7 @@ export const Sidebar: React.FC = () => {
 
   const studentNav: NavItem[] = [
     { label: 'Dashboard', path: '/student', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { label: 'Learning Hours', path: '/student/learning-hours', icon: <Clock className="w-5 h-5" /> },
-    { label: 'Certificates', path: '/student/certificates', icon: <Award className="w-5 h-5" /> },
+    { label: 'Certificates & Hours', path: '/student/certificates', icon: <Award className="w-5 h-5" /> },
     { label: 'Research Papers', path: '/student/research', icon: <FileText className="w-5 h-5" /> },
     { label: 'AI Projects', path: '/student/projects', icon: <Code className="w-5 h-5" /> },
     { label: 'AI Digital Passport', path: '/student/passport', icon: <ShieldCheck className="w-5 h-5" /> },

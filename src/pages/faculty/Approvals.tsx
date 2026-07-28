@@ -16,6 +16,7 @@ export const Approvals: React.FC = () => {
 
   const [activeItem, setActiveItem] = useState<{ id: number; type: string; action: 'approve' | 'reject' } | null>(null);
   const [remarks, setRemarks] = useState('');
+  const [awardedHours, setAwardedHours] = useState(20);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchApprovals = async () => {
@@ -36,6 +37,7 @@ export const Approvals: React.FC = () => {
   const handleActionClick = (id: number, type: string, action: 'approve' | 'reject') => {
     setActiveItem({ id, type, action });
     setRemarks(action === 'approve' ? 'Approved by faculty mentor.' : 'Needs revision.');
+    setAwardedHours(20);
   };
 
   const handleConfirmAction = async () => {
@@ -49,6 +51,7 @@ export const Approvals: React.FC = () => {
           submission_type: activeItem.type,
           status: activeItem.action === 'approve' ? 'Approved' : 'Rejected',
           faculty_remarks: remarks,
+          awarded_hours: awardedHours,
         }),
       });
       setActiveItem(null);
@@ -223,6 +226,21 @@ export const Approvals: React.FC = () => {
         subtitle="Provide faculty remarks"
       >
         <div className="space-y-4 text-xs">
+          {activeItem?.action === 'approve' && activeItem?.type.toLowerCase().includes('certificate') && (
+            <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
+              <label className="block font-bold text-slate-900">Assign Verified Learning Hours *</label>
+              <p className="text-[11px] text-slate-500">How many learning hours should be awarded to the student for this certificate?</p>
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={awardedHours}
+                onChange={(e) => setAwardedHours(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 outline-none focus:border-[#004990]"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block font-bold text-slate-700 mb-1">Faculty Remarks / Feedback *</label>
             <textarea

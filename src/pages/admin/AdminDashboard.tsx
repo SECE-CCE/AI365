@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, UserCheck, Clock, Award, Target, Check, X, ShieldAlert, ArrowRight } from 'lucide-react';
+import { Users, UserCheck, Clock, Award, Target, Check, X, ShieldAlert, ArrowRight, FileText, ExternalLink } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
+import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
 
 export const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Approval modal for student submissions
+  const [activeItem, setActiveItem] = useState<{ id: number; type: string; action: 'approve' | 'reject'; title: string } | null>(null);
+  const [remarks, setRemarks] = useState('');
+  const [awardedHours, setAwardedHours] = useState(20);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchDashboard = async () => {
     try {
@@ -39,6 +46,35 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleOpenSubmissionAction = (item: any, action: 'approve' | 'reject') => {
+    setActiveItem({ id: item.id, type: item.type, action, title: item.title });
+    setRemarks(action === 'approve' ? 'Approved by Admin.' : 'Needs revision.');
+    setAwardedHours(20);
+  };
+
+  const handleConfirmSubmissionAction = async () => {
+    if (!activeItem) return;
+    setSubmitting(true);
+    try {
+      await apiFetch('/api/faculty/approvals', {
+        method: 'POST',
+        body: JSON.stringify({
+          submission_id: activeItem.id,
+          submission_type: activeItem.type,
+          status: activeItem.action === 'approve' ? 'Approved' : 'Rejected',
+          faculty_remarks: remarks,
+          awarded_hours: awardedHours,
+        }),
+      });
+      setActiveItem(null);
+      fetchDashboard();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -52,13 +88,15 @@ export const AdminDashboard: React.FC = () => {
     totalFaculty: 0,
     pendingRegistrations: 0,
     pendingFacultyRegistrations: 0,
+    pendingSubmissionsCount: 0,
     totalDepartmentHours: 0,
     avgAiScore: 0,
   };
   const pendingUsers = dashboardData?.pendingUsers || [];
   const pendingFaculty = dashboardData?.pendingFaculty || [];
+  const pendingSubmissions = dashboardData?.pendingSubmissions || [];
 
-  const columns: Column<any>[] = [
+  const registrationColumns: Column<any>[] = [
     {
       header: 'Student Name',
       cell: (row) => (
@@ -102,6 +140,64 @@ export const AdminDashboard: React.FC = () => {
     },
   ];
 
+  const submissionColumns: Column<any>[] = [
+    {
+      header: 'Student',
+      cell: (row) => (
+        <div>
+          <p className="font-bold text-slate-900">{row.student_name}</p>
+          <p className="text-[11px] text-slate-500">{row.register_number || row.year || 'CCE Student'}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'Type',
+      cell: (row) => (
+        <span className="font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-[#004990] text-[10px] uppercase tracking-wider">
+          {row.type}
+        </span>
+      ),
+    },
+    {
+      header: 'Submission Title',
+      cell: (row) => (
+        <div>
+          <p className="font-bold text-slate-800">{row.title}</p>
+          <p className="text-[11px] text-slate-500 line-clamp-1">{row.issuer || row.conference_journal || row.tech_stack || ''}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'Document Proof',
+      cell: (row) => (
+        row.document_url ? (
+          <a href={row.document_url} target="_blank" rel="noreferrer" className="text-xs font-bold text-[#004990] hover:underline flex items-center gap-1">
+            View File <ExternalLink className="w-3 h-3" />
+          </a>
+        ) : <span className="text-slate-400">N/A</span>
+      ),
+    },
+    {
+      header: 'Action',
+      cell: (row) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleOpenSubmissionAction(row, 'approve')}
+            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-200 flex items-center gap-1"
+          >
+            <Check className="w-3.5 h-3.5" /> Approve &amp; Award Hours
+          </button>
+          <button
+            onClick={() => handleOpenSubmissionAction(row, 'reject')}
+            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 flex items-center gap-1"
+          >
+            <X className="w-3.5 h-3.5" /> Reject
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Banner */}
@@ -128,7 +224,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs">
           <p className="text-xs font-bold text-slate-500">Students</p>
           <p className="text-2xl font-black text-slate-900 mt-1">{stats.totalStudents}</p>
@@ -140,10 +236,10 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs">
-          <p className="text-xs font-bold text-slate-500">Pending Registrations</p>
-          <p className="text-2xl font-black text-amber-600 mt-1">{stats.pendingRegistrations}</p>
-          {stats.pendingFacultyRegistrations > 0 && (
-            <p className="text-[11px] text-indigo-600 font-semibold mt-0.5">{stats.pendingFacultyRegistrations} faculty pending</p>
+          <p className="text-xs font-bold text-slate-500">Pending Activity Submissions</p>
+          <p className="text-2xl font-black text-amber-600 mt-1">{stats.pendingSubmissionsCount || pendingSubmissions.length}</p>
+          {stats.pendingRegistrations > 0 && (
+            <p className="text-[11px] text-blue-600 font-semibold mt-0.5">{stats.pendingRegistrations} accounts pending</p>
           )}
         </div>
 
@@ -152,18 +248,26 @@ export const AdminDashboard: React.FC = () => {
           <p className="text-2xl font-black text-[#004990] mt-1">{stats.totalApprovedHoursCount || stats.totalDepartmentHours} hrs</p>
         </div>
 
-        <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs col-span-2 lg:col-span-1">
+        <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs sm:col-span-2 lg:col-span-1">
           <p className="text-xs font-bold text-slate-500">Avg Dept AI Score</p>
           <p className="text-2xl font-black text-emerald-600 mt-1">{stats.avgAiScore} pts</p>
         </div>
       </div>
 
+      {/* Pending Student Activity Submissions (Certificates, Research Papers, Projects) */}
+      <Card
+        title={`Pending Activity Submissions (${pendingSubmissions.length})`}
+        subtitle="Certificates, Research Papers & Projects submitted by students waiting for Admin / Faculty approval"
+      >
+        <Table columns={submissionColumns} data={pendingSubmissions} keyExtractor={(r) => `${r.type}-${r.id}`} />
+      </Card>
+
       {/* Pending Student Account Registrations Queue */}
       <Card
-        title={`Pending Student Registrations (${pendingUsers.length})`}
+        title={`Pending Student Account Registrations (${pendingUsers.length})`}
         subtitle="Approve or reject new student account requests for CCE"
       >
-        <Table columns={columns} data={pendingUsers} keyExtractor={(r) => r.id} />
+        <Table columns={registrationColumns} data={pendingUsers} keyExtractor={(r) => r.id} />
       </Card>
 
       {/* Pending Faculty Registrations Queue */}
@@ -206,6 +310,59 @@ export const AdminDashboard: React.FC = () => {
           />
         </Card>
       )}
+
+      {/* Admin Approval Modal for Submissions */}
+      <Modal
+        isOpen={!!activeItem}
+        onClose={() => setActiveItem(null)}
+        title={activeItem?.action === 'approve' ? `Approve: ${activeItem?.title}` : `Reject: ${activeItem?.title}`}
+        subtitle="Review submission and set remarks / verified hours"
+      >
+        <div className="space-y-4 text-xs">
+          {activeItem?.action === 'approve' && activeItem?.type.toLowerCase().includes('certificate') && (
+            <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
+              <label className="block font-bold text-slate-900">Assign Verified Learning Hours *</label>
+              <p className="text-[11px] text-slate-500">How many learning hours should be awarded to the student for this certificate?</p>
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={awardedHours}
+                onChange={(e) => setAwardedHours(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 outline-none focus:border-[#004990]"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Admin Remarks / Feedback *</label>
+            <textarea
+              rows={3}
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-3">
+            <button
+              onClick={() => setActiveItem(null)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmSubmissionAction}
+              disabled={submitting}
+              className={`px-5 py-2.5 rounded-xl font-bold text-white transition-all shadow-md ${
+                activeItem?.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+              }`}
+            >
+              {submitting ? 'Saving...' : activeItem?.action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

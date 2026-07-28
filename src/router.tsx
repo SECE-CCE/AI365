@@ -12,6 +12,7 @@ import { About } from './pages/visitor/About';
 import { Roadmap } from './pages/visitor/Roadmap';
 import { Achievements } from './pages/visitor/Achievements';
 import { Gallery } from './pages/visitor/Gallery';
+import { Team } from './pages/visitor/Team';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
       { path: 'roadmap', element: <Roadmap /> },
       { path: 'achievements', element: <Achievements /> },
       { path: 'gallery', element: <Gallery /> },
+      { path: 'team', element: <Team /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
     ],

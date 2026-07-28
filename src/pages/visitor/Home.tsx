@@ -1,344 +1,319 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Clock, Award, FileText, Code, ArrowRight, ShieldCheck, Maximize2, Download, Eye, Calendar, Target, Rocket } from 'lucide-react';
+import {
+  Clock, Award, FileText, Code, ArrowRight, Maximize2, Download, Eye, Target,
+  Rocket, FlaskConical, Zap, Lightbulb, FileCheck, Leaf, BookOpen, Hammer,
+  MonitorPlay, GraduationCap, Trophy, ChevronRight,
+} from 'lucide-react';
 import { apiFetch } from '../../services/api';
-import { WindingRoadmap } from '../../components/common/WindingRoadmap';
 
+/* ─── Particle Canvas ───────────────────────────────────────────────────── */
 const ParticleCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     let animationFrameId: number;
     let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
     let height = (canvas.height = canvas.parentElement?.clientHeight || 520);
-
     const handleResize = () => {
       if (!canvas) return;
       width = canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
       height = canvas.height = canvas.parentElement?.clientHeight || 520;
     };
-
     window.addEventListener('resize', handleResize);
-
-    const numParticles = Math.floor((width * height) / 16000);
-    const particles = Array.from({ length: Math.max(45, numParticles) }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.65,
-      vy: (Math.random() - 0.5) * 0.65,
-      radius: Math.random() * 2 + 1.2,
-      opacity: Math.random() * 0.55 + 0.35,
+    const particles = Array.from({ length: 55 }, () => ({
+      x: Math.random() * width, y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6,
+      radius: Math.random() * 2 + 1.2, opacity: Math.random() * 0.5 + 0.35,
     }));
-
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-
-      // Light ice-blue background matching user reference screenshot
-      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-      bgGrad.addColorStop(0, '#f4f8ff');
-      bgGrad.addColorStop(0.5, '#f0f5ff');
-      bgGrad.addColorStop(1, '#eaf2ff');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
-
-      // Update and draw nodes & connecting lines
-      particles.forEach((p, idx) => {
-        p.x += p.vx;
-        p.y += p.vy;
-
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(11, 59, 130, ${p.opacity})`;
-        ctx.fill();
-
-        for (let j = idx + 1; j < particles.length; j++) {
-          const p2 = particles[j];
-          const dx = p.x - p2.x;
-          const dy = p.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 145) {
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            const lineOpacity = (1 - dist / 145) * 0.28;
-            ctx.strokeStyle = `rgba(26, 86, 196, ${lineOpacity})`;
-            ctx.lineWidth = 0.9;
-            ctx.stroke();
+      const bg = ctx.createLinearGradient(0, 0, width, height);
+      bg.addColorStop(0, '#f4f8ff'); bg.addColorStop(0.5, '#f0f5ff'); bg.addColorStop(1, '#eaf2ff');
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, width, height);
+      particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = width; if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height; if (p.y > height) p.y = 0;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(11,59,130,${p.opacity})`; ctx.fill();
+        for (let j = i + 1; j < particles.length; j++) {
+          const q = particles[j];
+          const d = Math.sqrt((p.x - q.x) ** 2 + (p.y - q.y) ** 2);
+          if (d < 145) {
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+            ctx.strokeStyle = `rgba(26,86,196,${(1 - d / 145) * 0.25})`; ctx.lineWidth = 0.9; ctx.stroke();
           }
         }
       });
-
       animationFrameId = requestAnimationFrame(render);
     };
-
     render();
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
-    };
+    return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
-
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
 };
 
+/* ─── Phase Data ────────────────────────────────────────────────────────── */
+const phases = [
+  { phase: 'Phase 1',  month: "July '26",  title: 'AI Kickstart',                    desc: 'Orientation, team formation & AI fundamentals bootcamp',              icon: Rocket,        color: 'from-violet-500 to-purple-600',  badge: 'bg-violet-100 text-violet-700',  dot: 'bg-violet-500' },
+  { phase: 'Phase 2',  month: "Aug '26",   title: 'Certify AI Marathon',              desc: 'Industry certification drives — NPTEL, Google, AWS & more',           icon: Award,         color: 'from-blue-500 to-indigo-600',    badge: 'bg-blue-100 text-blue-700',      dot: 'bg-blue-500' },
+  { phase: 'Phase 3',  month: "Sep '26",   title: 'AI ResearchX',                    desc: 'Research paper writing workshops & IEEE/Springer submissions',         icon: FlaskConical,  color: 'from-cyan-500 to-teal-600',      badge: 'bg-cyan-100 text-cyan-700',      dot: 'bg-cyan-500' },
+  { phase: 'Phase 4',  month: "Oct '26",   title: 'AgentX Hackfest',                 desc: '48-hour hackathon — build AI agents & autonomous systems',            icon: Zap,           color: 'from-amber-500 to-orange-600',   badge: 'bg-amber-100 text-amber-700',    dot: 'bg-amber-500' },
+  { phase: 'Phase 5',  month: "Nov '26",   title: 'Faculty AI Innovate',              desc: 'Faculty-led AI solution sprints & mentorship sessions',               icon: Lightbulb,     color: 'from-yellow-400 to-amber-500',   badge: 'bg-yellow-100 text-yellow-700',  dot: 'bg-yellow-500' },
+  { phase: 'Phase 6',  month: "Dec '26",   title: 'PatentX AI',                      desc: 'Patent drafting camp — file AI inventions & innovations',             icon: FileCheck,     color: 'from-rose-500 to-pink-600',      badge: 'bg-rose-100 text-rose-700',      dot: 'bg-rose-500' },
+  { phase: 'Phase 7',  month: "Jan '27",   title: 'Sustain AI',                      desc: 'AI for sustainability — green tech projects & deployment',            icon: Leaf,          color: 'from-emerald-500 to-green-600',  badge: 'bg-emerald-100 text-emerald-700',dot: 'bg-emerald-500' },
+  { phase: 'Phase 8',  month: "Feb '27",   title: 'Certify AI Marathon II',           desc: 'Second round of certification drives & skill-gap workshops',          icon: BookOpen,      color: 'from-sky-500 to-blue-600',       badge: 'bg-sky-100 text-sky-700',        dot: 'bg-sky-500' },
+  { phase: 'Phase 9',  month: "Mar '27",   title: 'Build AI',                        desc: 'End-to-end product build sprint — from idea to prototype',           icon: Hammer,        color: 'from-orange-500 to-red-600',     badge: 'bg-orange-100 text-orange-700',  dot: 'bg-orange-500' },
+  { phase: 'Phase 10', month: "Apr '27",   title: 'BuildFest AI — AI Project Expo',  desc: 'Public expo: live demos, investor pitches & startup launches',        icon: MonitorPlay,   color: 'from-fuchsia-500 to-purple-700', badge: 'bg-fuchsia-100 text-fuchsia-700',dot: 'bg-fuchsia-500' },
+  { phase: 'Phase 11', month: "May '27",   title: 'AI Summer School 2027',           desc: 'Intensive summer programme for advanced AI & research tracks',        icon: GraduationCap, color: 'from-teal-500 to-cyan-600',      badge: 'bg-teal-100 text-teal-700',      dot: 'bg-teal-500' },
+  { phase: 'Phase 12', month: "June '27",  title: 'AI365 Conclave & Awards 2027',    desc: 'Annual grand conclave — awards, keynotes & year-end showcase',       icon: Trophy,        color: 'from-gold-500 to-amber-600',     badge: 'bg-amber-100 text-amber-800',    dot: 'bg-amber-600' },
+];
+
+/* ─── Home Page ─────────────────────────────────────────────────────────── */
 export const Home: React.FC = () => {
   const [visitorStats, setVisitorStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [showPosterModal, setShowPosterModal] = useState(false);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await apiFetch('/api/visitor/stats');
-        setVisitorStats(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
+    apiFetch('/api/visitor/stats').then(setVisitorStats).catch(console.error);
   }, []);
 
-  const stats = visitorStats?.stats || {
-    learningHours: 0,
-    certifications: 0,
-    researchPapers: 0,
-    projects: 0,
-  };
-
+  const stats = visitorStats?.stats || { learningHours: 0, certifications: 0, researchPapers: 0, projects: 0 };
   const featuredProjects: any[] = visitorStats?.featuredProjects || [];
 
   return (
-    <div className="space-y-16 pb-12 font-['Poppins',sans-serif]">
-      {/* 3D Floating Interactive Constellation Hero Section */}
-      <section className="relative w-full h-[400px] sm:h-[500px] flex items-center justify-center overflow-hidden select-none border-b border-blue-100/60 shadow-xs">
-        <ParticleCanvas />
+    <div className="space-y-20 pb-12 font-['Poppins',sans-serif]">
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 text-center animate-float-3d space-y-5">
-          <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-4 font-black tracking-tight text-4xl sm:text-6xl lg:text-8xl">
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <section className="relative w-full h-[420px] sm:h-[520px] flex items-center justify-center overflow-hidden border-b border-blue-100/60">
+        <ParticleCanvas />
+        <div className="relative z-10 max-w-4xl mx-auto px-4 text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-blue-200/60 shadow-sm text-[11px] font-bold text-[#004990] uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Sri Eshwar College of Engineering · CCE Department
+          </div>
+          <div className="flex items-center justify-center flex-wrap gap-2 font-black tracking-tight text-5xl sm:text-7xl lg:text-8xl">
             <span className="text-[#1A56C4] drop-shadow-sm">AI365</span>
-            <span className="inline-flex items-center justify-center w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-blue-100/90 text-[#3B82F6] text-3xl sm:text-5xl font-bold font-sans shadow-sm border border-blue-200/80 mx-1 sm:mx-2">
-              @
-            </span>
+            <span className="inline-flex items-center justify-center w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-blue-100/90 text-[#3B82F6] font-bold font-sans shadow-sm border border-blue-200/80">@</span>
             <span className="text-[#D4A017] drop-shadow-sm">CCE</span>
           </div>
-
-          <p className="text-slate-600 font-medium text-base sm:text-xl tracking-normal max-w-xl mx-auto text-center">
-            Building an AI-Ready Generation
-          </p>
-
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/login"
-              className="px-8 py-3.5 bg-[#003B7A] hover:bg-[#002B5C] text-white font-bold text-sm sm:text-base rounded-full shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5 inline-flex items-center justify-center gap-2"
-            >
-              <span>Join the Journey</span>
-              <ArrowRight className="w-4 h-4" />
+          <p className="text-slate-600 font-semibold text-base sm:text-lg max-w-xl mx-auto">Building an AI-Ready Generation — One Year · One Vision · One Campus</p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link to="/login" className="px-8 py-3.5 bg-[#003B7A] hover:bg-[#002B5C] text-white font-bold text-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-300 inline-flex items-center gap-2 hover:-translate-y-0.5 transform">
+              <span>Join the Journey</span><ArrowRight className="w-4 h-4" />
             </Link>
-            <button
-              onClick={() => {
-                const element = document.getElementById('cce-poster-section');
-                element?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-6 py-3.5 bg-white hover:bg-slate-50 text-[#003B7A] font-bold text-xs sm:text-sm rounded-full shadow-sm border border-blue-200/80 transition-all flex items-center gap-2"
-            >
-              <Eye className="w-4 h-4 text-[#D4A017]" />
-              <span>View Department Poster</span>
+            <button onClick={() => document.getElementById('cce-poster-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-6 py-3.5 bg-white hover:bg-slate-50 text-[#003B7A] font-bold text-sm rounded-full shadow-sm border border-blue-200/80 transition-all flex items-center gap-2">
+              <Eye className="w-4 h-4 text-[#D4A017]" />View Poster
             </button>
           </div>
         </div>
       </section>
 
-      {/* Live Aggregated Statistics Bar */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-12 relative z-20">
-        <div className="bg-white rounded-[24px] border border-slate-200/80 shadow-xl p-6 lg:p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-          <div className="space-y-1">
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#004990] flex items-center justify-center mx-auto mb-2">
-              <Clock className="w-5 h-5" />
+      {/* ── STATS ────────────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-20">
+        <div className="bg-white rounded-[28px] border border-slate-200/80 shadow-2xl p-6 lg:p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+          {[
+            { icon: Clock,    bg: 'bg-blue-50',    text: 'text-blue-600',    value: stats.learningHours,  label: 'AI Learning Hours' },
+            { icon: Award,    bg: 'bg-emerald-50', text: 'text-emerald-600', value: stats.certifications, label: 'Certifications' },
+            { icon: FileText, bg: 'bg-indigo-50',  text: 'text-indigo-600',  value: stats.researchPapers, label: 'Research Papers' },
+            { icon: Code,     bg: 'bg-rose-50',    text: 'text-rose-600',    value: stats.projects,       label: 'AI Solutions Built' },
+          ].map(({ icon: Icon, bg, text, value, label }) => (
+            <div key={label} className="space-y-1 group">
+              <div className={`w-11 h-11 rounded-2xl ${bg} ${text} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <p className="text-3xl sm:text-4xl font-black text-slate-900">{value}+</p>
+              <p className="text-xs text-slate-500 font-semibold">{label}</p>
             </div>
-            <p className="text-3xl font-black text-slate-900">{stats.learningHours}+</p>
-            <p className="text-xs text-slate-500 font-semibold">AI Learning Hours Logged</p>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          <div className="space-y-1">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-2">
-              <Award className="w-5 h-5" />
-            </div>
-            <p className="text-3xl font-black text-slate-900">{stats.certifications}+</p>
-            <p className="text-xs text-slate-500 font-semibold">Industry Certifications</p>
-          </div>
+      {/* ── PHASE ROADMAP ────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        {/* Section header */}
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-violet-100 to-blue-100 text-[#4F46E5] font-bold text-xs uppercase tracking-widest border border-violet-200/60">
+            <Target className="w-3.5 h-3.5" /> 12-Month AI Event Calendar
+          </span>
+          <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
+            The AI365 Journey
+          </h2>
+          <p className="text-sm text-slate-500 font-medium leading-relaxed">
+            From <strong className="text-slate-700">AI Kickstart</strong> to <strong className="text-slate-700">AI365 Conclave</strong> — 12 powerful phases crafted to build AI-ready engineers at CCE.
+          </p>
+        </div>
 
-          <div className="space-y-1">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center mx-auto mb-2">
-              <FileText className="w-5 h-5" />
-            </div>
-            <p className="text-3xl font-black text-slate-900">{stats.researchPapers}+</p>
-            <p className="text-xs text-slate-500 font-semibold">Research Publications</p>
-          </div>
+        {/* Phase grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {phases.map((p, idx) => {
+            const IconComp = p.icon;
+            return (
+              <div
+                key={idx}
+                className="group relative bg-white rounded-[24px] border border-slate-200/70 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+              >
+                {/* Top gradient bar */}
+                <div className={`h-1.5 w-full bg-gradient-to-r ${p.color}`} />
 
-          <div className="space-y-1">
-            <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center mx-auto mb-2">
-              <Code className="w-5 h-5" />
-            </div>
-            <p className="text-3xl font-black text-slate-900">{stats.projects}+</p>
-            <p className="text-xs text-slate-500 font-semibold">AI Solutions Built</p>
+                <div className="p-5 space-y-4">
+                  {/* Phase label + month */}
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${p.badge}`}>
+                      {p.phase}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
+                      {p.month}
+                    </span>
+                  </div>
+
+                  {/* Icon + Title */}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${p.color} flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                      <IconComp className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-900 leading-snug">{p.title}</h3>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{p.desc}</p>
+                    </div>
+                  </div>
+
+                  {/* Bottom connector */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <span className={`w-2 h-2 rounded-full ${p.dot}`} />
+                    <span className="text-[10px] text-slate-400 font-semibold">CCE · AI365 Programme</span>
+                    <ChevronRight className="w-3 h-3 text-slate-300 ml-auto" />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Timeline strip at the bottom */}
+        <div className="relative mt-6 overflow-x-auto pb-2">
+          <div className="flex items-center gap-0 min-w-max mx-auto">
+            {phases.map((p, idx) => (
+              <div key={idx} className="flex items-center">
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-3 h-3 rounded-full ${p.dot} shadow ring-2 ring-white`} />
+                  <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">{p.month}</span>
+                </div>
+                {idx < phases.length - 1 && (
+                  <div className="w-16 h-0.5 bg-gradient-to-r from-slate-300 to-slate-200 mx-1" />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Official Department AI365@CCE Poster Showcase Section */}
-      <section id="cce-poster-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 scroll-mt-24">
-        <div className="text-center max-w-3xl mx-auto space-y-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[#004990] font-bold text-xs uppercase tracking-wider">
-            <Target className="w-3.5 h-3.5" /> Sri Eshwar College of Engineering — Department Vision
+      {/* ── POSTER SECTION ───────────────────────────────────────────────── */}
+      <section id="cce-poster-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24">
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-[#004990] font-bold text-xs uppercase tracking-widest border border-blue-100">
+            <Target className="w-3.5 h-3.5" /> Sri Eshwar College of Engineering · Department Vision
           </span>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-            AI365 @ CCE Official Roadmap Poster
-          </h2>
-          <p className="text-xs text-slate-500 font-medium">
-            One Year. One Vision. One AI-Ready Campus. Department commitments for 2026–2027 including 3 AI Startups, 30 AI Solutions, 30 AI Research Articles, 300 AI Certifications & 3000 Hours of AI Learning.
+          <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">AI365 @ CCE Official Roadmap Poster</h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+            One Year. One Vision. One AI-Ready Campus. Department commitments for 2026–2027 including 3 AI Startups, 30 AI Solutions, 30 AI Research Articles, 300 AI Certifications &amp; 3000 Hours of AI Learning.
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-[#001E42] to-[#003B7A] p-4 sm:p-8 rounded-[32px] shadow-2xl border border-slate-200 relative overflow-hidden flex flex-col lg:flex-row items-center gap-8">
-          <div className="w-full lg:w-1/2 flex flex-col items-center">
-            <div className="relative group cursor-pointer rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl bg-slate-900 max-w-lg w-full transition-all duration-300 hover:scale-[1.02]">
-              <img
-                src="/cce_poster.jpeg"
-                alt="Sri Eshwar College of Engineering - AI365@CCE Official Department Poster"
-                className="w-full h-auto object-cover rounded-xl"
-                referrerPolicy="no-referrer"
-              />
-              <div
-                onClick={() => setShowPosterModal(true)}
-                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-bold text-sm"
-              >
+        <div className="bg-gradient-to-br from-[#001E42] via-[#002B5C] to-[#003B7A] p-5 sm:p-10 rounded-[32px] shadow-2xl border border-slate-700/40 relative overflow-hidden flex flex-col lg:flex-row items-center gap-10">
+          {/* Decorative blur orbs */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Poster image */}
+          <div className="w-full lg:w-1/2 flex flex-col items-center relative z-10">
+            <div className="relative group cursor-pointer rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-slate-900 max-w-lg w-full hover:scale-[1.02] transition-all duration-300">
+              <img src="/cce_poster.jpeg" alt="AI365@CCE Official Department Poster"
+                className="w-full h-auto object-cover rounded-xl" referrerPolicy="no-referrer" />
+              <div onClick={() => setShowPosterModal(true)}
+                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-bold text-sm">
                 <Maximize2 className="w-8 h-8 text-[#F3B631]" />
-                <span>Click to Expand Fullscreen</span>
+                <span>Click to Expand</span>
               </div>
             </div>
-
             <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={() => setShowPosterModal(true)}
-                className="px-4 py-2 bg-[#F3B631] hover:bg-amber-400 text-[#002B5C] rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all"
-              >
-                <Maximize2 className="w-4 h-4" />
-                <span>Full Poster View</span>
+              <button onClick={() => setShowPosterModal(true)}
+                className="px-4 py-2 bg-[#F3B631] hover:bg-amber-400 text-[#002B5C] rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all">
+                <Maximize2 className="w-4 h-4" />Full Poster View
               </button>
-              <a
-                href="/cce_poster.jpeg"
-                download="cce_ai365_poster.jpeg"
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs flex items-center gap-2 border border-white/20 transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Poster</span>
+              <a href="/cce_poster.jpeg" download="cce_ai365_poster.jpeg"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs flex items-center gap-2 border border-white/20 transition-all">
+                <Download className="w-4 h-4" />Download
               </a>
             </div>
           </div>
 
-          <div className="w-full lg:w-1/2 text-white space-y-6">
+          {/* Goals */}
+          <div className="w-full lg:w-1/2 text-white space-y-6 relative z-10">
             <div>
-              <span className="text-xs font-black text-[#F3B631] uppercase tracking-wider block mb-1">
-                Our Commitments for 2026–2027
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-white leading-snug">
-                Ambitious Goals. Measurable Impact. Limitless Possibilities.
-              </h3>
+              <span className="text-xs font-black text-[#F3B631] uppercase tracking-wider block mb-1">Our Commitments for 2026–2027</span>
+              <h3 className="text-2xl sm:text-3xl font-black text-white leading-snug">Ambitious Goals. Measurable Impact. Limitless Possibilities.</h3>
             </div>
-
             <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="bg-white/10 p-4 rounded-2xl border border-white/10">
-                <span className="text-2xl font-black text-[#F3B631] block">3</span>
-                <span className="font-bold text-white block">AI Startups</span>
-                <span className="text-[11px] text-slate-300">Transform innovative ideas into AI ventures</span>
-              </div>
-              <div className="bg-white/10 p-4 rounded-2xl border border-white/10">
-                <span className="text-2xl font-black text-emerald-400 block">30</span>
-                <span className="font-bold text-white block">AI Research Articles</span>
-                <span className="text-[11px] text-slate-300">Scopus-indexed conferences & journals</span>
-              </div>
-              <div className="bg-white/10 p-4 rounded-2xl border border-white/10">
-                <span className="text-2xl font-black text-amber-300 block">30</span>
-                <span className="font-bold text-white block">AI Solutions</span>
-                <span className="text-[11px] text-slate-300">Industry & societal challenges</span>
-              </div>
-              <div className="bg-white/10 p-4 rounded-2xl border border-white/10">
-                <span className="text-2xl font-black text-sky-400 block">300</span>
-                <span className="font-bold text-white block">AI Certifications</span>
-                <span className="text-[11px] text-slate-300">Globally recognized AI credentials</span>
-              </div>
+              {[
+                { val: '3',    label: 'AI Startups',          sub: 'Transform innovative ideas into ventures', color: 'text-[#F3B631]' },
+                { val: '30',   label: 'AI Research Articles', sub: 'Scopus-indexed conferences & journals',     color: 'text-emerald-400' },
+                { val: '30',   label: 'AI Solutions',         sub: 'Industry & societal challenges solved',     color: 'text-amber-300' },
+                { val: '300',  label: 'AI Certifications',    sub: 'Globally recognized AI credentials',        color: 'text-sky-400' },
+              ].map(({ val, label, sub, color }) => (
+                <div key={label} className="bg-white/10 hover:bg-white/15 transition-colors p-4 rounded-2xl border border-white/10 space-y-1">
+                  <span className={`text-2xl font-black ${color} block`}>{val}</span>
+                  <span className="font-bold text-white block">{label}</span>
+                  <span className="text-[11px] text-slate-300">{sub}</span>
+                </div>
+              ))}
             </div>
-
-            <div className="bg-white/10 p-4 rounded-2xl border border-white/10 text-xs flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#F3B631] text-[#002B5C] font-black flex items-center justify-center text-xl shrink-0">
-                3000
+            <div className="bg-white/10 p-4 rounded-2xl border border-white/10 flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-[#F3B631] text-[#002B5C] font-black flex items-center justify-center text-base shrink-0 leading-tight text-center">
+                3000<br /><span className="text-[8px]">HRS</span>
               </div>
               <div>
                 <p className="font-bold text-white">Hours of AI Learning</p>
                 <p className="text-[11px] text-slate-300">Through workshops, hackathons, certifications, research, and hands-on projects.</p>
               </div>
             </div>
-
-            <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300 font-semibold">
-              <span>LEARN → CERTIFY → RESEARCH → BUILD → INNOVATE → IMPACT</span>
+            <div className="pt-2 border-t border-white/10 text-[11px] text-slate-400 font-semibold tracking-wide">
+              LEARN → CERTIFY → RESEARCH → BUILD → INNOVATE → IMPACT
             </div>
           </div>
         </div>
       </section>
 
-      {/* Poster Fullscreen Modal */}
+      {/* ── POSTER MODAL ─────────────────────────────────────────────────── */}
       {showPosterModal && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center">
-            <button
-              onClick={() => setShowPosterModal(false)}
-              className="absolute -top-12 right-0 px-4 py-1.5 bg-white text-slate-900 rounded-full font-bold text-xs hover:bg-slate-200 transition-colors shadow-lg z-50"
-            >
-              ✕ Close Modal
+            <button onClick={() => setShowPosterModal(false)}
+              className="absolute -top-12 right-0 px-4 py-1.5 bg-white text-slate-900 rounded-full font-bold text-xs hover:bg-slate-200 transition-colors shadow-lg z-50">
+              ✕ Close
             </button>
-            <img
-              src="/cce_poster.jpeg"
-              alt="AI365@CCE Full Poster View"
-              className="max-h-[85vh] w-auto object-contain rounded-2xl shadow-2xl border border-white/20"
-              referrerPolicy="no-referrer"
-            />
+            <img src="/cce_poster.jpeg" alt="AI365@CCE Full Poster"
+              className="max-h-[85vh] w-auto object-contain rounded-2xl shadow-2xl border border-white/20" />
           </div>
         </div>
       )}
 
-      {/* 6-Step Visual Winding Road Graphic Section */}
-      <WindingRoadmap />
-
-      {/* Featured AI Projects Showcase — only shown when real approved projects exist */}
+      {/* ── FEATURED PROJECTS ────────────────────────────────────────────── */}
       {featuredProjects?.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">Featured Student AI Prototypes</h2>
-            <p className="text-xs text-slate-500 font-medium mt-2">
-              Innovative solutions developed by Computer & Communication Engineering students in our AI Labs.
-            </p>
+            <p className="text-xs text-slate-500 font-medium mt-2">Innovative solutions developed by Computer &amp; Communication Engineering students.</p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {featuredProjects.map((p: any) => (
               <div key={p.id} className="bg-white rounded-[24px] border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all">
-                <span className="inline-block px-3 py-1 bg-blue-50 text-[#004990] font-bold text-[10px] rounded-full uppercase mb-3">
-                  {p.year}
-                </span>
+                <span className="inline-block px-3 py-1 bg-blue-50 text-[#004990] font-bold text-[10px] rounded-full uppercase mb-3">{p.year}</span>
                 <h3 className="text-lg font-extrabold text-slate-900 mb-2">{p.title}</h3>
                 <p className="text-xs text-slate-600 mb-4">{p.ai_contribution}</p>
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
@@ -353,3 +328,4 @@ export const Home: React.FC = () => {
     </div>
   );
 };
+

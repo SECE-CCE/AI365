@@ -17,6 +17,7 @@ export const Register: React.FC = () => {
   // Student-only fields
   const [registerNumber, setRegisterNumber] = useState('');
   const [year, setYear] = useState('1st Year');
+  const [gender, setGender] = useState<'boy' | 'girl'>('boy');
 
   // Faculty-only fields
   const [designation, setDesignation] = useState('');
@@ -51,6 +52,7 @@ export const Register: React.FC = () => {
           register_number: registerNumber,
           year,
           designation,
+          gender,
         }),
       });
       setSuccess(true);
@@ -114,6 +116,52 @@ export const Register: React.FC = () => {
                   Faculty accounts require admin approval before login is enabled.
                 </p>
               )}
+            </div>
+
+            {/* Avatar / Gender Selection */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-2">Select Profile Avatar *</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setGender('boy')}
+                  className={`p-3 rounded-2xl border-2 flex items-center gap-3 transition-all ${
+                    gender === 'boy'
+                      ? 'border-[#004990] bg-blue-50/60 shadow-sm'
+                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
+                    alt="Boy Avatar"
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-blue-500/30"
+                  />
+                  <div className="text-left">
+                    <span className="block font-extrabold text-slate-900 text-xs">Male Avatar</span>
+                    <span className="text-[10px] text-slate-500 font-semibold">Student / Faculty Boy</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setGender('girl')}
+                  className={`p-3 rounded-2xl border-2 flex items-center gap-3 transition-all ${
+                    gender === 'girl'
+                      ? 'border-purple-600 bg-purple-50/60 shadow-sm'
+                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
+                    alt="Girl Avatar"
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-purple-500/30"
+                  />
+                  <div className="text-left">
+                    <span className="block font-extrabold text-slate-900 text-xs">Female Avatar</span>
+                    <span className="text-[10px] text-slate-500 font-semibold">Student / Faculty Girl</span>
+                  </div>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

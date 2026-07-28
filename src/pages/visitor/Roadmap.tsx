@@ -1,5 +1,6 @@
 import React from 'react';
-import { WindingRoadmap } from '../../components/common/WindingRoadmap';
+import { RoadmapShFlow } from '../../components/common/RoadmapShFlow';
+import { EventRoadmap } from '../../components/common/EventRoadmap';
 
 export const Roadmap: React.FC = () => {
   const roadmapMonths = [
@@ -35,16 +36,21 @@ export const Roadmap: React.FC = () => {
     },
     {
       month: 'Month 11-12',
-      title: 'MLOps, Cloud Deployment & Capstone Hackathon',
-      topics: 'Docker, FastAPI, Model Monitoring, AWS SageMaker, Live Product Showcase & Startup Pitch',
+      title: 'MLOps, Cloud Deployment & BuildFest AI Capstone',
+      topics: 'Docker, FastAPI, Model Monitoring, AWS SageMaker, Live BuildFest AI Expo & Startup Pitch',
       badge: 'Pioneer & Entrepreneur Tier',
     },
   ];
 
   return (
     <div className="w-full space-y-12 pb-16 font-['Poppins',sans-serif]">
-      {/* 6-Step Visual Winding Road Graphic Section */}
-      <WindingRoadmap />
+      {/* Roadmap.sh Inspired Interactive Connected Flow (Phase 1 Focus) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <RoadmapShFlow />
+      </div>
+
+      {/* 12-Month AI Event Roadmap Timeline */}
+      <EventRoadmap />
 
       {/* Detailed Module Breakdown */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
@@ -53,10 +59,10 @@ export const Roadmap: React.FC = () => {
             Detailed Module Syllabus
           </span>
           <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            12-Month Academic Curriculum Breakdown
+            12-Month Academic Curriculum Breakdown (Phase 1)
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-            Structured step-by-step milestones created by CCE faculty to take students from basics to deployment & research.
+            Structured step-by-step milestones created by CCE faculty to take students from basics to deployment, research &amp; BuildFest AI Expo.
           </p>
         </div>
 
@@ -80,4 +86,3 @@ export const Roadmap: React.FC = () => {
     </div>
   );
 };
-
