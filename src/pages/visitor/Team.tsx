@@ -15,6 +15,11 @@ import imgBanupriya    from '../../../assets/Ms.N.Banupriya.jpg';
 import imgPrinciple    from '../../../assets/sudha-1.jpg';
 import imgVivek        from '../../../assets/Dr.C.Vivek_.jpg';
 import imgDarshan      from '../../../assets/DarshanAR.JPG';
+import imgTanya        from '../../../assets/Tanya.jpeg';
+import imgGokulnaath   from '../../../assets/Gokulnaath.jpeg';
+import imgRupadharan   from '../../../assets/RupaDharan.jpeg';
+import imgLekaAditya   from '../../../assets/LekaAditya.jpeg';
+import imgDhevadharun  from '../../../assets/Dhevadharun.png';
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -47,7 +52,6 @@ const coordinators = [
 
 const mentors = [
   { name: 'Dr. C. Ganesh',               designation: 'Assistant Professor', img: imgGanesh },
-  { name: 'Dr. S. Dhamodharan',          designation: 'Assistant Professor', img: imgDhamodharan },
   { name: 'Dr. R. Babitha Lincy',        designation: 'Assistant Professor', img: imgBabitha },
   { name: 'Dr. R. R. Thirrunavukkarasu', designation: 'Assistant Professor', img: imgThiru },
   { name: 'Mr. R. Arun',                designation: 'Assistant Professor', img: imgArun },
@@ -57,12 +61,11 @@ const mentors = [
 
 const students = [
   { name: 'Darshan AR',      role: 'President · 3rd Year CCE', sub: 'Developer, AI365 Platform', initials: 'DA', img: imgDarshan, featured: true },
-  { name: 'Gokulnath N',     role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'GK', featured: false },
-  { name: 'Varun Kumar SN',  role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'VA', featured: false },
-  { name: 'Tanyasri GR',     role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'DS', featured: false },
-  { name: 'Rupadharan',      role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'RP', featured: false },
-  { name: 'Leka Adhithyan',  role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'LA', featured: false },
-  { name: 'Deva Dharun',     role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'DD', featured: false },
+  { name: 'Gokulnath N',     role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'GK', img: imgGokulnaath, featured: false },
+  { name: 'Tanyasri GR',     role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'DS', img: imgTanya, featured: false },
+  { name: 'Rupadharan',      role: 'Student Coordinator',      sub: '2nd Year CCE',              initials: 'RP', img: imgRupadharan, featured: false },
+  { name: 'Leka Adhithyan',  role: 'Student Coordinator',      sub: '2nd Year CCE',              initials: 'LA', img: imgLekaAditya, featured: false },
+  { name: 'Deva Dharun',     role: 'Student Coordinator',      sub: '2nd Year CCE',              initials: 'DD', img: imgDhevadharun, featured: false },
 ];
 
 const studentGradients = [
@@ -209,7 +212,7 @@ export const Team: React.FC = () => (
       {/* ── Faculty Mentors ─────────────────────────────────────────────── */}
       <section>
         <SectionHeader icon={GraduationCap} label="Mentors" title="Faculty Mentors" color="bg-indigo-50 text-indigo-700 border-indigo-200" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {mentors.map((m) => (
             <LargePhotoCard
               key={m.name}
@@ -228,7 +231,7 @@ export const Team: React.FC = () => (
         <SectionHeader icon={Users} label="Student Team" title="Student Coordinators" color="bg-emerald-50 text-emerald-700 border-emerald-200" />
 
         {/* Featured: Darshan AR */}
-        <div className="max-w-xs sm:max-w-sm mx-auto mb-12">
+        <div className="max-w-[260px] sm:max-w-[280px] mx-auto mb-10">
           <div className="bg-gradient-to-br from-[#001E42] via-[#002B5C] to-[#003B7A] rounded-2xl shadow-xl p-4 flex flex-col items-center text-center border border-[#F3B631]/40 group hover:-translate-y-1.5 transition-all duration-300 relative overflow-hidden">
             {/* Glow effect */}
             <div className="absolute -top-12 -right-12 w-36 h-36 bg-[#F3B631]/20 rounded-full blur-2xl pointer-events-none" />
@@ -243,9 +246,6 @@ export const Team: React.FC = () => (
               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                 <span className="px-2.5 py-1 bg-[#F3B631] text-[#002B5C] text-[10px] font-black uppercase tracking-wider rounded-md shadow">
                   President
-                </span>
-                <span className="px-2.5 py-1 bg-violet-600 text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow">
-                  Developer
                 </span>
               </div>
             </div>
@@ -270,11 +270,15 @@ export const Team: React.FC = () => (
         </div>
 
         {/* Other student coordinators */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5 max-w-5xl mx-auto">
           {students.filter(s => !s.featured).map((s, idx) => (
-            <div key={s.name} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-              <div className={`w-full aspect-square rounded-xl bg-gradient-to-br ${studentGradients[(idx + 1) % studentGradients.length]} flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 mb-3`}>
-                <span className="text-2xl sm:text-3xl font-black text-white">{s.initials}</span>
+            <div key={s.name} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+              <div className={`w-full aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br ${studentGradients[(idx + 1) % studentGradients.length]} flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 mb-3 border border-slate-100`}>
+                {s.img ? (
+                  <img src={s.img} alt={s.name} className="w-full h-full object-cover object-top" />
+                ) : (
+                  <span className="text-2xl sm:text-3xl font-black text-white">{s.initials}</span>
+                )}
               </div>
               <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full mb-1 border border-emerald-100">
                 Coordinator
