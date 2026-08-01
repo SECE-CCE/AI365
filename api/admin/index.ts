@@ -155,12 +155,13 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
 router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = Number(req.params.id);
-    const { status, role, mentor_id, is_department_wide, full_name, register_number, year, department, password } = req.body;
+    const { status, role, mentor_id, mentor_name, is_department_wide, full_name, register_number, year, department, password } = req.body;
 
     const updateData: any = {};
     if (status) updateData.status = status;
     if (role) updateData.role = role;
     if (mentor_id !== undefined) updateData.mentor_id = mentor_id ? Number(mentor_id) : null;
+    if (mentor_name !== undefined) updateData.mentor_name = mentor_name;
     if (is_department_wide !== undefined) updateData.is_department_wide = Boolean(is_department_wide);
     if (full_name) updateData.full_name = full_name;
     if (register_number) updateData.register_number = register_number;

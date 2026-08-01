@@ -10,6 +10,7 @@ export interface User {
   profile_photo?: string;
   status: 'pending_approval' | 'approved' | 'rejected';
   mentor_id?: number | null;
+  mentor_name?: string | null;
   is_department_wide?: boolean;
   created_at: string;
 }

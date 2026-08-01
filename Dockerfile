@@ -4,8 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npx vite build
-RUN npx esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/server.cjs
+RUN npm run build
 
 # Stage 2: Production
 FROM node:20-alpine AS runner
@@ -14,5 +13,6 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
 EXPOSE 3000
 CMD ["node", "dist/server.cjs"]

@@ -29,6 +29,24 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboard();
+    const interval = setInterval(fetchDashboard, 5000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchDashboard(); };
+    const handleFocus = () => fetchDashboard();
+    const handleUpdated = () => fetchDashboard();
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'ai365_last_update') fetchDashboard(); };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ai365_data_updated', handleUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ai365_data_updated', handleUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const handleApproveRegistration = async (userId: number, action: 'approve' | 'reject') => {
@@ -49,7 +67,7 @@ export const AdminDashboard: React.FC = () => {
   const handleOpenSubmissionAction = (item: any, action: 'approve' | 'reject') => {
     setActiveItem({ id: item.id, type: item.type, action, title: item.title });
     setRemarks(action === 'approve' ? 'Approved by Admin.' : 'Needs revision.');
-    setAwardedHours(20);
+    setAwardedHours(item.type.toLowerCase().includes('project') ? 40 : 20);
   };
 
   const handleConfirmSubmissionAction = async () => {
@@ -116,6 +134,14 @@ export const AdminDashboard: React.FC = () => {
       accessorKey: 'year',
     },
     {
+      header: 'Chosen Mentor',
+      cell: (row) => (
+        <span className="font-bold text-[#004990] text-xs">
+          {row.mentor_name || 'Not Selected'}
+        </span>
+      ),
+    },
+    {
       header: 'Date Applied',
       cell: (row) => new Date(row.created_at).toLocaleDateString(),
     },
@@ -159,13 +185,39 @@ export const AdminDashboard: React.FC = () => {
       ),
     },
     {
-      header: 'Submission Title',
-      cell: (row) => (
-        <div>
-          <p className="font-bold text-slate-800">{row.title}</p>
-          <p className="text-[11px] text-slate-500 line-clamp-1">{row.issuer || row.conference_journal || row.tech_stack || ''}</p>
-        </div>
-      ),
+      header: 'Submission Title / Authors',
+      cell: (row) => {
+        if (row.type === 'research' && row.authors) {
+          // Calculate per-author hour share
+          const coAuthorsList = String(row.authors).split(/,| and /i).map((a: string) => a.trim()).filter((a: string) => a.length > 0);
+          const totalAuthors = 1 + coAuthorsList.length;
+          const totalHours = Number(row.total_hours || 80);
+          const sharePerPerson = Math.max(1, Math.round(totalHours / totalAuthors));
+          return (
+            <div>
+              <p className="font-bold text-slate-800">{row.title}</p>
+              <p className="text-[11px] text-slate-500 line-clamp-1">{row.conference_journal || ''}</p>
+              <div className="mt-1.5 p-2 bg-indigo-50 rounded-lg border border-indigo-200/70">
+                <p className="text-[10px] font-black text-indigo-800 mb-1">
+                  📚 {totalAuthors} Authors · {totalHours} hrs total · {sharePerPerson} hrs/person
+                </p>
+                <p className="text-[10px] text-indigo-700 font-semibold">
+                  <span className="text-emerald-700">[Submitter]</span> {row.student_name}
+                  {coAuthorsList.length > 0 && (
+                    <>, {coAuthorsList.join(', ')}</>
+                  )}
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div>
+            <p className="font-bold text-slate-800">{row.title}</p>
+            <p className="text-[11px] text-slate-500 line-clamp-1">{row.issuer || row.conference_journal || row.tech_stack || ''}</p>
+          </div>
+        );
+      },
     },
     {
       header: 'Document Proof',
@@ -319,10 +371,12 @@ export const AdminDashboard: React.FC = () => {
         subtitle="Review submission and set remarks / verified hours"
       >
         <div className="space-y-4 text-xs">
-          {activeItem?.action === 'approve' && activeItem?.type.toLowerCase().includes('certificate') && (
+          {activeItem?.action === 'approve' && (activeItem?.type.toLowerCase().includes('certificate') || activeItem?.type.toLowerCase().includes('project')) && (
             <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
               <label className="block font-bold text-slate-900">Assign Verified Learning Hours *</label>
-              <p className="text-[11px] text-slate-500">How many learning hours should be awarded to the student for this certificate?</p>
+              <p className="text-[11px] text-slate-500">
+                How many learning hours should be awarded to the student for this {activeItem.type.toLowerCase().includes('project') ? 'AI project' : 'certificate'}?
+              </p>
               <input
                 type="number"
                 min={1}

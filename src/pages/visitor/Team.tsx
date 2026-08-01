@@ -17,7 +17,7 @@ import imgVivek        from '../../../assets/Dr.C.Vivek_.jpg';
 import imgDarshan      from '../../../assets/DarshanAR.JPG';
 import imgTanya        from '../../../assets/Tanya.jpeg';
 import imgGokulnaath   from '../../../assets/Gokulnaath.jpeg';
-import imgRupadharan   from '../../../assets/RupaDharan.jpeg';
+import imgRupadharan   from '../../../assets/RupaDharan.png';
 import imgLekaAditya   from '../../../assets/LekaAditya.jpeg';
 import imgDhevadharun  from '../../../assets/Dhevadharun.png';
 

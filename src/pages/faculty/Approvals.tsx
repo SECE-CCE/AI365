@@ -32,12 +32,30 @@ export const Approvals: React.FC = () => {
 
   useEffect(() => {
     fetchApprovals();
+    const interval = setInterval(fetchApprovals, 5000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchApprovals(); };
+    const handleFocus = () => fetchApprovals();
+    const handleUpdated = () => fetchApprovals();
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'ai365_last_update') fetchApprovals(); };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ai365_data_updated', handleUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ai365_data_updated', handleUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const handleActionClick = (id: number, type: string, action: 'approve' | 'reject') => {
     setActiveItem({ id, type, action });
     setRemarks(action === 'approve' ? 'Approved by faculty mentor.' : 'Needs revision.');
-    setAwardedHours(20);
+    setAwardedHours(type.toLowerCase().includes('project') ? 40 : 20);
   };
 
   const handleConfirmAction = async () => {
@@ -226,10 +244,12 @@ export const Approvals: React.FC = () => {
         subtitle="Provide faculty remarks"
       >
         <div className="space-y-4 text-xs">
-          {activeItem?.action === 'approve' && activeItem?.type.toLowerCase().includes('certificate') && (
+          {activeItem?.action === 'approve' && (activeItem?.type.toLowerCase().includes('certificate') || activeItem?.type.toLowerCase().includes('project')) && (
             <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
               <label className="block font-bold text-slate-900">Assign Verified Learning Hours *</label>
-              <p className="text-[11px] text-slate-500">How many learning hours should be awarded to the student for this certificate?</p>
+              <p className="text-[11px] text-slate-500">
+                How many learning hours should be awarded to the student for this {activeItem.type.toLowerCase().includes('project') ? 'AI project' : 'certificate'}?
+              </p>
               <input
                 type="number"
                 min={1}

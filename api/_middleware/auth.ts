@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db, UserRow } from '../_db/client.js';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'ai365-cce-super-secret-jwt-key-2026';
+export const JWT_SECRET = process.env.JWT_SECRET || 'ai365_cce_super_secret_jwt_key_2026';
 
 export interface AuthenticatedRequest extends Request {
   user?: UserRow;

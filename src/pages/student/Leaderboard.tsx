@@ -24,6 +24,24 @@ export const Leaderboard: React.FC = () => {
 
   useEffect(() => {
     fetchLeaderboard();
+    const interval = setInterval(fetchLeaderboard, 5000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchLeaderboard(); };
+    const handleFocus = () => fetchLeaderboard();
+    const handleUpdated = () => fetchLeaderboard();
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'ai365_last_update') fetchLeaderboard(); };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ai365_data_updated', handleUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ai365_data_updated', handleUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [selectedYear]);
 
   const topThree = leaderboard.slice(0, 3);
@@ -189,6 +207,12 @@ export const Leaderboard: React.FC = () => {
       <Card title="Department Standings Table" subtitle="Verified point rankings for CCE students">
         {loading ? (
           <div className="py-12 text-center text-slate-400">Loading standings...</div>
+        ) : leaderboard.length === 0 ? (
+          <div className="py-14 flex flex-col items-center justify-center gap-3 text-slate-400">
+            <Trophy className="w-12 h-12 opacity-30" />
+            <p className="font-bold text-slate-500 text-sm">No ranked students yet</p>
+            <p className="text-xs text-slate-400">Students appear here once their account is approved and activities are verified.</p>
+          </div>
         ) : (
           <Table columns={columns} data={leaderboard} keyExtractor={(r) => r.student_id} />
         )}

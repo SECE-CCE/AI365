@@ -36,6 +36,24 @@ export const Certificates: React.FC = () => {
 
   useEffect(() => {
     fetchCertificates();
+    const interval = setInterval(fetchCertificates, 5000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchCertificates(); };
+    const handleFocus = () => fetchCertificates();
+    const handleUpdated = () => fetchCertificates();
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'ai365_last_update') fetchCertificates(); };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ai365_data_updated', handleUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ai365_data_updated', handleUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const filteredEntries = data.entries.filter((entry) => {

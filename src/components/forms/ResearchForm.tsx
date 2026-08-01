@@ -97,22 +97,29 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
       </div>
 
       <div>
-        <label className="block font-bold text-slate-700 mb-1">Co-Authors * (comma separated)</label>
+        <label className="block font-bold text-slate-700 mb-1">Co-Authors * <span className="text-slate-400 font-normal">(comma-separated, excluding yourself)</span></label>
         <input type="text" required value={authors} onChange={(e) => setAuthors(e.target.value)}
           placeholder="e.g., Alex Mercer, Dr. Rajesh Sharma"
           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
       </div>
 
       {/* Live Co-Author Hours Division Preview Card */}
-      <div className="bg-indigo-50 border border-indigo-200/80 rounded-xl p-3.5 space-y-1">
+      <div className="bg-indigo-50 border border-indigo-200/80 rounded-xl p-3.5 space-y-2">
         <div className="flex items-center justify-between text-indigo-900 font-bold">
-          <span>Co-Author Hours Division Credit:</span>
+          <span>Effort Hours Distribution:</span>
           <span className="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-[11px]">
-            {totalHours} hrs ÷ {totalAuthorsCount} authors = {individualShareHours} hrs for you
+            {totalHours} hrs ÷ {totalAuthorsCount} authors = {individualShareHours} hrs each
           </span>
         </div>
-        <p className="text-[11px] text-indigo-700 leading-relaxed font-medium">
-          Total paper hours are automatically split among team members. Upon approval, <strong>{individualShareHours} learning hours</strong> will be credited directly to your AI Passport &amp; main page.
+        <div className="text-[11px] text-indigo-800 space-y-1">
+          <p className="font-bold">Authors ({totalAuthorsCount} total):</p>
+          <p className="font-semibold text-emerald-700">1. You (Submitter) — {individualShareHours} hrs credited to your leaderboard</p>
+          {parsedCoAuthors.map((name, i) => (
+            <p key={i} className="font-medium text-indigo-700">{i + 2}. {name} — {individualShareHours} hrs</p>
+          ))}
+        </div>
+        <p className="text-[11px] text-indigo-700 leading-relaxed font-medium border-t border-indigo-200 pt-2">
+          Upon approval, <strong>{individualShareHours} learning hours</strong> will be credited to your AI Passport. Overall <strong>{totalHours} hrs</strong> will appear on the home screen stats.
         </p>
       </div>
 

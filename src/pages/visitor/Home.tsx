@@ -79,7 +79,11 @@ export const Home: React.FC = () => {
   const [showPosterModal, setShowPosterModal] = useState(false);
 
   useEffect(() => {
-    apiFetch('/api/visitor/stats').then(setVisitorStats).catch(console.error);
+    const fetchStats = () => apiFetch('/api/visitor/stats').then(setVisitorStats).catch(console.error);
+    fetchStats();
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchStats(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   const stats = visitorStats?.stats || { learningHours: 0, certifications: 0, researchPapers: 0, projects: 0 };

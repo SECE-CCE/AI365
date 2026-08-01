@@ -33,5 +33,15 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     throw new Error(errorMsg);
   }
 
+  const method = (options.method || 'GET').toUpperCase();
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    try {
+      window.dispatchEvent(new CustomEvent('ai365_data_updated'));
+      localStorage.setItem('ai365_last_update', Date.now().toString());
+    } catch (e) {
+      // ignore storage access errors if any
+    }
+  }
+
   return data as T;
 }

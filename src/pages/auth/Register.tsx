@@ -1,26 +1,33 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ArrowLeft, Loader2, CheckCircle2, UserCheck } from 'lucide-react';
 import { apiFetch } from '../../services/api';
 
-export const Register: React.FC = () => {
-  const [registerAs, setRegisterAs] = useState<'student' | 'faculty'>('student');
+const MENTORS_LIST = [
+  'Dr.S.Dhamodharan',
+  'Ms.R.Megala',
+  'Ms.R.Preethi',
+  'Ms.G.G.Sreeja',
+  'Dr. R. Babitha Lincy',
+  'Dr. R. R. Thirrunavukkarasu',
+  'Assistant Professor',
+  'Mr. R. Arun',
+  'Ms. Dency Flora G',
+  'Ms. N. Banupriya',
+];
 
-  // Common fields
+export const Register: React.FC = () => {
+  // Student fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [department] = useState('Computer & Communication Engineering');
-
-  // Student-only fields
   const [registerNumber, setRegisterNumber] = useState('');
   const [year, setYear] = useState('1st Year');
   const [gender, setGender] = useState<'boy' | 'girl'>('boy');
-
-  // Faculty-only fields
-  const [designation, setDesignation] = useState('');
+  const [mentorName, setMentorName] = useState(MENTORS_LIST[0]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -33,15 +40,14 @@ export const Register: React.FC = () => {
     setError('');
 
     if (!fullName.trim() || !email.trim() || !password) return setError('Please fill in all required fields.');
+    if (!registerNumber.trim()) return setError('Register number is required for students.');
+    if (!mentorName) return setError('Please select a faculty mentor.');
     if (password !== confirmPassword) return setError('Passwords do not match.');
     if (password.length < 6) return setError('Password must be at least 6 characters.');
-    if (registerAs === 'student' && !registerNumber.trim()) return setError('Register number is required for students.');
-    if (registerAs === 'faculty' && !designation.trim()) return setError('Designation is required for faculty.');
 
     setSubmitting(true);
     try {
-      const endpoint = registerAs === 'faculty' ? '/api/auth/register-faculty' : '/api/auth/register';
-      await apiFetch(endpoint, {
+      await apiFetch('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           full_name: fullName,
@@ -51,8 +57,8 @@ export const Register: React.FC = () => {
           department,
           register_number: registerNumber,
           year,
-          designation,
           gender,
+          mentor_name: mentorName,
         }),
       });
       setSuccess(true);
@@ -73,7 +79,7 @@ export const Register: React.FC = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              CCE Registration <Sparkles className="w-5 h-5 text-[#F3B631]" />
+              Student Registration <Sparkles className="w-5 h-5 text-[#F3B631]" />
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-1">Department of Computer & Communication Engineering</p>
           </div>
@@ -87,7 +93,7 @@ export const Register: React.FC = () => {
             </div>
             <h3 className="text-xl font-bold text-slate-900">Registration Submitted!</h3>
             <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-              Your <span className="font-bold">{registerAs}</span> account for <span className="font-bold text-slate-800">{fullName}</span> has been submitted to the CCE Department Administrator for approval. You will be able to log in once approved.
+              Your student account for <span className="font-bold text-slate-800">{fullName}</span> with mentor <span className="font-bold text-[#004990]">{mentorName}</span> has been submitted to the CCE Department Administrator for approval.
             </p>
             <div className="pt-4">
               <button onClick={() => navigate('/login')}
@@ -99,24 +105,6 @@ export const Register: React.FC = () => {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             {error && <div className="p-3 bg-rose-50 text-rose-700 rounded-xl border border-rose-200 font-medium">{error}</div>}
-
-            {/* Register As Toggle */}
-            <div>
-              <label className="block font-bold text-slate-700 mb-2">Register As *</label>
-              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
-                {(['student', 'faculty'] as const).map((role) => (
-                  <button key={role} type="button" onClick={() => setRegisterAs(role)}
-                    className={`flex-1 py-2 rounded-lg font-bold capitalize transition-all ${registerAs === role ? 'bg-[#004990] text-white shadow' : 'text-slate-600 hover:bg-slate-200'}`}>
-                    {role === 'faculty' ? 'Faculty Mentor' : 'Student'}
-                  </button>
-                ))}
-              </div>
-              {registerAs === 'faculty' && (
-                <p className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Faculty accounts require admin approval before login is enabled.
-                </p>
-              )}
-            </div>
 
             {/* Avatar / Gender Selection */}
             <div>
@@ -138,7 +126,7 @@ export const Register: React.FC = () => {
                   />
                   <div className="text-left">
                     <span className="block font-extrabold text-slate-900 text-xs">Male Avatar</span>
-                    <span className="text-[10px] text-slate-500 font-semibold">Student / Faculty Boy</span>
+                    <span className="text-[10px] text-slate-500 font-semibold">Student Boy</span>
                   </div>
                 </button>
 
@@ -158,7 +146,7 @@ export const Register: React.FC = () => {
                   />
                   <div className="text-left">
                     <span className="block font-extrabold text-slate-900 text-xs">Female Avatar</span>
-                    <span className="text-[10px] text-slate-500 font-semibold">Student / Faculty Girl</span>
+                    <span className="text-[10px] text-slate-500 font-semibold">Student Girl</span>
                   </div>
                 </button>
               </div>
@@ -168,25 +156,37 @@ export const Register: React.FC = () => {
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
                 <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
-                  placeholder={registerAs === 'faculty' ? 'e.g. Dr. Priya Nair' : 'e.g. Alex Mercer'}
+                  placeholder="e.g. Alex Mercer"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
               </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Register Number *</label>
+                <input type="text" required value={registerNumber} onChange={(e) => setRegisterNumber(e.target.value)}
+                  placeholder="e.g. 21CCE042"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+              </div>
+            </div>
 
-              {registerAs === 'student' ? (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Register Number *</label>
-                  <input type="text" required value={registerNumber} onChange={(e) => setRegisterNumber(e.target.value)}
-                    placeholder="e.g. 21CCE042"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
-                </div>
-              ) : (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Designation *</label>
-                  <input type="text" required value={designation} onChange={(e) => setDesignation(e.target.value)}
-                    placeholder="e.g. Assistant Professor, Associate Professor"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
-                </div>
-              )}
+            {/* Mentor Selection Dropdown */}
+            <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl">
+              <label className="block font-bold text-[#004990] mb-1 flex items-center gap-1.5 text-xs">
+                <UserCheck className="w-4 h-4 text-[#004990]" />
+                Select Your Faculty Mentor *
+              </label>
+              <select
+                value={mentorName}
+                onChange={(e) => setMentorName(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-blue-200 rounded-xl text-slate-900 font-bold focus:border-[#004990] outline-none transition-all shadow-xs"
+              >
+                {MENTORS_LIST.map((mentor) => (
+                  <option key={mentor} value={mentor}>
+                    {mentor}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 font-medium mt-1">
+                Selected mentor will be visible to the CCE Department Admin.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -196,25 +196,23 @@ export const Register: React.FC = () => {
                   className="w-full px-3.5 py-2.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl font-medium" />
               </div>
 
-              {registerAs === 'student' && (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Academic Year *</label>
-                  <select value={year} onChange={(e) => setYear(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#004990] outline-none transition-all">
-                    <option>1st Year</option>
-                    <option>2nd Year</option>
-                    <option>3rd Year</option>
-                    <option>4th Year</option>
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Academic Year *</label>
+                <select value={year} onChange={(e) => setYear(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#004990] outline-none transition-all">
+                  <option>1st Year</option>
+                  <option>2nd Year</option>
+                  <option>3rd Year</option>
+                  <option>4th Year</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">College Email *</label>
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder={registerAs === 'faculty' ? 'dr.name@cce.edu' : 'name.student@cce.edu'}
+                  placeholder="name.student@cce.edu"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
               </div>
               <div>
@@ -244,7 +242,7 @@ export const Register: React.FC = () => {
               <button type="submit" disabled={submitting}
                 className="w-full py-3 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                Submit {registerAs === 'faculty' ? 'Faculty' : 'Student'} Registration
+                Submit Student Registration
               </button>
             </div>
           </form>

@@ -36,6 +36,24 @@ export const Projects: React.FC = () => {
 
   useEffect(() => {
     fetchProjects();
+    const interval = setInterval(fetchProjects, 5000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchProjects(); };
+    const handleFocus = () => fetchProjects();
+    const handleUpdated = () => fetchProjects();
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'ai365_last_update') fetchProjects(); };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ai365_data_updated', handleUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ai365_data_updated', handleUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const filteredEntries = data.entries.filter((entry) => {

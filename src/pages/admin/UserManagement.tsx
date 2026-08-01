@@ -6,6 +6,19 @@ import { StatusPill } from '../../components/common/StatusPill';
 import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
 
+const MENTORS_LIST = [
+  'Dr.S.Dhamodharan',
+  'Ms.R.Megala',
+  'Ms.R.Preethi',
+  'Ms.G.G.Sreeja',
+  'Dr. R. Babitha Lincy',
+  'Dr. R. R. Thirrunavukkarasu',
+  'Assistant Professor',
+  'Mr. R. Arun',
+  'Ms. Dency Flora G',
+  'Ms. N. Banupriya',
+];
+
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [facultyList, setFacultyList] = useState<any[]>([]);
@@ -16,6 +29,7 @@ export const UserManagement: React.FC = () => {
   // Edit user modal
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [assignMentorId, setAssignMentorId] = useState('');
+  const [editMentorName, setEditMentorName] = useState(MENTORS_LIST[0]);
   const [isDeptWide, setIsDeptWide] = useState(false);
   const [resetPass, setResetPass] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -54,6 +68,7 @@ export const UserManagement: React.FC = () => {
   const handleOpenEdit = (user: any) => {
     setSelectedUser(user);
     setAssignMentorId(user.mentor_id ? String(user.mentor_id) : '');
+    setEditMentorName(user.mentor_name || MENTORS_LIST[0]);
     setIsDeptWide(!!user.is_department_wide);
     setResetPass('');
     setEditError('');
@@ -68,6 +83,7 @@ export const UserManagement: React.FC = () => {
         method: 'PUT',
         body: JSON.stringify({
           mentor_id: assignMentorId ? Number(assignMentorId) : null,
+          mentor_name: editMentorName,
           is_department_wide: isDeptWide,
           password: resetPass || undefined,
         }),
@@ -116,7 +132,7 @@ export const UserManagement: React.FC = () => {
     if (roleFilter !== 'All' && u.role.toLowerCase() !== roleFilter.toLowerCase()) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      return u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.register_number?.toLowerCase().includes(q);
+      return u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.register_number?.toLowerCase().includes(q) || u.mentor_name?.toLowerCase().includes(q);
     }
     return true;
   });
@@ -143,7 +159,15 @@ export const UserManagement: React.FC = () => {
       header: 'Details',
       cell: (row) => (
         <span className="text-slate-700 font-medium text-xs">
-          {row.role === 'student' ? `${row.register_number} • ${row.year}` : row.year /* designation stored in year for faculty */}
+          {row.role === 'student' ? `${row.register_number} • ${row.year}` : row.year}
+        </span>
+      ),
+    },
+    {
+      header: 'Chosen Mentor',
+      cell: (row) => (
+        <span className="font-bold text-[#004990] text-xs">
+          {row.mentor_name || 'Not Selected'}
         </span>
       ),
     },
@@ -191,7 +215,7 @@ export const UserManagement: React.FC = () => {
       ),
     },
     {
-      header: 'Reg No / Designation',
+      header: 'Reg No / Year',
       cell: (row) => (
         <span className="font-semibold text-slate-700 text-xs">
           {row.role === 'student' ? `${row.register_number} (${row.year})` : row.year || row.department}
@@ -203,11 +227,10 @@ export const UserManagement: React.FC = () => {
       cell: (row) => <StatusPill status={row.status} />,
     },
     {
-      header: 'Assigned Mentor / Scope',
+      header: 'Chosen Faculty Mentor',
       cell: (row) => {
-        if (row.role === 'student') return <span className="text-slate-700 font-medium text-xs">{row.mentor_name || <span className="text-rose-500 font-bold">Unassigned</span>}</span>;
-        if (row.role === 'faculty') return <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${row.is_department_wide ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>{row.is_department_wide ? 'Dept-Wide Scope' : 'Assigned Mentees'}</span>;
-        return <span className="text-slate-400 text-xs">System Admin</span>;
+        if (row.role === 'student') return <span className="text-[#004990] font-bold text-xs">{row.mentor_name || <span className="text-amber-600 font-normal">Unassigned</span>}</span>;
+        return <span className="text-slate-400 text-xs">N/A</span>;
       },
     },
     {
@@ -226,19 +249,15 @@ export const UserManagement: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">CCE User Directory</h2>
-          <p className="text-xs text-slate-500 font-medium">Manage students, faculty mentors, approvals, and mentor assignments</p>
+          <p className="text-xs text-slate-500 font-medium">Manage student registrations, approvals, and chosen faculty mentors</p>
         </div>
-        <button onClick={() => { setShowAddFaculty(true); setAddError(''); }}
-          className="px-4 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all">
-          <Plus className="w-4 h-4" /> Add Faculty Member
-        </button>
       </div>
 
       {/* Pending Approvals Queue */}
       {pendingUsers.length > 0 && (
         <Card
           title={`Pending Approvals (${pendingUsers.length})`}
-          subtitle="Students and faculty waiting for account activation"
+          subtitle="Students waiting for account activation"
         >
           <Table columns={pendingColumns} data={pendingUsers} keyExtractor={(r) => r.id} />
         </Card>
@@ -250,11 +269,11 @@ export const UserManagement: React.FC = () => {
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search name, email, register number..."
+              placeholder="Search name, email, register number, mentor..."
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
           </div>
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-            {['All', 'Student', 'Faculty', 'Admin'].map((rl) => (
+            {['All', 'Student', 'Admin'].map((rl) => (
               <button key={rl} onClick={() => setRoleFilter(rl)}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-all text-xs ${roleFilter === rl ? 'bg-[#004990] text-white shadow' : 'text-slate-600 hover:bg-slate-200'}`}>
                 {rl}s
@@ -272,36 +291,21 @@ export const UserManagement: React.FC = () => {
       {/* Edit User Modal */}
       <Modal isOpen={!!selectedUser} onClose={() => setSelectedUser(null)}
         title={`Edit: ${selectedUser?.full_name}`}
-        subtitle="Update mentor assignment, access scope, or reset password">
+        subtitle="Update mentor choice or reset password">
         {selectedUser && (
           <div className="space-y-4 text-xs">
             {editError && <div className="p-3 bg-rose-50 text-rose-700 rounded-xl border border-rose-200 font-medium">{editError}</div>}
 
-            {/* Student: assign mentor */}
+            {/* Student: select mentor */}
             {selectedUser.role === 'student' && (
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Assign Faculty Mentor *</label>
-                <select value={assignMentorId} onChange={(e) => setAssignMentorId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none">
-                  <option value="">— Unassigned —</option>
-                  {facultyList.map((f) => (
-                    <option key={f.id} value={f.id}>{f.full_name} ({f.email})</option>
+                <label className="block font-bold text-slate-700 mb-1">Chosen Faculty Mentor *</label>
+                <select value={editMentorName} onChange={(e) => setEditMentorName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:bg-white outline-none">
+                  {MENTORS_LIST.map((m) => (
+                    <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
-                {facultyList.length === 0 && (
-                  <p className="mt-1 text-amber-600 font-medium">No approved faculty yet. Add and approve faculty first.</p>
-                )}
-              </div>
-            )}
-
-            {/* Faculty: dept-wide scope toggle */}
-            {selectedUser.role === 'faculty' && (
-              <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                <input type="checkbox" id="deptWide" checked={isDeptWide} onChange={(e) => setIsDeptWide(e.target.checked)}
-                  className="w-4 h-4 text-[#004990] rounded" />
-                <label htmlFor="deptWide" className="font-bold text-slate-800 cursor-pointer">
-                  Grant Department-Wide Scope (can approve any CCE student submission)
-                </label>
               </div>
             )}
 

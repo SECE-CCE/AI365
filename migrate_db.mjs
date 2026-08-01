@@ -27,10 +27,12 @@ try {
       profile_photo TEXT,
       status VARCHAR(50) NOT NULL DEFAULT 'pending_approval',
       mentor_id INTEGER,
+      mentor_name VARCHAR(255),
       is_department_wide BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS mentor_name VARCHAR(255)`;
   console.log('✅ users table ready');
 
   await sql`
@@ -75,6 +77,7 @@ try {
       title VARCHAR(500) NOT NULL,
       conference_journal VARCHAR(500),
       authors TEXT,
+      total_hours NUMERIC(6,2) DEFAULT 80,
       abstract TEXT,
       pdf_url TEXT,
       status VARCHAR(50) DEFAULT 'Pending',
@@ -83,6 +86,7 @@ try {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS total_hours NUMERIC(6,2) DEFAULT 80`;
   console.log('✅ research_papers table ready');
 
   await sql`

@@ -36,6 +36,24 @@ export const Research: React.FC = () => {
 
   useEffect(() => {
     fetchResearch();
+    const interval = setInterval(fetchResearch, 5000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchResearch(); };
+    const handleFocus = () => fetchResearch();
+    const handleUpdated = () => fetchResearch();
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'ai365_last_update') fetchResearch(); };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ai365_data_updated', handleUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ai365_data_updated', handleUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const filteredEntries = data.entries.filter((entry) => {

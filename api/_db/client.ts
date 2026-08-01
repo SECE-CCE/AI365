@@ -35,6 +35,7 @@ export interface UserRow {
   gender?: 'boy' | 'girl';
   status: 'pending_approval' | 'approved' | 'rejected';
   mentor_id?: number | null;
+  mentor_name?: string | null;
   is_department_wide?: boolean;
   created_at: string;
 }
@@ -352,8 +353,8 @@ class DbStore {
     if (sql) {
       try {
         const rows = await sql.query(
-          `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, is_department_wide)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, mentor_name, is_department_wide)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING *`,
           [
             data.full_name,
@@ -367,6 +368,7 @@ class DbStore {
             data.profile_photo || null,
             data.status || 'approved',
             data.mentor_id || null,
+            data.mentor_name || null,
             data.is_department_wide || false,
           ]
         );
@@ -438,7 +440,7 @@ class DbStore {
 
   async getAllUsers(filters?: { role?: string; department?: string; year?: string; status?: string }): Promise<UserRow[]> {
     try {
-      let query = `SELECT u.*, m.full_name AS mentor_name FROM users u LEFT JOIN users m ON u.mentor_id = m.id WHERE 1=1`;
+      let query = `SELECT u.*, COALESCE(u.mentor_name, m.full_name) AS mentor_name FROM users u LEFT JOIN users m ON u.mentor_id = m.id WHERE 1=1`;
       const params: any[] = [];
       let idx = 1;
       if (filters?.role) { query += ` AND u.role = $${idx++}`; params.push(filters.role); }
@@ -639,8 +641,8 @@ class DbStore {
   async createResearchPaper(data: Omit<ResearchPaperRow, 'id' | 'created_at'>): Promise<ResearchPaperRow> {
     try {
       const rows = await this.queryDb(
-        `INSERT INTO research_papers (student_id, title, conference_journal, authors, abstract, pdf_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [data.student_id, data.title, data.conference_journal, data.authors, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
+        `INSERT INTO research_papers (student_id, title, conference_journal, authors, total_hours, abstract, pdf_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [data.student_id, data.title, data.conference_journal, data.authors, data.total_hours || 80, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
       );
       if (rows && rows.length > 0) { const item = rows[0] as ResearchPaperRow; this.store.research_papers.unshift(item); return item; }
     } catch (err) { console.error('Neon DB createResearchPaper error:', (err as Error).message); }
@@ -681,7 +683,7 @@ class DbStore {
           query += ` AND u.mentor_id = $${idx++}`; params.push(facultyIdScope);
         }
       }
-      if (statusFilter) { query += ` AND p.status = $${idx++}`; params.push(statusFilter); }
+      if (statusFilter) { query += ` AND LOWER(p.status) LIKE $${idx++}`; params.push(`%${statusFilter.toLowerCase()}%`); }
       query += ` ORDER BY p.created_at DESC`;
       const rows = await this.queryDb(query, params);
       if (rows && rows.length >= 0) return rows;
@@ -695,7 +697,7 @@ class DbStore {
         rows = rows.filter((r: ProjectRow) => menteeIds.includes(r.student_id));
       }
     }
-    if (statusFilter) rows = rows.filter((r: ProjectRow) => r.status === statusFilter);
+    if (statusFilter) rows = rows.filter((r: ProjectRow) => r.status?.toLowerCase().includes(statusFilter.toLowerCase()));
     return rows.map((r: ProjectRow) => {
       const student = this.store.users.find((u: UserRow) => u.id === r.student_id);
       return { ...r, student_name: student?.full_name || 'Unknown Student', register_number: student?.register_number || 'N/A', year: student?.year || 'N/A' };
@@ -736,6 +738,83 @@ class DbStore {
 
   // Leaderboard Calculation
   async getLeaderboard(yearFilter?: string): Promise<any[]> {
+    // Try DB-backed leaderboard first
+    if (sql) {
+      try {
+        let query = `
+          SELECT
+            u.id AS student_id,
+            u.full_name AS student_name,
+            u.register_number,
+            u.year,
+            u.department,
+            u.profile_photo,
+            COALESCE(lh.total_hours, 0) AS learning_hours,
+            COALESCE(cert.cert_count, 0) AS certificates,
+            COALESCE(rp.paper_count, 0) AS research_papers,
+            COALESCE(proj.project_count, 0) AS projects
+          FROM users u
+          LEFT JOIN (
+            SELECT student_id, SUM(hours) AS total_hours
+            FROM learning_hours WHERE status = 'Approved'
+            GROUP BY student_id
+          ) lh ON lh.student_id = u.id
+          LEFT JOIN (
+            SELECT student_id, COUNT(*) AS cert_count
+            FROM certificates WHERE status = 'Approved'
+            GROUP BY student_id
+          ) cert ON cert.student_id = u.id
+          LEFT JOIN (
+            SELECT student_id, COUNT(*) AS paper_count
+            FROM research_papers WHERE status = 'Approved'
+            GROUP BY student_id
+          ) rp ON rp.student_id = u.id
+          LEFT JOIN (
+            SELECT student_id, COUNT(*) AS project_count
+            FROM projects WHERE status = 'Approved'
+            GROUP BY student_id
+          ) proj ON proj.student_id = u.id
+          WHERE u.role = 'student' AND u.status = 'approved'
+        `;
+        const params: any[] = [];
+        if (yearFilter) {
+          query += ` AND u.year = $1`;
+          params.push(yearFilter);
+        }
+        query += ` ORDER BY u.id`;
+
+        const rows = await this.queryDb(query, params);
+        if (rows && rows.length >= 0) {
+          const leaderboard = rows.map((s: any) => {
+            const approvedHours = Number(s.learning_hours || 0);
+            const approvedCerts = Number(s.certificates || 0);
+            const approvedPapers = Number(s.research_papers || 0);
+            const approvedProjects = Number(s.projects || 0);
+            // AI Score Formula: Hours * 2 + Certs * 50 + Papers * 150 + Projects * 100
+            const aiScore = Math.round(approvedHours * 2 + approvedCerts * 50 + approvedPapers * 150 + approvedProjects * 100);
+            return {
+              student_id: s.student_id,
+              student_name: s.student_name,
+              register_number: s.register_number,
+              year: s.year,
+              department: s.department,
+              profile_photo: s.profile_photo,
+              learning_hours: approvedHours,
+              certificates: approvedCerts,
+              research_papers: approvedPapers,
+              projects: approvedProjects,
+              ai_score: aiScore,
+            };
+          });
+          leaderboard.sort((a: any, b: any) => b.ai_score - a.ai_score);
+          return leaderboard.map((item: any, index: number) => ({ rank: index + 1, ...item }));
+        }
+      } catch (err) {
+        console.error('Neon DB getLeaderboard error:', (err as Error).message);
+      }
+    }
+
+    // Fallback: in-memory store calculation
     const students = this.store.users.filter((u: UserRow) => u.role === 'student' && u.status === 'approved');
 
     const leaderboard = students.map((s: UserRow) => {
@@ -773,10 +852,10 @@ class DbStore {
     }).filter(Boolean);
 
     // Sort descending by AI Score
-    leaderboard.sort((a, b) => b.ai_score - a.ai_score);
+    leaderboard.sort((a: Record<string, any>, b: Record<string, any>) => b.ai_score - a.ai_score);
 
     // Assign rank
-    return leaderboard.map((item, index) => ({
+    return leaderboard.map((item: Record<string, any>, index: number) => ({
       rank: index + 1,
       ...item,
     }));
@@ -787,18 +866,19 @@ class DbStore {
     const student = await this.findUserById(studentId);
     if (!student) return null;
 
-    const approvedHours = this.store.learning_hours
-      .filter((lh: LearningHourRow) => lh.student_id === studentId && lh.status === 'Approved')
-      .reduce((acc: number, curr: LearningHourRow) => acc + Number(curr.hours), 0);
+    // Use DB-backed queries for accurate counts
+    const allHours = await this.getLearningHours(studentId);
+    const allCerts = await this.getCertificates(studentId);
+    const allPapers = await this.getResearchPapers(studentId);
+    const allProjects = await this.getProjects(studentId);
 
-    const approvedCerts = this.store.certificates
-      .filter((c: CertificateRow) => c.student_id === studentId && c.status === 'Approved').length;
+    const approvedHours = allHours
+      .filter((lh: any) => lh.status === 'Approved')
+      .reduce((acc: number, curr: any) => acc + Number(curr.hours), 0);
 
-    const approvedPapers = this.store.research_papers
-      .filter((p: ResearchPaperRow) => p.student_id === studentId && p.status === 'Approved').length;
-
-    const approvedProjects = this.store.projects
-      .filter((p: ProjectRow) => p.student_id === studentId && p.status === 'Approved').length;
+    const approvedCerts = allCerts.filter((c: any) => c.status === 'Approved').length;
+    const approvedPapers = allPapers.filter((p: any) => p.status === 'Approved').length;
+    const approvedProjects = allProjects.filter((p: any) => p.status === 'Approved').length;
 
     const aiScore = Math.round(approvedHours * 2 + approvedCerts * 50 + approvedPapers * 150 + approvedProjects * 100);
 

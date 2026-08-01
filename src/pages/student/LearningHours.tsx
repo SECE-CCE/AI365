@@ -36,6 +36,24 @@ export const LearningHours: React.FC = () => {
 
   useEffect(() => {
     fetchHours();
+    const interval = setInterval(fetchHours, 5000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchHours(); };
+    const handleFocus = () => fetchHours();
+    const handleUpdated = () => fetchHours();
+    const handleStorage = (e: StorageEvent) => { if (e.key === 'ai365_last_update') fetchHours(); };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('ai365_data_updated', handleUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('ai365_data_updated', handleUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const filteredEntries = data.entries.filter((entry) => {

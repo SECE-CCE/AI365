@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'faculty' | 'admin'>('student');
+  const [role, setRole] = useState<'student' | 'admin'>('student');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,14 +14,11 @@ export const Login: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleQuickFill = (accRole: 'student' | 'faculty' | 'admin') => {
+  const handleQuickFill = (accRole: 'student' | 'admin') => {
     setRole(accRole);
     if (accRole === 'student') {
       setEmail('alex.student@cce.edu');
       setPassword('student123');
-    } else if (accRole === 'faculty') {
-      setEmail('dr.sharma@cce.edu');
-      setPassword('faculty123');
     } else if (accRole === 'admin') {
       setEmail('admin@cce.edu');
       setPassword('admin123');
@@ -40,7 +37,6 @@ export const Login: React.FC = () => {
     try {
       const user = await login(email, password, role);
       if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'faculty') navigate('/faculty');
       else navigate('/student');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please verify credentials.');
@@ -122,13 +118,6 @@ export const Login: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => handleQuickFill('faculty')}
-                className="px-2.5 py-1 bg-white hover:bg-blue-100 text-[#004990] rounded-lg font-semibold border border-blue-200 text-[11px] transition-colors"
-              >
-                Faculty
-              </button>
-              <button
-                type="button"
                 onClick={() => handleQuickFill('admin')}
                 className="px-2.5 py-1 bg-white hover:bg-blue-100 text-[#004990] rounded-lg font-semibold border border-blue-200 text-[11px] transition-colors"
               >
@@ -149,7 +138,6 @@ export const Login: React.FC = () => {
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:bg-white focus:border-[#004990] outline-none transition-all"
                 >
                   <option value="student">Student Portal</option>
-                  <option value="faculty">Faculty Mentor Portal</option>
                   <option value="admin">CCE Admin Command Center</option>
                 </select>
               </div>

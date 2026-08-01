@@ -93,6 +93,7 @@ router.post('/register', async (req, res) => {
       password,
       gender,
       profile_photo,
+      mentor_name,
     } = req.body;
 
     if (!full_name || !email || !password) {
@@ -123,7 +124,8 @@ router.post('/register', async (req, res) => {
       gender: gender || 'boy',
       profile_photo: profile_photo || defaultAvatar,
       status: 'pending_approval',
-      mentor_id: null, // Submissions will go ONLY to Admin until Admin assigns a mentor!
+      mentor_id: null,
+      mentor_name: mentor_name || null,
       is_department_wide: false,
     });
 
