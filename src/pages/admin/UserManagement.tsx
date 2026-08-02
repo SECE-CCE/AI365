@@ -7,16 +7,10 @@ import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
 
 const MENTORS_LIST = [
-  'Dr.S.Dhamodharan',
-  'Ms.R.Megala',
-  'Ms.R.Preethi',
-  'Ms.G.G.Sreeja',
-  'Dr. R. Babitha Lincy',
-  'Dr. R. R. Thirrunavukkarasu',
-  'Assistant Professor',
-  'Mr. R. Arun',
-  'Ms. Dency Flora G',
-  'Ms. N. Banupriya',
+  'Dr. S. Dhamodharan',
+  'Ms. G. G. Sreeja',
+  'Ms. R. Preethi',
+  'Ms. R. Megala',
 ];
 
 export const UserManagement: React.FC = () => {

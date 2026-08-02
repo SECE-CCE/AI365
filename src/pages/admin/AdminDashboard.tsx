@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, UserCheck, Clock, Award, Target, Check, X, ShieldAlert, ArrowRight, FileText, ExternalLink } from 'lucide-react';
+import { Users, UserCheck, Clock, Award, Target, Check, X, ShieldAlert, ArrowRight, FileText, ExternalLink, Calendar } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
@@ -266,13 +266,22 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <Link
-          to="/admin/users"
-          className="px-5 py-3 bg-[#F3B631] hover:bg-amber-400 text-[#002B5C] rounded-xl font-bold text-xs transition-all shadow-md flex items-center gap-2 shrink-0"
-        >
-          <span>Manage All Users</span>
-          <ArrowRight className="w-4 h-4" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <Link
+            to="/admin/events"
+            className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs transition-all border border-white/20 flex items-center gap-2"
+          >
+            <Calendar className="w-4 h-4 text-[#F3B631]" />
+            <span>Publish CCE Events</span>
+          </Link>
+          <Link
+            to="/admin/users"
+            className="px-5 py-3 bg-[#F3B631] hover:bg-amber-400 text-[#002B5C] rounded-xl font-bold text-xs transition-all shadow-md flex items-center gap-2"
+          >
+            <span>Manage All Users</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}

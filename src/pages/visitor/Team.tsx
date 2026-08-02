@@ -1,25 +1,17 @@
 import React from 'react';
-import { Star, Users, BookOpen, Briefcase, GraduationCap, Shield, Award } from 'lucide-react';
+import { Users, Briefcase, Shield, Award } from 'lucide-react';
 
 // ── Image imports ─────────────────────────────────────────────────────────────
 import imgDhamodharan  from '../../../assets/Dr.S.Dhamodharan.jpg';
-import imgGanesh       from '../../../assets/Dr.C.Ganesh.jpg';
-import imgBabitha      from '../../../assets/Dr.R.Babitha-Lincy.jpg';
-import imgThiru        from '../../../assets/Thirunavukara.jpg';
 import imgMegala       from '../../../assets/Ms.R.Megala.jpg';
 import imgPreethi      from '../../../assets/Preethi-CCE-1.jpg';
 import imgSreeja       from '../../../assets/Ms.G.G.Sreeja.jpg';
-import imgArun         from '../../../assets/Mr.R.Arun_.jpg';
-import imgDency        from '../../../assets/Ms.-Dency-Flora-G.jpg';
-import imgBanupriya    from '../../../assets/Ms.N.Banupriya.jpg';
 import imgPrinciple    from '../../../assets/sudha-1.jpg';
 import imgVivek        from '../../../assets/Dr.C.Vivek_.jpg';
 import imgDarshan      from '../../../assets/DarshanAR.JPG';
 import imgTanya        from '../../../assets/Tanya.jpeg';
 import imgGokulnaath   from '../../../assets/Gokulnaath.jpeg';
 import imgRupadharan   from '../../../assets/RupaDharan.png';
-import imgLekaAditya   from '../../../assets/LekaAditya.jpeg';
-import imgDhevadharun  from '../../../assets/Dhevadharun.png';
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -45,27 +37,17 @@ const initiativeLead = {
 };
 
 const coordinators = [
-  { name: 'Ms. R. Megala',    designation: 'Assistant Professor / CCE', img: imgMegala },
-  { name: 'Ms. R. Preethi',   designation: 'Assistant Professor / CCE', img: imgPreethi },
   { name: 'Ms. G. G. Sreeja', designation: 'Assistant Professor / CCE', img: imgSreeja },
-];
-
-const mentors = [
-  { name: 'Dr. C. Ganesh',               designation: 'Assistant Professor', img: imgGanesh },
-  { name: 'Dr. R. Babitha Lincy',        designation: 'Assistant Professor', img: imgBabitha },
-  { name: 'Dr. R. R. Thirrunavukkarasu', designation: 'Assistant Professor', img: imgThiru },
-  { name: 'Mr. R. Arun',                designation: 'Assistant Professor', img: imgArun },
-  { name: 'Ms. Dency Flora G',           designation: 'Assistant Professor', img: imgDency },
-  { name: 'Ms. N. Banupriya',            designation: 'Assistant Professor', img: imgBanupriya },
+  { name: 'Ms. R. Preethi',   designation: 'Assistant Professor / CCE', img: imgPreethi },
+  { name: 'Ms. R. Megala',    designation: 'Assistant Professor / CCE', img: imgMegala },
 ];
 
 const students = [
-  { name: 'Darshan AR',      role: 'President · 3rd Year CCE', sub: 'Developer, AI365 Platform', initials: 'DA', img: imgDarshan, featured: true },
-  { name: 'Gokulnath N',     role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'GK', img: imgGokulnaath, featured: false },
-  { name: 'Tanyasri GR',     role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'DS', img: imgTanya, featured: false },
-  { name: 'Rupadharan',      role: 'Student Coordinator',      sub: '2nd Year CCE',              initials: 'RP', img: imgRupadharan, featured: false },
-  { name: 'Leka Adhithyan',  role: 'Student Coordinator',      sub: '2nd Year CCE',              initials: 'LA', img: imgLekaAditya, featured: false },
-  { name: 'Deva Dharun',     role: 'Student Coordinator',      sub: '2nd Year CCE',              initials: 'DD', img: imgDhevadharun, featured: false },
+  { name: 'Darshan AR',   role: 'President · 3rd Year CCE', sub: 'Developer, AI365 Platform', initials: 'DA', img: imgDarshan, featured: true },
+  { name: 'Gokulnath N',  role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'GK', img: imgGokulnaath, featured: false },
+  { name: 'Tanyasri GR',  role: 'Student Coordinator',      sub: '3rd Year CCE',              initials: 'DS', img: imgTanya, featured: false },
+  { name: 'Rupadharan',   role: 'Student Coordinator',      sub: '2nd Year CCE',              initials: 'RP', img: imgRupadharan, featured: false },
+  { name: 'Varunkumar',   role: 'Student Coordinator',      sub: 'Student Coordinator',       initials: 'VK', img: undefined, featured: false },
 ];
 
 const studentGradients = [
@@ -96,7 +78,7 @@ const LargePhotoCard: React.FC<LargePhotoCardProps> = ({
   badgeBg = 'bg-blue-50 text-blue-700 border-blue-100',
 }) => {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-3 sm:p-4 flex flex-col items-center text-center group hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 w-full">
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-3 sm:p-4 flex flex-col items-center text-center group hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 w-full max-w-sm sm:max-w-md">
       <div className="w-full aspect-[3/4] rounded-xl overflow-hidden shadow-sm border border-slate-100 relative group-hover:shadow-md transition-shadow">
         <img
           src={img}
@@ -154,18 +136,18 @@ export const Team: React.FC = () => (
           Meet the <span className="text-[#F3B631]">Team</span>
         </h1>
         <p className="text-slate-300 text-sm sm:text-base font-medium max-w-xl mx-auto leading-relaxed">
-          The dedicated faculty, mentors, and student coordinators driving the AI365 initiative at the Department of Computer and Communication Engineering, Sri Eshwar College of Engineering.
+          The dedicated faculty and student coordinators driving the AI365 initiative at the Department of Computer and Communication Engineering, Sri Eshwar College of Engineering.
         </p>
       </div>
     </div>
 
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20 mt-16">
 
-      {/* ── Patron & HOD & Initiative Lead ─────────────────────────────── */}
+      {/* ── Patron & HOD & Initiative Lead (Stacked Vertically) ───────── */}
       <section>
         <SectionHeader icon={Shield} label="Leadership" title="Institutional & Department Leadership" color="bg-slate-100 text-slate-700 border-slate-200" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {/* Patron */}
+        <div className="flex flex-col items-center gap-8 max-w-md mx-auto">
+          {/* Patron (First) */}
           <LargePhotoCard
             name={patron.name}
             designation={patron.designation}
@@ -173,7 +155,7 @@ export const Team: React.FC = () => (
             badge="Patron"
             badgeBg="bg-amber-50 text-amber-800 border-amber-200"
           />
-          {/* Head of Department */}
+          {/* Head of Department (Next / Below Principal) */}
           <LargePhotoCard
             name={hod.name}
             designation={hod.designation}
@@ -181,7 +163,7 @@ export const Team: React.FC = () => (
             badge="Head of Department"
             badgeBg="bg-blue-50 text-blue-800 border-blue-200"
           />
-          {/* Initiative Lead */}
+          {/* Initiative Lead (Below Vivek) */}
           <LargePhotoCard
             name={initiativeLead.name}
             designation={initiativeLead.designation}
@@ -192,7 +174,7 @@ export const Team: React.FC = () => (
         </div>
       </section>
 
-      {/* ── Faculty Coordinators ────────────────────────────────────────── */}
+      {/* ── Faculty Coordinators (Sreeja, Preethi, Megala) ────────────────── */}
       <section>
         <SectionHeader icon={Briefcase} label="Coordinators" title="Faculty Coordinators" color="bg-violet-50 text-violet-700 border-violet-200" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -203,24 +185,7 @@ export const Team: React.FC = () => (
               designation={c.designation}
               img={c.img}
               badge="Faculty Coordinator"
-              badgeBg="bg-violet-50 text-violet-800 border-violet-200"
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ── Faculty Mentors ─────────────────────────────────────────────── */}
-      <section>
-        <SectionHeader icon={GraduationCap} label="Mentors" title="Faculty Mentors" color="bg-indigo-50 text-indigo-700 border-indigo-200" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {mentors.map((m) => (
-            <LargePhotoCard
-              key={m.name}
-              name={m.name}
-              designation={m.designation}
-              img={m.img}
-              badge="Assistant Professor"
-              badgeBg="bg-indigo-50 text-indigo-800 border-indigo-200"
+              badgeBg="bg-violet-800/10 text-violet-800 border-violet-200"
             />
           ))}
         </div>
@@ -269,8 +234,8 @@ export const Team: React.FC = () => (
           </div>
         </div>
 
-        {/* Other student coordinators */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5 max-w-5xl mx-auto">
+        {/* Other student coordinators: Gokulnath N, Tanyasri GR, Rupadharan, Varunkumar */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-4xl mx-auto">
           {students.filter(s => !s.featured).map((s, idx) => (
             <div key={s.name} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
               <div className={`w-full aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br ${studentGradients[(idx + 1) % studentGradients.length]} flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 mb-3 border border-slate-100`}>
