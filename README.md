@@ -326,7 +326,7 @@ npm run lint
 
 | Role | Initial Email | Default Password | Notes |
 | :--- | :--- | :--- | :--- |
-| **Department Admin** | `dhamodharan.s@sece.ac.in` | `$ece@2739` | Full administrative control |
+| **Department Admin** | `zzzzzzz` | `xxxxxxx` | Full administrative control |
 
 *(Admin password can be updated anytime under `/admin/settings`)*
 
