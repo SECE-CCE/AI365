@@ -4,13 +4,13 @@ import { Sparkles, ArrowLeft, Loader2, CheckCircle2, UserCheck } from 'lucide-re
 import { apiFetch } from '../../services/api';
 
 const MENTORS_LIST = [
-  'Dr.S.Dhamodharan',
-  'Ms.R.Megala',
-  'Ms.R.Preethi',
-  'Ms.G.G.Sreeja',
+  'Dr. S. Dhamodharan',
+  'Ms. R. Megala',
+  'Ms. R. Preethi',
+  'Ms. G. G. Sreeja',
+  'Dr. C. Ganesh',
   'Dr. R. Babitha Lincy',
   'Dr. R. R. Thirrunavukkarasu',
-  'Assistant Professor',
   'Mr. R. Arun',
   'Ms. Dency Flora G',
   'Ms. N. Banupriya',

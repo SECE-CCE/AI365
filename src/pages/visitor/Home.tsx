@@ -100,10 +100,11 @@ export const Home: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Sri Eshwar College of Engineering · CCE Department
           </div>
-          <div className="flex items-center justify-center flex-wrap gap-2 font-black tracking-tight text-5xl sm:text-7xl lg:text-8xl">
-            <span className="text-[#1A56C4] drop-shadow-sm">AI365</span>
-            <span className="inline-flex items-center justify-center w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-blue-100/90 text-[#3B82F6] font-bold font-sans shadow-sm border border-blue-200/80">@</span>
-            <span className="text-[#D4A017] drop-shadow-sm">CCE</span>
+          <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-3 font-black tracking-tight text-5xl sm:text-7xl lg:text-8xl select-none">
+            <span className="bg-gradient-to-r from-purple-700 via-fuchsia-600 to-pink-600 bg-clip-text text-transparent drop-shadow-sm">AI</span>
+            <span className="text-[#001E42] drop-shadow-sm">365</span>
+            <span className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-full border-2 sm:border-4 border-[#001E42] text-[#001E42] font-bold font-sans text-3xl sm:text-4xl lg:text-5xl shadow-sm">@</span>
+            <span className="text-[#001E42] drop-shadow-sm">CCE</span>
           </div>
           <p className="text-slate-600 font-semibold text-base sm:text-lg max-w-xl mx-auto">Building an AI-Ready Generation — One Year · One Vision · One Campus</p>
           <div className="flex flex-wrap items-center justify-center gap-3">
