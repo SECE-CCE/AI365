@@ -206,7 +206,7 @@ const initialStore = {
       department: 'Computer & Communication Engineering',
       register_number: '73782414042',
       year: 'III Year - CCE',
-      profile_photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      profile_photo: '/girl-avatar.svg',
       gender: 'girl',
       status: 'pending_approval',
       mentor_id: null,

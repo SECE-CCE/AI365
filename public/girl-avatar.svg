@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 650" width="100%" height="100%">
+  <defs>
+    <style>
+      .st-bg { fill: none; }
+      .st-skin { fill: #F7AB87; stroke: #000000; stroke-width: 14; stroke-linejoin: round; stroke-linecap: round; }
+      .st-shadow { fill: #EB9875; }
+      .st-hair { fill: #79443B; stroke: #000000; stroke-width: 14; stroke-linejoin: round; stroke-linecap: round; }
+      .st-hair-shadow { fill: #65362E; }
+      .st-shirt { fill: #EB6B6B; stroke: #000000; stroke-width: 14; stroke-linejoin: round; stroke-linecap: round; }
+      .st-shirt-shadow { fill: #D65555; }
+      .st-eye { fill: #000000; }
+      .st-line { fill: none; stroke: #000000; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <!-- Hair Back / Side Flow -->
+  <path class="st-hair" d="M 90,200 C 60,100 150,20 250,20 C 350,20 440,100 410,200 C 450,270 470,380 440,520 C 430,560 390,560 370,500 C 350,440 370,300 370,250 C 370,250 130,250 130,250 C 130,300 150,440 130,500 C 110,560 70,560 60,520 C 30,380 50,270 90,200 Z" />
+
+  <!-- Torso / Pink Shirt -->
+  <path class="st-shirt" d="M 40,640 C 40,520 140,460 185,450 C 185,450 185,520 250,520 C 315,520 315,450 315,450 C 360,460 460,520 460,640 Z" />
+  
+  <!-- Shirt Shadow detail -->
+  <path class="st-shirt-shadow" d="M 40,640 C 40,540 110,490 160,470 C 120,530 80,600 75,640 Z" />
+
+  <!-- Neck -->
+  <path class="st-skin" d="M 185,410 L 185,465 C 185,510 315,510 315,465 L 315,410 Z" />
+
+  <!-- Neck Shadow under chin -->
+  <path class="st-shadow" d="M 185,410 C 210,445 290,445 315,410 C 315,450 185,450 185,410 Z" />
+
+  <!-- Left Ear -->
+  <circle class="st-skin" cx="60" cy="245" r="32" />
+  <!-- Right Ear -->
+  <circle class="st-skin" cx="440" cy="245" r="32" />
+
+  <!-- Head / Face -->
+  <circle class="st-skin" cx="250" cy="245" r="150" />
+
+  <!-- Hair Front Bangs with Center Parting -->
+  <path class="st-hair" d="M 104,215 C 120,160 170,120 250,135 C 330,120 380,160 396,215 C 405,170 390,100 350,60 C 300,25 200,25 150,60 C 110,100 95,170 104,215 Z" />
+
+  <!-- Hair Center Parting Curve Line -->
+  <path class="st-line" d="M 250,30 C 250,80 250,110 250,135" />
+
+  <!-- Eyes -->
+  <circle class="st-eye" cx="185" cy="215" r="11" />
+  <circle class="st-eye" cx="315" cy="215" r="11" />
+
+  <!-- Smile -->
+  <path class="st-line" d="M 220,290 C 230,330 270,330 280,290" />
+</svg>

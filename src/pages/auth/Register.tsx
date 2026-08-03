@@ -120,9 +120,9 @@ export const Register: React.FC = () => {
                   }`}
                 >
                   <img
-                    src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
+                    src="/boy-avatar.svg"
                     alt="Boy Avatar"
-                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-blue-500/30"
+                    className="w-10 h-10 rounded-xl object-contain bg-sky-50 ring-2 ring-blue-500/30 p-0.5"
                   />
                   <div className="text-left">
                     <span className="block font-extrabold text-slate-900 text-xs">Male Avatar</span>
@@ -140,9 +140,9 @@ export const Register: React.FC = () => {
                   }`}
                 >
                   <img
-                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
+                    src="/girl-avatar.svg"
                     alt="Girl Avatar"
-                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-purple-500/30"
+                    className="w-10 h-10 rounded-xl object-contain bg-pink-50 ring-2 ring-purple-500/30 p-0.5"
                   />
                   <div className="text-left">
                     <span className="block font-extrabold text-slate-900 text-xs">Female Avatar</span>

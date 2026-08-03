@@ -109,8 +109,8 @@ router.post('/register', async (req, res) => {
 
     // Avatar assignment based on gender selection
     const defaultAvatar = gender === 'girl'
-      ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300'
-      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300';
+      ? '/girl-avatar.svg'
+      : '/boy-avatar.svg';
 
     const newUser = await db.createUser({
       full_name,

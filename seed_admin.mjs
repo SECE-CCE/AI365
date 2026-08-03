@@ -1,8 +1,12 @@
-// Upsert real admin user into Neon DB with correct credentials
+import 'dotenv/config';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
-const DATABASE_URL = 'postgresql://neondb_owner:npg_2tLrYAIG9SiQ@ep-rapid-dew-auq7msaw-pooler.c-10.us-east-1.aws.neon.tech/neondb?sslmode=require';
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error('❌ Error: DATABASE_URL environment variable is not defined.');
+  process.exit(1);
+}
 const sql = neon(DATABASE_URL);
 
 const password = '$ece@2739';
