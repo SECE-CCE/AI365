@@ -55,7 +55,7 @@ export const Approvals: React.FC = () => {
   const handleActionClick = (id: number, type: string, action: 'approve' | 'reject') => {
     setActiveItem({ id, type, action });
     setRemarks(action === 'approve' ? 'Approved by faculty mentor.' : 'Needs revision.');
-    setAwardedHours(type.toLowerCase().includes('project') ? 40 : 20);
+    setAwardedHours(20);
   };
 
   const handleConfirmAction = async () => {
@@ -244,11 +244,11 @@ export const Approvals: React.FC = () => {
         subtitle="Provide faculty remarks"
       >
         <div className="space-y-4 text-xs">
-          {activeItem?.action === 'approve' && (activeItem?.type.toLowerCase().includes('certificate') || activeItem?.type.toLowerCase().includes('project')) && (
+          {activeItem?.action === 'approve' && activeItem?.type.toLowerCase() === 'learning_hours' && (
             <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
               <label className="block font-bold text-slate-900">Assign Verified Learning Hours *</label>
               <p className="text-[11px] text-slate-500">
-                How many learning hours should be awarded to the student for this {activeItem.type.toLowerCase().includes('project') ? 'AI project' : 'certificate'}?
+                How many approved learning hours should be recorded for this student submission?
               </p>
               <input
                 type="number"

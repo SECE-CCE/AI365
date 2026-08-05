@@ -228,7 +228,7 @@ export const DigitalPassport: React.FC = () => {
                       badge.unlocked ? 'bg-amber-200 text-amber-900 shadow-xs' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
-                    {badge.unlocked ? 'Unlocked Gold' : `Level ${badge.level}`}
+                    {badge.unlocked ? 'Unlocked' : badge.level}
                   </span>
                 </div>
 
