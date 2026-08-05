@@ -100,6 +100,18 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Full Name, Email, and Password are required.' });
     }
 
+    if (!register_number) {
+      return res.status(400).json({ error: 'Register Number is required for students.' });
+    }
+
+    if (!year) {
+      return res.status(400).json({ error: 'Academic Year is required.' });
+    }
+
+    if (!mentor_name) {
+      return res.status(400).json({ error: 'Faculty Mentor is required.' });
+    }
+
     const existing = await db.findUserByEmail(email);
     if (existing) {
       return res.status(400).json({ error: 'An account with this email address already exists.' });
@@ -118,8 +130,8 @@ router.post('/register', async (req, res) => {
       password: hashedPassword,
       role: 'student',
       department: department || 'Computer & Communication Engineering',
-      register_number: register_number || '',
-      year: year || '1st Year',
+      register_number: register_number,
+      year: year,
       phone: phone || '',
       gender: gender || 'boy',
       profile_photo: profile_photo || defaultAvatar,
