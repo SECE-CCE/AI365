@@ -214,6 +214,190 @@ The platform comprises **22 distinct pages** categorized into 4 distinct portals
 
 ---
 
+## 🗄️ Entity-Relationship (ER) Diagram
+
+The diagram below illustrates the complete database architecture, entity schemas, primary/foreign key relationships, and cardinalities in **AI365 @ CCE**:
+
+```mermaid
+erDiagram
+    USERS ||--o{ USERS : "mentors (mentor_id)"
+    USERS ||--o{ LEARNING_HOURS : "submits (student_id)"
+    USERS ||--o{ LEARNING_HOURS : "approves (faculty_id)"
+    USERS ||--o{ CERTIFICATES : "submits (student_id)"
+    USERS ||--o{ CERTIFICATES : "approves (faculty_id)"
+    USERS ||--o{ RESEARCH_PAPERS : "submits (student_id)"
+    USERS ||--o{ RESEARCH_PAPERS : "approves (faculty_id)"
+    USERS ||--o{ PROJECTS : "submits (student_id)"
+    USERS ||--o{ PROJECTS : "approves (faculty_id)"
+    USERS ||--o{ EVENTS : "creates (created_by)"
+    USERS ||--o{ EVENT_REGISTRATIONS : "registers (student_id)"
+    EVENTS ||--o{ EVENT_REGISTRATIONS : "has (event_id)"
+    USERS ||--o{ NOTIFICATIONS : "receives (user_id)"
+    USERS ||--o{ ACTIVITY_LOGS : "logs (user_id)"
+    USERS ||--o{ ACTIVITY_LOGS : "targets (target_student_id)"
+    USERS ||--o{ ANNOUNCEMENTS : "publishes (author_id)"
+
+    USERS {
+        int id PK
+        string full_name
+        string email UK
+        string password
+        string role "student | faculty | admin"
+        string department
+        string register_number
+        string year
+        string phone
+        string profile_photo
+        string status "pending_approval | approved | rejected"
+        int mentor_id FK
+        string mentor_name
+        boolean is_department_wide
+        timestamp created_at
+    }
+
+    LEARNING_HOURS {
+        int id PK
+        int student_id FK
+        string activity_name
+        string platform
+        date date
+        numeric hours
+        string description
+        string certificate_url
+        string status "Pending | Approved | Rejected"
+        int faculty_id FK
+        string faculty_remarks
+        timestamp created_at
+    }
+
+    CERTIFICATES {
+        int id PK
+        int student_id FK
+        string title
+        string issuer
+        date completion_date
+        string certificate_url
+        string skills_learned
+        string status "Pending | Approved | Rejected"
+        int faculty_id FK
+        string faculty_remarks
+        timestamp created_at
+    }
+
+    RESEARCH_PAPERS {
+        int id PK
+        int student_id FK
+        string title
+        string conference_journal
+        string authors
+        numeric total_hours
+        string abstract
+        string pdf_url
+        string status "Pending | Approved | Rejected"
+        int faculty_id FK
+        string faculty_remarks
+        timestamp created_at
+    }
+
+    PROJECTS {
+        int id PK
+        int student_id FK
+        string title
+        string description
+        string github_link
+        string demo_link
+        string tech_stack
+        string ai_contribution
+        string image_url
+        string status "Pending | Approved | Rejected"
+        int faculty_id FK
+        string faculty_remarks
+        timestamp created_at
+    }
+
+    EVENTS {
+        int id PK
+        int created_by FK
+        string title
+        string description
+        string venue
+        date event_date
+        string event_time
+        int max_participants
+        string poster_url
+        string category
+        timestamp created_at
+    }
+
+    EVENT_REGISTRATIONS {
+        int id PK
+        int event_id FK
+        int student_id FK
+        timestamp registered_at
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int user_id FK
+        string title
+        string message
+        string type
+        boolean is_read
+        string link
+        timestamp created_at
+    }
+
+    ACTIVITY_LOGS {
+        int id PK
+        int user_id FK
+        string action
+        string details
+        int target_student_id FK
+        timestamp created_at
+    }
+
+    TARGETS {
+        int id PK
+        string year UK
+        int target_learning_hours
+        int target_certifications
+        int target_research_papers
+        int target_projects
+        int target_startups
+        timestamp updated_at
+    }
+
+    ROADMAP {
+        int id PK
+        string month
+        string title
+        string description
+        string status "completed | in_progress | upcoming"
+        int order_index
+    }
+
+    GALLERY {
+        int id PK
+        string title
+        string category
+        string image_url
+        string description
+        boolean is_public
+        timestamp created_at
+    }
+
+    ANNOUNCEMENTS {
+        int id PK
+        string title
+        string content
+        int author_id FK
+        boolean is_public
+        timestamp created_at
+    }
+```
+
+---
+
 ## 📊 Database Capacity Analysis: 300+ Users on Free Tier
 
 ### **Is Neon / PostgreSQL Free Tier capable of handling 300+ active users?**

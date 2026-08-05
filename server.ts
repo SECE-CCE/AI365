@@ -12,7 +12,10 @@ async function startServer() {
   // Vite middleware for dev or static dist serving for prod
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        allowedHosts: ['ai-365cce.sece.com', '.sece.com', 'all'],
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

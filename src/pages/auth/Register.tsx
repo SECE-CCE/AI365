@@ -14,7 +14,12 @@ const MENTORS_LIST = [
   'Mr. R. Arun',
   'Ms. Dency Flora G',
   'Ms. N. Banupriya',
+  'Dr. R. Deepa',
+  'Dr. C. Vivek',
 ];
+
+// Roll Number pattern: 2 digits + 2-3 uppercase letters + 3 digits  e.g. 21CCE042
+const ROLL_NUMBER_REGEX = /^\d{2}[A-Z]{2,3}\d{3}$/;
 
 export const Register: React.FC = () => {
   // Student fields
@@ -25,9 +30,9 @@ export const Register: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [department] = useState('Computer & Communication Engineering');
   const [registerNumber, setRegisterNumber] = useState('');
-  const [year, setYear] = useState('1st Year');
+  const [year, setYear] = useState('');
   const [gender, setGender] = useState<'boy' | 'girl'>('boy');
-  const [mentorName, setMentorName] = useState(MENTORS_LIST[0]);
+  const [mentorName, setMentorName] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -40,8 +45,11 @@ export const Register: React.FC = () => {
     setError('');
 
     if (!fullName.trim() || !email.trim() || !password) return setError('Please fill in all required fields.');
-    if (!registerNumber.trim()) return setError('Register number is required for students.');
+    if (!registerNumber.trim()) return setError('Roll number is required for students.');
+    if (!ROLL_NUMBER_REGEX.test(registerNumber.trim())) return setError('Roll number format is invalid. Use format like 21CCE042 (2 digits + letters + 3 digits).');
+    if (!year) return setError('Please select your academic year.');
     if (!mentorName) return setError('Please select a faculty mentor.');
+    if (!email.trim().endsWith('@sece.ac.in')) return setError('College email must end with @sece.ac.in (e.g. name@sece.ac.in).');
     if (password !== confirmPassword) return setError('Passwords do not match.');
     if (password.length < 6) return setError('Password must be at least 6 characters.');
 
@@ -160,10 +168,23 @@ export const Register: React.FC = () => {
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Register Number *</label>
-                <input type="text" required value={registerNumber} onChange={(e) => setRegisterNumber(e.target.value)}
+                <label className="block font-bold text-slate-700 mb-1">Roll Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={registerNumber}
+                  onChange={(e) => setRegisterNumber(e.target.value.toUpperCase())}
                   placeholder="e.g. 21CCE042"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+                  maxLength={10}
+                  className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl focus:bg-white outline-none transition-all ${
+                    registerNumber && !ROLL_NUMBER_REGEX.test(registerNumber)
+                      ? 'border-rose-400 focus:border-rose-500'
+                      : 'border-slate-200 focus:border-[#004990]'
+                  }`}
+                />
+                {registerNumber && !ROLL_NUMBER_REGEX.test(registerNumber) && (
+                  <p className="text-[10px] text-rose-500 font-medium mt-1">Format: 21CCE042 (2 digits + 2–3 letters + 3 digits)</p>
+                )}
               </div>
             </div>
 
@@ -176,8 +197,12 @@ export const Register: React.FC = () => {
               <select
                 value={mentorName}
                 onChange={(e) => setMentorName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-blue-200 rounded-xl text-slate-900 font-bold focus:border-[#004990] outline-none transition-all shadow-xs"
+                required
+                className={`w-full px-3.5 py-2.5 bg-white border rounded-xl font-bold focus:border-[#004990] outline-none transition-all shadow-xs ${
+                  mentorName ? 'text-slate-900 border-blue-200' : 'text-slate-400 border-blue-200'
+                }`}
               >
+                <option value="" disabled>— Select a Faculty Mentor —</option>
                 {MENTORS_LIST.map((mentor) => (
                   <option key={mentor} value={mentor}>
                     {mentor}
@@ -198,12 +223,19 @@ export const Register: React.FC = () => {
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Academic Year *</label>
-                <select value={year} onChange={(e) => setYear(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#004990] outline-none transition-all">
-                  <option>1st Year</option>
-                  <option>2nd Year</option>
-                  <option>3rd Year</option>
-                  <option>4th Year</option>
+                <select
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  required
+                  className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl font-medium focus:bg-white focus:border-[#004990] outline-none transition-all ${
+                    year ? 'text-slate-900 border-slate-200' : 'text-slate-400 border-slate-200'
+                  }`}
+                >
+                  <option value="" disabled>— Select Academic Year —</option>
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="3rd Year">3rd Year</option>
+                  <option value="4th Year">4th Year</option>
                 </select>
               </div>
             </div>
@@ -211,9 +243,21 @@ export const Register: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">College Email *</label>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name.student@cce.edu"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@sece.ac.in"
+                  className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl focus:bg-white outline-none transition-all ${
+                    email && !email.endsWith('@sece.ac.in')
+                      ? 'border-rose-400 focus:border-rose-500'
+                      : 'border-slate-200 focus:border-[#004990]'
+                  }`}
+                />
+                {email && !email.endsWith('@sece.ac.in') && (
+                  <p className="text-[10px] text-rose-500 font-medium mt-1">Email must end with @sece.ac.in</p>
+                )}
               </div>
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Phone Number</label>
