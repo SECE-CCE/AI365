@@ -212,6 +212,33 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
   return res.json({ user: userWithoutPass });
 });
 
+// PUT /api/auth/me
+router.put('/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+    const { full_name, phone, profile_photo, password } = req.body;
+
+    const updates: Record<string, any> = {};
+    if (full_name !== undefined) updates.full_name = full_name;
+    if (phone !== undefined) updates.phone = phone;
+    if (profile_photo !== undefined) updates.profile_photo = profile_photo;
+    if (password) {
+      updates.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await db.updateUser(req.user.id, updates);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { password: _, ...userWithoutPass } = updatedUser;
+    return res.json({ message: 'Profile updated successfully', user: userWithoutPass });
+  } catch (err: any) {
+    console.error('Update Profile Error:', err);
+    return res.status(500).json({ error: 'Server error while updating profile.' });
+  }
+});
+
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
