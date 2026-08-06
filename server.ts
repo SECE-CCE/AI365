@@ -8,7 +8,7 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.static(path.join(process.cwd(), 'public')));
-  app.use('/profile-pics', express.static('C:\\Users\\Asus\\Downloads\\Profile pic'));
+  app.use('/documents', express.static(path.join(process.cwd(), 'assets', 'Documents')));
 
   // Vite middleware for dev or static dist serving for prod
   if (process.env.NODE_ENV !== 'production') {

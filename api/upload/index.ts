@@ -5,11 +5,11 @@ import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
 
 const router = Router();
 
-// BASE DIRECTORY LOCATION FOR USER STORAGE ON LOCAL SERVER
-export const UPLOADS_BASE_DIR = 'C:\\Users\\Asus\\Downloads\\Profile pic';
+// BASE DIRECTORY LOCATION FOR USER STORAGE INSIDE ASSETS
+export const UPLOADS_BASE_DIR = path.join(process.cwd(), 'assets', 'Documents');
 
 // POST /api/upload/photo
-// Handles compressed photo upload, creates C:\Users\Asus\Downloads\Profile pic\<User_Name>\photos\ directory,
+// Handles compressed photo upload, creates assets/Documents/<User_Name>/photos/ directory,
 // and stores compressed profile picture inside that directory.
 router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -21,7 +21,7 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
     const userName = req.user?.full_name || 'User';
     const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    // Create subfolder photos/ inside user directory: <BASE_DIR>/<Sanitized_User_Name>/photos/
+    // Create subfolder photos/ inside user directory: assets/Documents/<Sanitized_User_Name>/photos/
     const photosFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'photos');
     if (!fs.existsSync(photosFolder)) {
       fs.mkdirSync(photosFolder, { recursive: true });
@@ -35,7 +35,7 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
 
     fs.writeFileSync(filePath, buffer);
 
-    const photoUrl = `/profile-pics/${sanitizedUserName}/photos/${photoFilename}?t=${Date.now()}`;
+    const photoUrl = `/documents/${sanitizedUserName}/photos/${photoFilename}?t=${Date.now()}`;
 
     return res.json({
       url: photoUrl,
@@ -50,7 +50,7 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
 });
 
 // POST /api/upload/certificate
-// Handles certificate upload, creates C:\Users\Asus\Downloads\Profile pic\<User_Name>\certificates\ directory,
+// Handles certificate upload, creates assets/Documents/<User_Name>/certificates/ directory,
 // formats filename as <User_Name>_<Certificate_Title>.<ext>, and stores file inside that directory.
 router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -63,7 +63,7 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
     const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
     const sanitizedTitle = certificateTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    // Create subfolder certificates/ inside user directory: <BASE_DIR>/<Sanitized_User_Name>/certificates/
+    // Create subfolder certificates/ inside user directory: assets/Documents/<Sanitized_User_Name>/certificates/
     const certificatesFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'certificates');
     if (!fs.existsSync(certificatesFolder)) {
       fs.mkdirSync(certificatesFolder, { recursive: true });
@@ -79,7 +79,7 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
 
     fs.writeFileSync(filePath, buffer);
 
-    const certificateUrl = `/profile-pics/${sanitizedUserName}/certificates/${certificateFilename}`;
+    const certificateUrl = `/documents/${sanitizedUserName}/certificates/${certificateFilename}`;
 
     return res.json({
       url: certificateUrl,
@@ -90,6 +90,50 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
   } catch (err: any) {
     console.error('Certificate Upload Error:', err);
     return res.status(500).json({ error: 'Failed to save certificate on server.' });
+  }
+});
+
+// POST /api/upload/paper
+// Handles research paper upload, creates assets/Documents/<User_Name>/papers/ directory,
+// formats filename as <User_Name>_<Paper_Title>.<ext>, and stores file inside that directory.
+router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { fileBase64, extension = 'pdf', paperTitle = 'Research_Paper' } = req.body;
+    if (!fileBase64 || typeof fileBase64 !== 'string') {
+      return res.status(400).json({ error: 'Paper file data is required.' });
+    }
+
+    const userName = req.user?.full_name || 'User';
+    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sanitizedTitle = paperTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // Create subfolder papers/ inside user directory: assets/Documents/<Sanitized_User_Name>/papers/
+    const papersFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'papers');
+    if (!fs.existsSync(papersFolder)) {
+      fs.mkdirSync(papersFolder, { recursive: true });
+    }
+
+    const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Custom filename: <Sanitized_User_Name>_<Sanitized_Paper_Title>.<ext>
+    const cleanExt = extension.replace(/^\./, '');
+    const paperFilename = `${sanitizedUserName}_${sanitizedTitle}.${cleanExt}`;
+    const filePath = path.join(papersFolder, paperFilename);
+
+    fs.writeFileSync(filePath, buffer);
+
+    const paperUrl = `/documents/${sanitizedUserName}/papers/${paperFilename}`;
+
+    return res.json({
+      url: paperUrl,
+      folderPath: papersFolder,
+      filename: paperFilename,
+      uploaded_at: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    console.error('Paper Upload Error:', err);
+    return res.status(500).json({ error: 'Failed to save research paper on server.' });
   }
 });
 

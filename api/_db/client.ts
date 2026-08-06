@@ -1109,11 +1109,28 @@ class DbStore {
 
   // Visitor Aggregates (Strictly NO student names or sensitive info)
   async getPublicAggregateStats() {
-    let totalHours = 0;
-    let totalCerts = 0;
-    let totalPapers = 0;
-    let totalProjects = 0;
-    let featuredProjects: any[] = [];
+    let totalHours = this.store.learningHours
+      .filter((h) => h.status === 'Approved')
+      .reduce((sum, h) => sum + h.hours, 0);
+
+    let totalCerts = this.store.certificates.filter((c) => c.status === 'Approved').length;
+    let totalPapers = this.store.researchPapers.filter((p) => p.status === 'Approved').length;
+    let totalProjects = this.store.projects.filter((p) => p.status === 'Approved').length;
+
+    let featuredProjects: any[] = this.store.projects
+      .filter((p) => p.status === 'Approved')
+      .slice(0, 4)
+      .map((p) => {
+        const student = this.store.users.find((u) => u.id === p.student_id);
+        return {
+          id: p.id,
+          title: p.title,
+          tech_stack: p.tech_stack,
+          ai_contribution: p.ai_contribution,
+          student_name: student?.full_name || 'Student',
+          year: student?.year || 'CCE Student',
+        };
+      });
 
     if (sql) {
       try {
@@ -1152,7 +1169,7 @@ class DbStore {
         );
         featuredProjects = featuredRows as any[];
       } catch (err) {
-        console.error('[getPublicAggregateStats] DB error:', (err as Error).message);
+        console.warn('[getPublicAggregateStats] Cloud DB fetch failed, using in-memory fallback:', (err as Error).message);
       }
     }
 
