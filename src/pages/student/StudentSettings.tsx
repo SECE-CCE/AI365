@@ -3,6 +3,7 @@ import { UserCheck, Lock, Upload, Loader2, CheckCircle2, Shield } from 'lucide-r
 import { Card } from '../../components/common/Card';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../services/api';
+import { compressImage } from '../../utils/compressImage';
 
 export const StudentSettings: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -20,15 +21,28 @@ export const StudentSettings: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage({ text: 'File size must be under 10MB.', type: 'error' });
+      return;
+    }
+
     setUploading(true);
+    setMessage(null);
     try {
-      const res = await apiFetch<{ url: string }>('/api/upload', {
+      // Compress image client-side before sending to server
+      const compressedBase64 = await compressImage(file, 400, 400, 0.75);
+
+      // Save compressed photo in local server directory named after user
+      const res = await apiFetch<{ url: string }>('/api/upload/photo', {
         method: 'POST',
-        body: JSON.stringify({ filename: file.name, type: 'photo' }),
+        body: JSON.stringify({ imageBase64: compressedBase64 }),
       });
+
       setProfilePhoto(res.url);
-    } catch (err) {
-      setMessage({ text: 'Failed to upload new photo.', type: 'error' });
+      setMessage({ text: 'Photo compressed and saved successfully!', type: 'success' });
+    } catch (err: any) {
+      console.error('Photo Upload Failure:', err);
+      setMessage({ text: err.message || 'Failed to compress and save photo.', type: 'error' });
     } finally {
       setUploading(false);
     }
@@ -71,11 +85,10 @@ export const StudentSettings: React.FC = () => {
 
       {message && (
         <div
-          className={`p-3.5 rounded-xl text-xs font-medium border flex items-center gap-2 ${
-            message.type === 'success'
+          className={`p-3.5 rounded-xl text-xs font-medium border flex items-center gap-2 ${message.type === 'success'
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
               : 'bg-rose-50 text-rose-800 border-rose-200'
-          }`}
+            }`}
         >
           {message.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
           <span>{message.text}</span>

@@ -29,8 +29,6 @@ Thumbs.db
 *.swp
 *.swo
 
-# Temporary files
-check_data.mjs
-check_db.mjs
-reset_db.mjs
-seed_admin.mjs
+# User Uploads
+assets/Documents/*
+!assets/Documents/.gitkeep
