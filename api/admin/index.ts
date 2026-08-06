@@ -350,11 +350,12 @@ router.post('/approvals', async (req: AuthenticatedRequest, res: Response) => {
           await db.creditLearningHoursOnApproval(studentId, normType as 'certificate' | 'project', title, adminId, awardedHours, certUrl);
         }
       } else if (normType === 'research') {
-        // Auto-compute: total_hours ÷ number of authors — each co-author gets their own share when they submit
+        // Auto-compute: total_hours ÷ (1 submitter + number of co-authors)
         const totalHours = Number(updatedItem.total_hours || 80);
         const authorsStr = String(updatedItem.authors || '');
-        const authorCount = Math.max(1, authorsStr.split(',').map((a: string) => a.trim()).filter((a: string) => a.length > 0).length);
-        const perAuthorHours = Math.floor(totalHours / authorCount);
+        const coAuthorsList = authorsStr.split(/,| and /i).map((a: string) => a.trim()).filter((a: string) => a.length > 0);
+        const authorCount = 1 + coAuthorsList.length;
+        const perAuthorHours = Math.max(1, Math.round(totalHours / authorCount));
         if (perAuthorHours > 0) {
           await db.creditLearningHoursOnApproval(studentId, 'research', title, adminId, perAuthorHours, certUrl);
         }

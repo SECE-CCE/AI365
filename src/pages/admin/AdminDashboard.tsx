@@ -488,9 +488,9 @@ export const AdminDashboard: React.FC = () => {
               const row = activeItem.row || {};
               const totalHours = Number(row.total_hours || 80);
               const authorsStr = String(row.authors || '');
-              const authorList = authorsStr.split(',').map((a: string) => a.trim()).filter((a: string) => a.length > 0);
-              const authorCount = Math.max(1, authorList.length);
-              const perAuthorHours = Math.floor(totalHours / authorCount);
+              const coAuthorsList = authorsStr.split(/,| and /i).map((a: string) => a.trim()).filter((a: string) => a.length > 0);
+              const authorCount = 1 + coAuthorsList.length;
+              const perAuthorHours = Math.max(1, Math.round(totalHours / authorCount));
               return (
                 <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1">
                   <label className="block font-bold text-indigo-900">Auto-Computed Learning Hours (Research Paper)</label>

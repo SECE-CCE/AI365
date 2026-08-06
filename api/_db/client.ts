@@ -195,7 +195,7 @@ const initialStore = {
       role: 'admin',
       department: 'Computer & Communication Engineering',
       phone: '',
-      profile_photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+      profile_photo: '/assets/Dr.S.Dhamodharan.jpg',
       status: 'approved',
       mentor_id: null,
       is_department_wide: true,

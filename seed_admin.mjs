@@ -25,7 +25,7 @@ await sql`
     'admin',
     'Computer & Communication Engineering',
     '',
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+    '/assets/Dr.S.Dhamodharan.jpg',
     'approved',
     NULL,
     true
@@ -34,6 +34,7 @@ await sql`
     full_name = EXCLUDED.full_name,
     password  = EXCLUDED.password,
     role      = EXCLUDED.role,
+    profile_photo = EXCLUDED.profile_photo,
     status    = EXCLUDED.status,
     is_department_wide = EXCLUDED.is_department_wide
 `;
