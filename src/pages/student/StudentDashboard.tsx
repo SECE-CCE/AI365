@@ -101,6 +101,20 @@ export const StudentDashboard: React.FC = () => {
       cell: (row) => <StatusPill status={row.status} />,
     },
     {
+      header: 'Admin Marks',
+      cell: (row) => (
+        <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs">
+          {row.admin_marks !== undefined && row.admin_marks !== null
+            ? `${row.admin_marks} marks`
+            : row.status === 'Approved'
+            ? 'Verified'
+            : row.status === 'Rejected'
+            ? '0 marks'
+            : 'Pending Marks'}
+        </span>
+      ),
+    },
+    {
       header: 'Faculty Remarks',
       cell: (row) => <span className="text-slate-500 italic">{row.remarks}</span>,
     },

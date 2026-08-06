@@ -78,6 +78,13 @@ export const DigitalPassport: React.FC = () => {
     target_projects: 2,
     target_startups: 1,
   };
+  const points = passportData?.points || {
+    learningHours: 0,
+    certificates: 0,
+    researchPapers: 0,
+    projects: 0,
+    total: 0,
+  };
   const badges: PassportBadge[] = passportData?.badges || [];
 
   const handlePrint = () => {
@@ -199,6 +206,35 @@ export const DigitalPassport: React.FC = () => {
         </div>
       </Card>
 
+      <Card title="Verified AI Points Breakdown" subtitle="Points are computed from verified submissions and admin-assigned marks.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-slate-50 rounded-3xl border border-slate-200 p-5 text-center">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500 font-bold mb-3">Learning Hours Points</p>
+            <p className="text-3xl font-black text-slate-900">{points.learningHours}</p>
+            <p className="text-[11px] text-slate-500 mt-2">Using admin-entered marks when available</p>
+          </div>
+          <div className="bg-slate-50 rounded-3xl border border-slate-200 p-5 text-center">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500 font-bold mb-3">Certifications Points</p>
+            <p className="text-3xl font-black text-slate-900">{points.certificates}</p>
+            <p className="text-[11px] text-slate-500 mt-2">Admin marks override default certification value</p>
+          </div>
+          <div className="bg-slate-50 rounded-3xl border border-slate-200 p-5 text-center">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500 font-bold mb-3">Research Points</p>
+            <p className="text-3xl font-black text-slate-900">{points.researchPapers}</p>
+            <p className="text-[11px] text-slate-500 mt-2">Manual admin marks reflected here</p>
+          </div>
+          <div className="bg-slate-50 rounded-3xl border border-slate-200 p-5 text-center">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500 font-bold mb-3">Project Points</p>
+            <p className="text-3xl font-black text-slate-900">{points.projects}</p>
+            <p className="text-[11px] text-slate-500 mt-2">Project points now use admin-approved values</p>
+          </div>
+        </div>
+        <div className="mt-6 rounded-3xl bg-[#F3B631]/10 border border-[#F3B631]/20 p-4 text-center">
+          <p className="text-xs text-[#004990] uppercase tracking-[0.28em] font-bold mb-2">Verified Total Points</p>
+          <p className="text-4xl font-black text-[#002B5C]">{points.total} pts</p>
+        </div>
+      </Card>
+
       {/* 6 Passport Badges Progression Grid */}
       <Card title="Digital Passport Skill Badges" subtitle="6 Tiered Badges Unlocked through Verified Department Submissions (Click unlocked badges to celebrate!)">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -228,7 +264,7 @@ export const DigitalPassport: React.FC = () => {
                       badge.unlocked ? 'bg-amber-200 text-amber-900 shadow-xs' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
-                    {badge.unlocked ? 'Unlocked Gold' : `Level ${badge.level}`}
+                    {badge.unlocked ? 'Unlocked' : badge.level}
                   </span>
                 </div>
 

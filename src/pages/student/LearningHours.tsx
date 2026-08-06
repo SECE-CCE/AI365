@@ -100,6 +100,12 @@ export const LearningHours: React.FC = () => {
       cell: (row) => <StatusPill status={row.status} />,
     },
     {
+      header: 'Admin Marks',
+      cell: (row) => (
+        <span className="text-slate-700 font-semibold">{row.admin_marks !== undefined && row.admin_marks !== null ? row.admin_marks : '-'}</span>
+      ),
+    },
+    {
       header: 'Faculty Remarks',
       cell: (row) => <span className="text-slate-500 italic">{row.faculty_remarks || 'Pending evaluation'}</span>,
     },

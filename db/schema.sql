@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS learning_hours (
   status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
   faculty_id INT REFERENCES users(id) ON DELETE SET NULL,
   faculty_remarks TEXT,
+  admin_marks NUMERIC(6, 2),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS certificates (
   status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
   faculty_id INT REFERENCES users(id) ON DELETE SET NULL,
   faculty_remarks TEXT,
+  admin_marks NUMERIC(6, 2),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -58,6 +60,7 @@ CREATE TABLE IF NOT EXISTS research_papers (
   status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
   faculty_id INT REFERENCES users(id) ON DELETE SET NULL,
   faculty_remarks TEXT,
+  admin_marks NUMERIC(6, 2),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -74,6 +77,7 @@ CREATE TABLE IF NOT EXISTS projects (
   status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
   faculty_id INT REFERENCES users(id) ON DELETE SET NULL,
   faculty_remarks TEXT,
+  admin_marks NUMERIC(6, 2),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

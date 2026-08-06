@@ -30,6 +30,7 @@ export interface LearningHour {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 
@@ -47,6 +48,7 @@ export interface Certificate {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 
@@ -64,6 +66,7 @@ export interface ResearchPaper {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 
@@ -83,6 +86,7 @@ export interface Project {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 

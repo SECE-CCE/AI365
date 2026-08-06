@@ -52,6 +52,7 @@ export interface LearningHourRow {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 
@@ -66,6 +67,7 @@ export interface CertificateRow {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 
@@ -81,6 +83,7 @@ export interface ResearchPaperRow {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 
@@ -97,6 +100,7 @@ export interface ProjectRow {
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
+  admin_marks?: number;
   created_at: string;
 }
 
@@ -519,11 +523,11 @@ class DbStore {
     return newItem;
   }
 
-  async updateLearningHourStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<LearningHourRow | undefined> {
+  async updateLearningHourStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<LearningHourRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
-        [status, facultyId, remarks, id]
+        `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
         const updated = rows[0] as LearningHourRow;
@@ -531,10 +535,31 @@ class DbStore {
         if (idx !== -1) this.store.learning_hours[idx] = updated;
         return updated;
       }
-    } catch (err) { console.error('Neon DB updateLearningHourStatus error:', (err as Error).message); }
+    } catch (err) {
+      const message = (err as Error).message || '';
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+        try {
+          const rows = await this.queryDb(
+            `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            [status, facultyId, remarks, id]
+          );
+          if (rows && rows.length > 0) {
+            const updated = rows[0] as LearningHourRow;
+            const idx = this.store.learning_hours.findIndex((lh: LearningHourRow) => lh.id === id);
+            if (idx !== -1) this.store.learning_hours[idx] = updated;
+            return updated;
+          }
+        } catch (retryErr) {
+          console.error('Neon DB retry updateLearningHourStatus error:', (retryErr as Error).message);
+        }
+      } else {
+        console.error('Neon DB updateLearningHourStatus error:', message);
+      }
+    }
     const item = this.store.learning_hours.find((lh: LearningHourRow) => lh.id === id);
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
+    if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
     return item;
   }
 
@@ -585,11 +610,11 @@ class DbStore {
     return newItem;
   }
 
-  async updateCertificateStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<CertificateRow | undefined> {
+  async updateCertificateStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<CertificateRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
-        [status, facultyId, remarks, id]
+        `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
         const updated = rows[0] as CertificateRow;
@@ -597,10 +622,31 @@ class DbStore {
         if (idx !== -1) this.store.certificates[idx] = updated;
         return updated;
       }
-    } catch (err) { console.error('Neon DB updateCertificateStatus error:', (err as Error).message); }
+    } catch (err) {
+      const message = (err as Error).message || '';
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+        try {
+          const rows = await this.queryDb(
+            `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            [status, facultyId, remarks, id]
+          );
+          if (rows && rows.length > 0) {
+            const updated = rows[0] as CertificateRow;
+            const idx = this.store.certificates.findIndex((c: CertificateRow) => c.id === id);
+            if (idx !== -1) this.store.certificates[idx] = updated;
+            return updated;
+          }
+        } catch (retryErr) {
+          console.error('Neon DB retry updateCertificateStatus error:', (retryErr as Error).message);
+        }
+      } else {
+        console.error('Neon DB updateCertificateStatus error:', message);
+      }
+    }
     const item = this.store.certificates.find((c: CertificateRow) => c.id === id);
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
+    if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
     return item;
   }
 
@@ -651,11 +697,11 @@ class DbStore {
     return newItem;
   }
 
-  async updateResearchPaperStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<ResearchPaperRow | undefined> {
+  async updateResearchPaperStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<ResearchPaperRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
-        [status, facultyId, remarks, id]
+        `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
         const updated = rows[0] as ResearchPaperRow;
@@ -663,10 +709,31 @@ class DbStore {
         if (idx !== -1) this.store.research_papers[idx] = updated;
         return updated;
       }
-    } catch (err) { console.error('Neon DB updateResearchPaperStatus error:', (err as Error).message); }
+    } catch (err) {
+      const message = (err as Error).message || '';
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+        try {
+          const rows = await this.queryDb(
+            `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            [status, facultyId, remarks, id]
+          );
+          if (rows && rows.length > 0) {
+            const updated = rows[0] as ResearchPaperRow;
+            const idx = this.store.research_papers.findIndex((p: ResearchPaperRow) => p.id === id);
+            if (idx !== -1) this.store.research_papers[idx] = updated;
+            return updated;
+          }
+        } catch (retryErr) {
+          console.error('Neon DB retry updateResearchPaperStatus error:', (retryErr as Error).message);
+        }
+      } else {
+        console.error('Neon DB updateResearchPaperStatus error:', message);
+      }
+    }
     const item = this.store.research_papers.find((p: ResearchPaperRow) => p.id === id);
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
+    if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
     return item;
   }
 
@@ -717,11 +784,11 @@ class DbStore {
     return newItem;
   }
 
-  async updateProjectStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string): Promise<ProjectRow | undefined> {
+  async updateProjectStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<ProjectRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
-        [status, facultyId, remarks, id]
+        `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
         const updated = rows[0] as ProjectRow;
@@ -729,10 +796,31 @@ class DbStore {
         if (idx !== -1) this.store.projects[idx] = updated;
         return updated;
       }
-    } catch (err) { console.error('Neon DB updateProjectStatus error:', (err as Error).message); }
+    } catch (err) {
+      const message = (err as Error).message || '';
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+        try {
+          const rows = await this.queryDb(
+            `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            [status, facultyId, remarks, id]
+          );
+          if (rows && rows.length > 0) {
+            const updated = rows[0] as ProjectRow;
+            const idx = this.store.projects.findIndex((p: ProjectRow) => p.id === id);
+            if (idx !== -1) this.store.projects[idx] = updated;
+            return updated;
+          }
+        } catch (retryErr) {
+          console.error('Neon DB retry updateProjectStatus error:', (retryErr as Error).message);
+        }
+      } else {
+        console.error('Neon DB updateProjectStatus error:', message);
+      }
+    }
     const item = this.store.projects.find((p: ProjectRow) => p.id === id);
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
+    if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
     return item;
   }
 
@@ -752,25 +840,38 @@ class DbStore {
             COALESCE(lh.total_hours, 0) AS learning_hours,
             COALESCE(cert.cert_count, 0) AS certificates,
             COALESCE(rp.paper_count, 0) AS research_papers,
-            COALESCE(proj.project_count, 0) AS projects
+            COALESCE(proj.project_count, 0) AS projects,
+            COALESCE(lh.total_points, 0) + COALESCE(cert.total_points, 0) + COALESCE(rp.total_points, 0) + COALESCE(proj.total_points, 0) AS ai_score
           FROM users u
           LEFT JOIN (
-            SELECT student_id, SUM(hours) AS total_hours
+            SELECT student_id,
+              SUM(hours) AS total_hours,
+              SUM(COALESCE(admin_marks, hours * 2)) AS total_points
             FROM learning_hours WHERE status = 'Approved'
+              AND activity_name NOT ILIKE 'Verified Certificate:%'
+              AND activity_name NOT ILIKE 'AI Project:%'
+              AND activity_name NOT ILIKE 'Research Paper:%'
+              AND activity_name NOT ILIKE 'Research Paper (Co-Author):%'
             GROUP BY student_id
           ) lh ON lh.student_id = u.id
           LEFT JOIN (
-            SELECT student_id, COUNT(*) AS cert_count
+            SELECT student_id,
+              COUNT(*) AS cert_count,
+              SUM(COALESCE(admin_marks, 50)) AS total_points
             FROM certificates WHERE status = 'Approved'
             GROUP BY student_id
           ) cert ON cert.student_id = u.id
           LEFT JOIN (
-            SELECT student_id, COUNT(*) AS paper_count
+            SELECT student_id,
+              COUNT(*) AS paper_count,
+              SUM(COALESCE(admin_marks, 150)) AS total_points
             FROM research_papers WHERE status = 'Approved'
             GROUP BY student_id
           ) rp ON rp.student_id = u.id
           LEFT JOIN (
-            SELECT student_id, COUNT(*) AS project_count
+            SELECT student_id,
+              COUNT(*) AS project_count,
+              SUM(COALESCE(admin_marks, 100)) AS total_points
             FROM projects WHERE status = 'Approved'
             GROUP BY student_id
           ) proj ON proj.student_id = u.id
@@ -786,12 +887,6 @@ class DbStore {
         const rows = await this.queryDb(query, params);
         if (rows && rows.length >= 0) {
           const leaderboard = rows.map((s: any) => {
-            const approvedHours = Number(s.learning_hours || 0);
-            const approvedCerts = Number(s.certificates || 0);
-            const approvedPapers = Number(s.research_papers || 0);
-            const approvedProjects = Number(s.projects || 0);
-            // AI Score Formula: Hours * 2 + Certs * 50 + Papers * 150 + Projects * 100
-            const aiScore = Math.round(approvedHours * 2 + approvedCerts * 50 + approvedPapers * 150 + approvedProjects * 100);
             return {
               student_id: s.student_id,
               student_name: s.student_name,
@@ -799,11 +894,11 @@ class DbStore {
               year: s.year,
               department: s.department,
               profile_photo: s.profile_photo,
-              learning_hours: approvedHours,
-              certificates: approvedCerts,
-              research_papers: approvedPapers,
-              projects: approvedProjects,
-              ai_score: aiScore,
+              learning_hours: Number(s.learning_hours || 0),
+              certificates: Number(s.certificates || 0),
+              research_papers: Number(s.research_papers || 0),
+              projects: Number(s.projects || 0),
+              ai_score: Math.round(Number(s.ai_score || 0)),
             };
           });
           leaderboard.sort((a: any, b: any) => b.ai_score - a.ai_score);
@@ -820,21 +915,28 @@ class DbStore {
     const leaderboard = students.map((s: UserRow) => {
       if (yearFilter && s.year !== yearFilter) return null;
 
-      const approvedHours = this.store.learning_hours
-        .filter((lh: LearningHourRow) => lh.student_id === s.id && lh.status === 'Approved')
-        .reduce((acc: number, curr: LearningHourRow) => acc + Number(curr.hours), 0);
+      const approvedHoursScore = this.store.learning_hours
+        .filter((lh: LearningHourRow) => lh.student_id === s.id && lh.status === 'Approved' && !this.isAutoGeneratedLearningHour(lh))
+        .reduce((acc: number, curr: LearningHourRow) => acc + (curr.admin_marks !== undefined && curr.admin_marks !== null ? Number(curr.admin_marks) : Number(curr.hours) * 2), 0);
 
-      const approvedCerts = this.store.certificates
-        .filter((c: CertificateRow) => c.student_id === s.id && c.status === 'Approved').length;
+      const approvedCertsRows = this.store.certificates
+        .filter((c: CertificateRow) => c.student_id === s.id && c.status === 'Approved');
 
-      const approvedPapers = this.store.research_papers
-        .filter((p: ResearchPaperRow) => p.student_id === s.id && p.status === 'Approved').length;
+      const approvedPapersRows = this.store.research_papers
+        .filter((p: ResearchPaperRow) => p.student_id === s.id && p.status === 'Approved');
 
-      const approvedProjects = this.store.projects
-        .filter((p: ProjectRow) => p.student_id === s.id && p.status === 'Approved').length;
+      const approvedProjectsRows = this.store.projects
+        .filter((p: ProjectRow) => p.student_id === s.id && p.status === 'Approved');
 
-      // AI Score Formula: Hours * 2 + Certs * 50 + Papers * 150 + Projects * 100
-      const aiScore = Math.round(approvedHours * 2 + approvedCerts * 50 + approvedPapers * 150 + approvedProjects * 100);
+      const approvedCertsScore = approvedCertsRows.reduce((acc: number, curr: CertificateRow) => acc + (curr.admin_marks !== undefined && curr.admin_marks !== null ? Number(curr.admin_marks) : 50), 0);
+      const approvedPapersScore = approvedPapersRows.reduce((acc: number, curr: ResearchPaperRow) => acc + (curr.admin_marks !== undefined && curr.admin_marks !== null ? Number(curr.admin_marks) : 150), 0);
+      const approvedProjectsScore = approvedProjectsRows.reduce((acc: number, curr: ProjectRow) => acc + (curr.admin_marks !== undefined && curr.admin_marks !== null ? Number(curr.admin_marks) : 100), 0);
+
+      const aiScore = Math.round(approvedHoursScore + approvedCertsScore + approvedPapersScore + approvedProjectsScore);
+
+      const approvedCertsCount = approvedCertsRows.length;
+      const approvedPapersCount = approvedPapersRows.length;
+      const approvedProjectsCount = approvedProjectsRows.length;
 
       return {
         student_id: s.id,
@@ -843,10 +945,10 @@ class DbStore {
         year: s.year,
         department: s.department,
         profile_photo: s.profile_photo,
-        learning_hours: approvedHours,
-        certificates: approvedCerts,
-        research_papers: approvedPapers,
-        projects: approvedProjects,
+        learning_hours: approvedHoursScore,
+        certificates: approvedCertsCount,
+        research_papers: approvedPapersCount,
+        projects: approvedProjectsCount,
         ai_score: aiScore,
       };
     }).filter(Boolean);
@@ -862,6 +964,22 @@ class DbStore {
   }
 
   // Student Passport Calculation
+  isAutoGeneratedLearningHour(row: LearningHourRow) {
+    const name = String(row.activity_name || '').toLowerCase();
+    return (
+      name.startsWith('verified certificate:') ||
+      name.startsWith('ai project:') ||
+      name.startsWith('research paper:') ||
+      name.startsWith('research paper (co-author):') ||
+      name.includes('approved learning hours for certificate') ||
+      name.includes('co-author')
+    );
+  }
+
+  isApprovedStatus(status: any) {
+    return String(status || '').trim().toLowerCase() === 'approved';
+  }
+
   async getStudentPassport(studentId: number) {
     const student = await this.findUserById(studentId);
     if (!student) return null;
@@ -872,69 +990,96 @@ class DbStore {
     const allPapers = await this.getResearchPapers(studentId);
     const allProjects = await this.getProjects(studentId);
 
-    const approvedHours = allHours
-      .filter((lh: any) => lh.status === 'Approved')
-      .reduce((acc: number, curr: any) => acc + Number(curr.hours), 0);
+    const hasAdminMarks = (row: any) =>
+      row.admin_marks !== undefined &&
+      row.admin_marks !== null &&
+      row.admin_marks !== '' &&
+      !isNaN(Number(row.admin_marks));
 
-    const approvedCerts = allCerts.filter((c: any) => c.status === 'Approved').length;
-    const approvedPapers = allPapers.filter((p: any) => p.status === 'Approved').length;
-    const approvedProjects = allProjects.filter((p: any) => p.status === 'Approved').length;
+    const approvedHoursTotal = allHours
+      .filter((lh: any) => this.isApprovedStatus(lh.status) && !this.isAutoGeneratedLearningHour(lh))
+      .reduce((acc: number, curr: any) => acc + Number(curr.hours || 0), 0);
 
-    const aiScore = Math.round(approvedHours * 2 + approvedCerts * 50 + approvedPapers * 150 + approvedProjects * 100);
+    const approvedHoursScore = allHours
+      .filter((lh: any) => this.isApprovedStatus(lh.status) && !this.isAutoGeneratedLearningHour(lh))
+      .reduce((acc: number, curr: any) => acc + (hasAdminMarks(curr) ? Number(curr.admin_marks) : Number(curr.hours) * 2), 0);
+
+    const approvedCerts = allCerts.filter((c: any) => this.isApprovedStatus(c.status));
+    const approvedPapers = allPapers.filter((p: any) => this.isApprovedStatus(p.status));
+    const approvedProjects = allProjects.filter((p: any) => this.isApprovedStatus(p.status));
+
+    const approvedCertsCount = approvedCerts.length;
+    const approvedPapersCount = approvedPapers.length;
+    const approvedProjectsCount = approvedProjects.length;
+
+    const approvedCertsScore = approvedCerts.reduce(
+      (acc: number, curr: any) => acc + (hasAdminMarks(curr) ? Number(curr.admin_marks) : 50),
+      0
+    );
+    const approvedPapersScore = approvedPapers.reduce(
+      (acc: number, curr: any) => acc + (hasAdminMarks(curr) ? Number(curr.admin_marks) : 150),
+      0
+    );
+    const approvedProjectsScore = approvedProjects.reduce(
+      (acc: number, curr: any) => acc + (hasAdminMarks(curr) ? Number(curr.admin_marks) : 100),
+      0
+    );
+
+    const aiScore = Math.round(approvedHoursScore + approvedCertsScore + approvedPapersScore + approvedProjectsScore);
 
     const badges = [
       {
         id: 'explorer',
         name: 'CCE AI Explorer',
         level: 'Level 1',
-        description: 'Complete 10+ AI Learning Hours',
-        unlocked: approvedHours >= 10,
-        progress: Math.min(100, Math.round((approvedHours / 10) * 100)),
+        description: 'Earn 500+ AI Portfolio Points',
+        unlocked: aiScore >= 500,
+        progress: Math.min(100, Math.round((aiScore / 500) * 100)),
         icon: 'Compass',
       },
       {
         id: 'practitioner',
         name: 'CCE AI Practitioner',
         level: 'Level 2',
-        description: 'Earn at least 2 AI Certifications',
-        unlocked: approvedCerts >= 2,
-        progress: Math.min(100, Math.round((approvedCerts / 2) * 100)),
+        description: 'Earn 1000+ AI Portfolio Points',
+        unlocked: aiScore >= 1000,
+        progress: Math.min(100, Math.round((aiScore / 1000) * 100)),
         icon: 'Award',
       },
       {
         id: 'innovator',
         name: 'CCE AI Innovator',
         level: 'Level 3',
-        description: 'Build 2+ Approved AI Projects',
-        unlocked: approvedProjects >= 2,
-        progress: Math.min(100, Math.round((approvedProjects / 2) * 100)),
+        description: 'Earn 2000+ AI Portfolio Points',
+        unlocked: aiScore >= 2000,
+        progress: Math.min(100, Math.round((aiScore / 2000) * 100)),
         icon: 'Code',
       },
       {
         id: 'scholar',
         name: 'CCE AI Scholar & Researcher',
         level: 'Level 4',
-        description: 'Publish 1+ AI Research Paper',
-        unlocked: approvedPapers >= 1,
-        progress: Math.min(100, Math.round((approvedPapers / 1) * 100)),
+        description: 'Earn 3000+ AI Portfolio Points',
+        unlocked: aiScore >= 3000,
+        progress: Math.min(100, Math.round((aiScore / 3000) * 100)),
         icon: 'FileText',
       },
       {
         id: 'pioneer',
         name: 'CCE AI Pioneer',
         level: 'Level 5',
-        description: 'Achieve 500+ AI Total Points',
-        unlocked: aiScore >= 500,
-        progress: Math.min(100, Math.round((aiScore / 500) * 100)),
+        description: 'Earn 4000+ AI Portfolio Points',
+        unlocked: aiScore >= 4000,
+        progress: Math.min(100, Math.round((aiScore / 4000) * 100)),
         icon: 'Zap',
       },
       {
         id: 'entrepreneur',
         name: 'CCE AI Entrepreneur',
         level: 'Level 6',
-        description: 'Achieve 100+ Hours & 3+ Projects & 1 Paper',
-        unlocked: approvedHours >= 100 && approvedProjects >= 3 && approvedPapers >= 1,
-        progress: Math.min(100, Math.round(((approvedHours / 100 + approvedProjects / 3 + approvedPapers / 1) / 3) * 100)),
+        description: 'Reach Maximum 5000 AI Portfolio Points',
+        unlocked: aiScore >= 5000,
+        progress: Math.min(100, Math.round((aiScore / 5000) * 100)),
         icon: 'Rocket',
       },
     ];
@@ -943,10 +1088,17 @@ class DbStore {
       student,
       stats: {
         aiScore,
-        learningHours: approvedHours,
-        certificates: approvedCerts,
-        researchPapers: approvedPapers,
-        projects: approvedProjects,
+        learningHours: approvedHoursTotal,
+        certificates: approvedCertsCount,
+        researchPapers: approvedPapersCount,
+        projects: approvedProjectsCount,
+      },
+      points: {
+        learningHours: approvedHoursScore,
+        certificates: approvedCertsScore,
+        researchPapers: approvedPapersScore,
+        projects: approvedProjectsScore,
+        total: aiScore,
       },
       badges,
     };
