@@ -25,9 +25,9 @@ export const Register: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [department] = useState('Computer & Communication Engineering');
   const [registerNumber, setRegisterNumber] = useState('');
-  const [year, setYear] = useState('1st Year');
+  const [year, setYear] = useState('');
   const [gender, setGender] = useState<'boy' | 'girl'>('boy');
-  const [mentorName, setMentorName] = useState(MENTORS_LIST[0]);
+  const [mentorName, setMentorName] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +41,7 @@ export const Register: React.FC = () => {
 
     if (!fullName.trim() || !email.trim() || !password) return setError('Please fill in all required fields.');
     if (!registerNumber.trim()) return setError('Register number is required for students.');
+    if (!year) return setError('Please select an academic year.');
     if (!mentorName) return setError('Please select a faculty mentor.');
     if (password !== confirmPassword) return setError('Passwords do not match.');
     if (password.length < 6) return setError('Password must be at least 6 characters.');
@@ -178,6 +179,7 @@ export const Register: React.FC = () => {
                 onChange={(e) => setMentorName(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-white border border-blue-200 rounded-xl text-slate-900 font-bold focus:border-[#004990] outline-none transition-all shadow-xs"
               >
+                <option value="" disabled>Select a Mentor</option>
                 {MENTORS_LIST.map((mentor) => (
                   <option key={mentor} value={mentor}>
                     {mentor}
@@ -200,6 +202,7 @@ export const Register: React.FC = () => {
                 <label className="block font-bold text-slate-700 mb-1">Academic Year *</label>
                 <select value={year} onChange={(e) => setYear(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#004990] outline-none transition-all">
+                  <option value="" disabled>Select Academic Year</option>
                   <option>1st Year</option>
                   <option>2nd Year</option>
                   <option>3rd Year</option>
