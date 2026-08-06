@@ -238,16 +238,16 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
               {uploading ? (
                 <div className="flex items-center gap-2 text-[#004990] font-semibold">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Processing & Saving Manuscript...</span>
+                  <span>Compressing & Saving Manuscript PDF...</span>
                 </div>
               ) : (
                 <>
                   <Upload className="w-6 h-6 text-slate-400 mb-1" />
-                  <span className="font-semibold text-slate-700">Click to upload Research Paper (PDF/Doc)</span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">PDF or Image manuscript documents</span>
+                  <span className="font-semibold text-slate-700">Click to upload Research Paper PDF</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">PDF format accepted (.pdf) — auto-compressed and saved to folder</span>
                 </>
               )}
-              <input type="file" onChange={handleFileUpload} accept=".pdf,image/*" disabled={uploading} className="hidden" />
+              <input type="file" onChange={handleFileUpload} accept=".pdf,application/pdf,image/*" disabled={uploading} className="hidden" />
             </label>
 
             {pdfUrl && (

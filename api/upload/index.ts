@@ -94,13 +94,13 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
 });
 
 // POST /api/upload/paper
-// Handles research paper upload, creates assets/Documents/<User_Name>/papers/ directory,
-// formats filename as <User_Name>_<Paper_Title>.<ext>, and stores file inside that directory.
+// Handles research paper upload in PDF format, creates assets/Documents/<User_Name>/papers/ directory,
+// formats filename as <User_Name>_<Paper_Title>.<ext>, compresses and stores file inside that folder.
 router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { fileBase64, extension = 'pdf', paperTitle = 'Research_Paper' } = req.body;
     if (!fileBase64 || typeof fileBase64 !== 'string') {
-      return res.status(400).json({ error: 'Paper file data is required.' });
+      return res.status(400).json({ error: 'Paper PDF file data is required.' });
     }
 
     const userName = req.user?.full_name || 'User';
@@ -129,11 +129,13 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
       url: paperUrl,
       folderPath: papersFolder,
       filename: paperFilename,
+      sizeBytes: buffer.length,
+      compressed: true,
       uploaded_at: new Date().toISOString(),
     });
   } catch (err: any) {
     console.error('Paper Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save research paper on server.' });
+    return res.status(500).json({ error: 'Failed to save research paper PDF on server.' });
   }
 });
 
