@@ -16,6 +16,9 @@ const MENTORS_LIST = [
   'Ms. N. Banupriya',
 ];
 
+// Roll Number pattern: 2 digits + 2 uppercase letters + 3 digits  e.g. 24CC009
+const ROLL_NUMBER_REGEX = /^\d{2}[A-Z]{2}\d{3}$/;
+
 export const Register: React.FC = () => {
   // Student fields
   const [fullName, setFullName] = useState('');
@@ -40,9 +43,11 @@ export const Register: React.FC = () => {
     setError('');
 
     if (!fullName.trim() || !email.trim() || !password) return setError('Please fill in all required fields.');
-    if (!registerNumber.trim()) return setError('Register number is required for students.');
+    if (!registerNumber.trim()) return setError('Roll number is required for students.');
+    if (!ROLL_NUMBER_REGEX.test(registerNumber.trim())) return setError('Roll number format is invalid. Use format like 24CC009 (2 digits + 2 letters + 3 digits).');
     if (!year) return setError('Please select an academic year.');
     if (!mentorName) return setError('Please select a faculty mentor.');
+    if (!email.trim().endsWith('@sece.ac.in')) return setError('College email must end with @sece.ac.in (e.g. name@sece.ac.in).');
     if (password !== confirmPassword) return setError('Passwords do not match.');
     if (password.length < 6) return setError('Password must be at least 6 characters.');
 
@@ -161,10 +166,23 @@ export const Register: React.FC = () => {
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
               </div>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Register Number *</label>
-                <input type="text" required value={registerNumber} onChange={(e) => setRegisterNumber(e.target.value)}
-                  placeholder="e.g. 21CCE042"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+                <label className="block font-bold text-slate-700 mb-1">Roll Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={registerNumber}
+                  onChange={(e) => setRegisterNumber(e.target.value.toUpperCase())}
+                  placeholder="e.g. 24CC009"
+                  maxLength={7}
+                  className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl focus:bg-white outline-none transition-all ${
+                    registerNumber && !ROLL_NUMBER_REGEX.test(registerNumber)
+                      ? 'border-rose-400 focus:border-rose-500'
+                      : 'border-slate-200 focus:border-[#004990]'
+                  }`}
+                />
+                {registerNumber && !ROLL_NUMBER_REGEX.test(registerNumber) && (
+                  <p className="text-[10px] text-rose-500 font-medium mt-1">Format: 24CC009 (2 digits + 2 letters + 3 digits)</p>
+                )}
               </div>
             </div>
 
@@ -214,9 +232,21 @@ export const Register: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">College Email *</label>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name.student@cce.edu"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@sece.ac.in"
+                  className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl focus:bg-white outline-none transition-all ${
+                    email && !email.endsWith('@sece.ac.in')
+                      ? 'border-rose-400 focus:border-rose-500'
+                      : 'border-slate-200 focus:border-[#004990]'
+                  }`}
+                />
+                {email && !email.endsWith('@sece.ac.in') && (
+                  <p className="text-[10px] text-rose-500 font-medium mt-1">Email must end with @sece.ac.in</p>
+                )}
               </div>
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Phone Number</label>

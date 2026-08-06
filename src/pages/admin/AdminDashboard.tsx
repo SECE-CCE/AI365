@@ -11,9 +11,10 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Approval modal for student submissions
-  const [activeItem, setActiveItem] = useState<{ id: number; type: string; action: 'approve' | 'reject'; title: string } | null>(null);
+  const [activeItem, setActiveItem] = useState<{ id: number; type: string; action: 'approve' | 'reject'; title: string; row?: any } | null>(null);
   const [remarks, setRemarks] = useState('');
   const [awardedHours, setAwardedHours] = useState(20);
+  const [awardedLearningHours, setAwardedLearningHours] = useState<number | ''>('');
   const [adminMarks, setAdminMarks] = useState<number | ''>('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,9 +75,18 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleOpenSubmissionAction = (item: any, action: 'approve' | 'reject') => {
-    setActiveItem({ id: item.id, type: item.type, action, title: item.title });
+    setActiveItem({ id: item.id, type: item.type, action, title: item.title, row: item });
     setRemarks(action === 'approve' ? 'Approved by Admin.' : 'Needs revision.');
     setAwardedHours(20);
+    // Pre-fill awarded learning hours based on type
+    const t = String(item.type || '').toLowerCase();
+    if (t === 'certificate') {
+      setAwardedLearningHours(20);
+    } else if (t === 'project') {
+      setAwardedLearningHours(40);
+    } else {
+      setAwardedLearningHours('');
+    }
     const maxMark = getMaxMark(item.type);
     if (item.admin_marks !== undefined && item.admin_marks !== null && item.admin_marks !== '') {
       setAdminMarks(Math.min(maxMark, Number(item.admin_marks)));
@@ -115,6 +125,11 @@ export const AdminDashboard: React.FC = () => {
       };
       if (activeItem.action === 'approve') {
         payload.admin_marks = marksValue;
+        const t = String(activeItem.type || '').toLowerCase();
+        if ((t === 'certificate' || t === 'project') && awardedLearningHours !== '') {
+          payload.awarded_learning_hours = Number(awardedLearningHours);
+        }
+        // research: auto-computed on backend — no need to send
       }
 
       await apiFetch('/api/admin/approvals', {
@@ -443,22 +458,57 @@ export const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {activeItem?.action === 'approve' && activeItem?.type.toLowerCase() === 'learning_hour' && (
-            <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
-              <label className="block font-bold text-slate-900">Assign Verified Learning Hours *</label>
-              <p className="text-[11px] text-slate-500">
-                How many approved learning hours should be recorded for this student submission?
-              </p>
-              <input
-                type="number"
-                min={1}
-                max={200}
-                value={awardedHours}
-                onChange={(e) => setAwardedHours(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 outline-none focus:border-[#004990]"
-              />
-            </div>
-          )}
+          {/* Awarded Learning Hours — Certificate & Project: admin enters; Research: auto-computed info */}
+          {activeItem?.action === 'approve' && (() => {
+            const t = String(activeItem.type || '').toLowerCase();
+            if (t === 'certificate' || t === 'project') {
+              return (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                  <label className="block font-bold text-slate-900">
+                    Awarded Learning Hours * <span className="text-emerald-700">(credited to student)</span>
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    {t === 'certificate'
+                      ? 'Enter the number of learning hours to credit for this certificate (e.g. 20 hrs).'
+                      : 'Enter the number of learning hours to credit for this AI project build.'}
+                  </p>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={awardedLearningHours}
+                    onChange={(e) => setAwardedLearningHours(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-lg font-bold text-slate-900 outline-none focus:border-emerald-600"
+                    placeholder="e.g. 20"
+                  />
+                </div>
+              );
+            }
+            if (t === 'research') {
+              const row = activeItem.row || {};
+              const totalHours = Number(row.total_hours || 80);
+              const authorsStr = String(row.authors || '');
+              const authorList = authorsStr.split(',').map((a: string) => a.trim()).filter((a: string) => a.length > 0);
+              const authorCount = Math.max(1, authorList.length);
+              const perAuthorHours = Math.floor(totalHours / authorCount);
+              return (
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1">
+                  <label className="block font-bold text-indigo-900">Auto-Computed Learning Hours (Research Paper)</label>
+                  <div className="flex items-center gap-3 mt-1">
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-indigo-700">{perAuthorHours}</p>
+                      <p className="text-[10px] font-bold text-indigo-500">hrs / author</p>
+                    </div>
+                    <div className="text-[11px] text-indigo-700 leading-relaxed">
+                      <p><span className="font-bold">{totalHours} total hrs</span> ÷ <span className="font-bold">{authorCount} authors</span> = <span className="font-black text-indigo-900">{perAuthorHours} hrs</span> each</p>
+                      <p className="text-indigo-500 mt-0.5">Co-authors will receive their share when they submit separately.</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           <div>
             <label className="block font-bold text-slate-700 mb-1">Admin Remarks / Feedback *</label>
