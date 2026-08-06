@@ -14,6 +14,7 @@ export const AdminDashboard: React.FC = () => {
   const [activeItem, setActiveItem] = useState<{ id: number; type: string; action: 'approve' | 'reject'; title: string } | null>(null);
   const [remarks, setRemarks] = useState('');
   const [awardedHours, setAwardedHours] = useState(20);
+  const [adminMarks, setAdminMarks] = useState<number | ''>('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchDashboard = async () => {
@@ -64,30 +65,67 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const getMaxMark = (type: string) => {
+    const t = String(type || '').toLowerCase();
+    if (t === 'certificate') return 50;
+    if (t === 'research') return 150;
+    if (t === 'project') return 100;
+    return 200;
+  };
+
   const handleOpenSubmissionAction = (item: any, action: 'approve' | 'reject') => {
     setActiveItem({ id: item.id, type: item.type, action, title: item.title });
     setRemarks(action === 'approve' ? 'Approved by Admin.' : 'Needs revision.');
     setAwardedHours(20);
+    const maxMark = getMaxMark(item.type);
+    if (item.admin_marks !== undefined && item.admin_marks !== null && item.admin_marks !== '') {
+      setAdminMarks(Math.min(maxMark, Number(item.admin_marks)));
+    } else {
+      setAdminMarks(maxMark);
+    }
   };
 
   const handleConfirmSubmissionAction = async () => {
     if (!activeItem) return;
+    const maxAllowed = getMaxMark(activeItem.type);
+    const marksValue = Number(adminMarks);
+    if (activeItem.action === 'approve') {
+      if (!adminMarks && adminMarks !== 0) {
+        alert('Please enter admin evaluation marks before approving the submission.');
+        return;
+      }
+      if (Number.isNaN(marksValue) || marksValue <= 0) {
+        alert('Admin marks must be a positive number.');
+        return;
+      }
+      if (marksValue > maxAllowed) {
+        alert(`Maximum allowed mark for ${activeItem.type} approval is ${maxAllowed}. Please enter a mark up to ${maxAllowed}.`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      await apiFetch('/api/faculty/approvals', {
+      const payload: any = {
+        submission_id: activeItem.id,
+        submission_type: activeItem.type,
+        status: activeItem.action === 'approve' ? 'Approved' : 'Rejected',
+        faculty_remarks: remarks,
+        awarded_hours: awardedHours,
+      };
+      if (activeItem.action === 'approve') {
+        payload.admin_marks = marksValue;
+      }
+
+      await apiFetch('/api/admin/approvals', {
         method: 'POST',
-        body: JSON.stringify({
-          submission_id: activeItem.id,
-          submission_type: activeItem.type,
-          status: activeItem.action === 'approve' ? 'Approved' : 'Rejected',
-          faculty_remarks: remarks,
-          awarded_hours: awardedHours,
-        }),
+        body: JSON.stringify(payload),
       });
       setActiveItem(null);
       fetchDashboard();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(err.message || 'Unable to approve submission. Please check console for details.');
     } finally {
       setSubmitting(false);
     }
@@ -182,6 +220,12 @@ export const AdminDashboard: React.FC = () => {
         <span className="font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-[#004990] text-[10px] uppercase tracking-wider">
           {row.type}
         </span>
+      ),
+    },
+    {
+      header: 'Admin Marks',
+      cell: (row) => (
+        <span className="text-slate-700 font-semibold">{row.admin_marks !== undefined && row.admin_marks !== null ? row.admin_marks : '-'}</span>
       ),
     },
     {
@@ -304,15 +348,7 @@ export const AdminDashboard: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs">
-          <p className="text-xs font-bold text-slate-500">Total Dept Hours</p>
-          <p className="text-2xl font-black text-[#004990] mt-1">{stats.totalApprovedHoursCount || stats.totalDepartmentHours} hrs</p>
-        </div>
 
-        <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs sm:col-span-2 lg:col-span-1">
-          <p className="text-xs font-bold text-slate-500">Avg Dept AI Score</p>
-          <p className="text-2xl font-black text-emerald-600 mt-1">{stats.avgAiScore} pts</p>
-        </div>
       </div>
 
       {/* Pending Student Activity Submissions (Certificates, Research Papers, Projects) */}
@@ -377,9 +413,36 @@ export const AdminDashboard: React.FC = () => {
         isOpen={!!activeItem}
         onClose={() => setActiveItem(null)}
         title={activeItem?.action === 'approve' ? `Approve: ${activeItem?.title}` : `Reject: ${activeItem?.title}`}
-        subtitle="Review submission and set remarks / verified hours"
+        subtitle="Review submission and set evaluation marks / remarks"
       >
         <div className="space-y-4 text-xs">
+          {activeItem?.action === 'approve' && (
+            <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
+              <label className="block font-bold text-slate-900">
+                Admin Evaluation Marks * (Maximum Limit: {getMaxMark(activeItem.type)} marks)
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Enter score to assign (Maximum limit: <span className="font-bold text-[#004990]">{getMaxMark(activeItem.type)} marks</span>).
+              </p>
+              <input
+                type="number"
+                min={1}
+                max={getMaxMark(activeItem.type)}
+                value={adminMarks}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? '' : Number(e.target.value);
+                  const maxAllowed = getMaxMark(activeItem.type);
+                  if (val !== '' && typeof val === 'number' && val > maxAllowed) {
+                    setAdminMarks(maxAllowed);
+                  } else {
+                    setAdminMarks(val);
+                  }
+                }}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 outline-none focus:border-[#004990]"
+              />
+            </div>
+          )}
+
           {activeItem?.action === 'approve' && activeItem?.type.toLowerCase() === 'learning_hour' && (
             <div className="p-3 bg-[#004990]/5 border border-blue-200 rounded-xl space-y-1">
               <label className="block font-bold text-slate-900">Assign Verified Learning Hours *</label>

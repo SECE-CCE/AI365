@@ -52,9 +52,11 @@ try {
       status VARCHAR(50) DEFAULT 'Pending',
       faculty_id INTEGER,
       faculty_remarks TEXT,
+      admin_marks NUMERIC(6,2),
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE learning_hours ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
   console.log('✅ learning_hours table ready');
 
   await sql`
@@ -69,9 +71,11 @@ try {
       status VARCHAR(50) DEFAULT 'Pending',
       faculty_id INTEGER,
       faculty_remarks TEXT,
+      admin_marks NUMERIC(6,2),
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
   console.log('✅ certificates table ready');
 
   await sql`
@@ -87,10 +91,12 @@ try {
       status VARCHAR(50) DEFAULT 'Pending',
       faculty_id INTEGER,
       faculty_remarks TEXT,
+      admin_marks NUMERIC(6,2),
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
   await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS total_hours NUMERIC(6,2) DEFAULT 80`;
+  await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
   console.log('✅ research_papers table ready');
 
   await sql`
@@ -107,9 +113,11 @@ try {
       status VARCHAR(50) DEFAULT 'Pending',
       faculty_id INTEGER,
       faculty_remarks TEXT,
+      admin_marks NUMERIC(6,2),
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
   console.log('✅ projects table ready');
 
   await sql`

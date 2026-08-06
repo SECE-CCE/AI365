@@ -120,6 +120,7 @@ const handleApproveReject = async (req: AuthenticatedRequest, res: Response) => 
     const rawId = req.body.submission_id || req.body.item_id || req.body.id;
     const rawStatus = req.body.status || req.body.action; // 'Approved' | 'Rejected' | 'approve' | 'reject'
     const remarks = req.body.faculty_remarks || req.body.remarks || '';
+    const adminMarks = req.body.admin_marks !== undefined ? Number(req.body.admin_marks) : undefined;
 
     if (!rawType || !rawId || !rawStatus) {
       return res.status(400).json({ error: 'Submission type, ID, and status are required.' });
@@ -138,25 +139,25 @@ const handleApproveReject = async (req: AuthenticatedRequest, res: Response) => 
     let title: string = '';
 
     if (normType === 'learning_hour') {
-      updatedItem = await db.updateLearningHourStatus(Number(rawId), action, facultyId, remarks);
+      updatedItem = await db.updateLearningHourStatus(Number(rawId), action, facultyId, remarks, adminMarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.activity_name;
       }
     } else if (normType === 'certificate') {
-      updatedItem = await db.updateCertificateStatus(Number(rawId), action, facultyId, remarks);
+      updatedItem = await db.updateCertificateStatus(Number(rawId), action, facultyId, remarks, adminMarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
       }
     } else if (normType === 'research') {
-      updatedItem = await db.updateResearchPaperStatus(Number(rawId), action, facultyId, remarks);
+      updatedItem = await db.updateResearchPaperStatus(Number(rawId), action, facultyId, remarks, adminMarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
       }
     } else if (normType === 'project') {
-      updatedItem = await db.updateProjectStatus(Number(rawId), action, facultyId, remarks);
+      updatedItem = await db.updateProjectStatus(Number(rawId), action, facultyId, remarks, adminMarks);
       if (updatedItem) {
         studentId = updatedItem.student_id;
         title = updatedItem.title;
