@@ -7,7 +7,7 @@ import { ProgressBar } from '../../components/common/ProgressBar';
 import { Modal } from '../../components/common/Modal';
 import { LearningHoursForm } from '../../components/forms/LearningHoursForm';
 import { apiFetch } from '../../services/api';
-import { LearningHour } from '../../types';
+import { LearningHour, getDocumentUrl } from '../../types';
 
 export const LearningHours: React.FC = () => {
   const [data, setData] = useState<{ entries: LearningHour[]; totalApproved: number; target: number }>({
@@ -84,7 +84,7 @@ export const LearningHours: React.FC = () => {
       cell: (row) =>
         row.certificate_url ? (
           <a
-            href={row.certificate_url}
+            href={getDocumentUrl(row.certificate_url)}
             target="_blank"
             rel="noreferrer"
             className="text-xs font-semibold text-[#004990] hover:underline"

@@ -8,16 +8,47 @@ import app from './api/index';
 async function startServer() {
   const PORT = 3000;
 
+  // Middleware to resolve document paths (with or without extension fallback) for intranet access
+  const documentsMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const reqPath = decodeURIComponent(req.path);
+    const fullPath = path.join(process.cwd(), 'assets', 'Documents', reqPath);
+
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+      return next();
+    }
+
+    // Extension fallback if extension was omitted in certificate_url
+    const extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+    for (const ext of extensions) {
+      const fileWithExt = fullPath + ext;
+      if (fs.existsSync(fileWithExt) && fs.statSync(fileWithExt).isFile()) {
+        return res.sendFile(fileWithExt);
+      }
+    }
+
+    next();
+  };
+
   // Vite middleware for dev or static dist serving for prod
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    // Document static routes MUST come before Vite so that direct file links
+    // (e.g. /documents/User/certificates/file.pdf) are served as raw files.
+    // Otherwise Vite's SPA fallback serves index.html → React redirects to home.
+    app.use('/documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use('/assets/Documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+
+    // Vite middleware handles module imports (transforms image imports into JS modules).
+    // It MUST come before the generic /assets static route, otherwise Express serves
+    // raw image files with image/* MIME types causing "Failed to load module script" errors.
     app.use(vite.middlewares);
-    app.use(express.static(path.join(process.cwd(), 'public')));
+
+    // Generic /assets and public static come after Vite so Vite can handle module imports first
     app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
-    app.use('/documents', express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use(express.static(path.join(process.cwd(), 'public')));
 
     app.use('*', async (req, res, next) => {
       if (req.originalUrl.startsWith('/api')) return next();
@@ -32,9 +63,10 @@ async function startServer() {
       }
     });
   } else {
-    app.use(express.static(path.join(process.cwd(), 'public')));
+    app.use('/documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use('/assets/Documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
     app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
-    app.use('/documents', express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use(express.static(path.join(process.cwd(), 'public')));
 
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));

@@ -7,7 +7,7 @@ import { ProgressBar } from '../../components/common/ProgressBar';
 import { Modal } from '../../components/common/Modal';
 import { ResearchForm } from '../../components/forms/ResearchForm';
 import { apiFetch } from '../../services/api';
-import { ResearchPaper } from '../../types';
+import { ResearchPaper, getDocumentUrl } from '../../types';
 
 export const Research: React.FC = () => {
   const [data, setData] = useState<{ entries: ResearchPaper[]; totalApproved: number; target: number }>({
@@ -85,7 +85,7 @@ export const Research: React.FC = () => {
       cell: (row) =>
         row.pdf_url ? (
           <a
-            href={row.pdf_url}
+            href={getDocumentUrl(row.pdf_url)}
             target="_blank"
             rel="noreferrer"
             className="text-xs font-semibold text-[#004990] hover:underline"

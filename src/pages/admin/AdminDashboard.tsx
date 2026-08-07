@@ -5,6 +5,8 @@ import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
+import { getDocumentUrl } from '../../types';
+
 
 export const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -282,7 +284,7 @@ export const AdminDashboard: React.FC = () => {
       header: 'Document Proof',
       cell: (row) => (
         row.document_url ? (
-          <a href={row.document_url} target="_blank" rel="noreferrer" className="text-xs font-bold text-[#004990] hover:underline flex items-center gap-1">
+          <a href={getDocumentUrl(row.document_url)} target="_blank" rel="noreferrer" className="text-xs font-bold text-[#004990] hover:underline flex items-center gap-1">
             View File <ExternalLink className="w-3 h-3" />
           </a>
         ) : <span className="text-slate-400">N/A</span>

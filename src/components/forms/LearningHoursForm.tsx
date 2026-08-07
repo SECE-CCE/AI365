@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Loader2, CheckCircle, ExternalLink, Info } from 'lucide-react';
 import { apiFetch } from '../../services/api';
+import { getDocumentUrl } from '../../types';
 
 interface LearningHoursFormProps {
   onSuccess: () => void;
@@ -120,7 +121,7 @@ export const LearningHoursForm: React.FC<LearningHoursFormProps> = ({ onSuccess 
           <div className="mt-2 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-600" />
             <span className="text-emerald-700 font-semibold">Link validated!</span>
-            <a href={certificateUrl} target="_blank" rel="noreferrer" className="text-[#004990] hover:underline flex items-center gap-1">
+            <a href={getDocumentUrl(certificateUrl)} target="_blank" rel="noreferrer" className="text-[#004990] hover:underline flex items-center gap-1">
               Preview <ExternalLink className="w-3 h-3" />
             </a>
           </div>

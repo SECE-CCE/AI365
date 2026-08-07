@@ -19,7 +19,7 @@ import { ProgressBar } from '../../components/common/ProgressBar';
 import { Confetti } from '../../components/common/Confetti';
 import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
-import { PassportBadge } from '../../types';
+import { PassportBadge, getDocumentUrl } from '../../types';
 
 export const DigitalPassport: React.FC = () => {
   const [passportData, setPassportData] = useState<any>(null);
@@ -150,7 +150,7 @@ export const DigitalPassport: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
           <div className="flex items-center space-x-4 md:col-span-2">
             <img
-              src={student.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300'}
+              src={getDocumentUrl(student.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300'}
               alt={student.full_name}
               className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl object-cover ring-4 ring-[#F3B631] shadow-md"
             />

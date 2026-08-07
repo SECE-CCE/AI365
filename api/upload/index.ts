@@ -30,12 +30,13 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
-    const photoFilename = 'profile_photo.jpg';
+    // Custom filename: <Sanitized_User_Name>_Profile.jpg (matches certificate/paper naming convention)
+    const photoFilename = `${sanitizedUserName}_Profile.jpg`;
     const filePath = path.join(photosFolder, photoFilename);
 
     fs.writeFileSync(filePath, buffer);
 
-    const photoUrl = `/documents/${sanitizedUserName}/photos/${photoFilename}?t=${Date.now()}`;
+    const photoUrl = `/assets/Documents/${sanitizedUserName}/photos/${photoFilename}?t=${Date.now()}`;
 
     return res.json({
       url: photoUrl,
@@ -79,7 +80,7 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
 
     fs.writeFileSync(filePath, buffer);
 
-    const certificateUrl = `/documents/${sanitizedUserName}/certificates/${certificateFilename}`;
+    const certificateUrl = `/assets/Documents/${sanitizedUserName}/certificates/${certificateFilename}`;
 
     return res.json({
       url: certificateUrl,
@@ -123,7 +124,7 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
 
     fs.writeFileSync(filePath, buffer);
 
-    const paperUrl = `/documents/${sanitizedUserName}/papers/${paperFilename}`;
+    const paperUrl = `/assets/Documents/${sanitizedUserName}/papers/${paperFilename}`;
 
     return res.json({
       url: paperUrl,

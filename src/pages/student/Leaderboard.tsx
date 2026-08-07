@@ -3,7 +3,7 @@ import { Trophy, Medal, Award, Flame } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { apiFetch } from '../../services/api';
-import { LeaderboardItem } from '../../types';
+import { LeaderboardItem, getDocumentUrl } from '../../types';
 
 export const Leaderboard: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
@@ -76,7 +76,7 @@ export const Leaderboard: React.FC = () => {
       cell: (row) => (
         <div className="flex items-center space-x-3">
           <img
-            src={row.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+            src={getDocumentUrl(row.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
             alt={row.student_name}
             className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-200"
           />
@@ -156,7 +156,7 @@ export const Leaderboard: React.FC = () => {
               2
             </div>
             <img
-              src={topThree[1].profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getDocumentUrl(topThree[1].profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={topThree[1].student_name}
               className="w-20 h-20 rounded-full object-cover ring-4 ring-slate-300 shadow-md mb-3 mt-2"
             />
@@ -173,7 +173,7 @@ export const Leaderboard: React.FC = () => {
               <Trophy className="w-3.5 h-3.5" /> 1st Place Gold
             </div>
             <img
-              src={topThree[0].profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getDocumentUrl(topThree[0].profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={topThree[0].student_name}
               className="w-24 h-24 rounded-full object-cover ring-4 ring-[#F3B631] shadow-lg mb-3 mt-2"
             />
@@ -190,7 +190,7 @@ export const Leaderboard: React.FC = () => {
               3
             </div>
             <img
-              src={topThree[2].profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getDocumentUrl(topThree[2].profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={topThree[2].student_name}
               className="w-20 h-20 rounded-full object-cover ring-4 ring-amber-700/40 shadow-md mb-3 mt-2"
             />

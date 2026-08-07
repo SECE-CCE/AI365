@@ -150,3 +150,50 @@ export interface Target {
   target_startups: number;
   updated_at: string;
 }
+
+/**
+ * Helper to normalize certificate_url and document paths.
+ * Converts local Windows paths like "F:\AI_365\AI365\assets\Documents\Dinesh_S\certificates\Dinesh_S_Solo_Learn"
+ * into clean intranet HTTP URLs (e.g. "/assets/Documents/Dinesh_S/certificates/Dinesh_S_Solo_Learn").
+ */
+export function getDocumentUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  // Normalize backslashes to forward slashes
+  const normalized = trimmed.replace(/\\/g, '/');
+
+  // Match full Windows/absolute paths containing assets/Documents/
+  const assetsDocsMatch = normalized.match(/assets\/Documents\/(.+)$/i);
+  if (assetsDocsMatch && assetsDocsMatch[1]) {
+    return `/assets/Documents/${assetsDocsMatch[1]}`;
+  }
+
+  // Match old-style /documents/ paths and convert to /assets/Documents/
+  const oldDocsMatch = normalized.match(/^\/?documents\/(.+)$/i);
+  if (oldDocsMatch && oldDocsMatch[1]) {
+    return `/assets/Documents/${oldDocsMatch[1]}`;
+  }
+
+  // Match paths starting with Documents/ (no leading slash)
+  const docsMatch = normalized.match(/^Documents\/(.+)$/i);
+  if (docsMatch && docsMatch[1]) {
+    return `/assets/Documents/${docsMatch[1]}`;
+  }
+
+  const assetsMatch = normalized.match(/assets\/(.+)$/i);
+  if (assetsMatch && assetsMatch[1]) {
+    return `/assets/${assetsMatch[1]}`;
+  }
+
+  if (normalized.startsWith('/assets/')) {
+    return normalized;
+  }
+
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+

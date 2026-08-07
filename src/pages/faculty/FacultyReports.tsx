@@ -3,6 +3,7 @@ import { BarChart3, Users, Award, Download, Clock, FileText } from 'lucide-react
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { apiFetch } from '../../services/api';
+import { getDocumentUrl } from '../../types';
 
 export const FacultyReports: React.FC = () => {
   const [reportData, setReportData] = useState<any>(null);
@@ -40,7 +41,7 @@ export const FacultyReports: React.FC = () => {
       cell: (row) => (
         <div className="flex items-center space-x-3">
           <img
-            src={row.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+            src={getDocumentUrl(row.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
             alt={row.student_name}
             className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-200"
           />
