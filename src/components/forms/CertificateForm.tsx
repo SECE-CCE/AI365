@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, Loader2, CheckCircle, ExternalLink, Upload, FileText } from 'lucide-react';
 import { apiFetch } from '../../services/api';
 import { compressDocument } from '../../utils/compressDocument';
+import { getDocumentUrl } from '../../types';
 
 interface CertificateFormProps {
   onSuccess: () => void;
@@ -217,7 +218,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({ onSuccess }) =
                   <span className="truncate">{uploadedFileName || 'Certificate File Saved'}</span>
                 </div>
                 <a
-                  href={certificateUrl}
+                  href={getDocumentUrl(certificateUrl)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-[#004990] font-bold hover:underline shrink-0 flex items-center gap-1 ml-2"
@@ -255,7 +256,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({ onSuccess }) =
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
                 <span className="text-emerald-700 font-semibold">Link validated!</span>
                 <a
-                  href={certificateUrl}
+                  href={getDocumentUrl(certificateUrl)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-[#004990] hover:underline flex items-center gap-1"

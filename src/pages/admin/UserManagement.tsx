@@ -5,6 +5,7 @@ import { Table, Column } from '../../components/common/Table';
 import { StatusPill } from '../../components/common/StatusPill';
 import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
+import { getDocumentUrl } from '../../types';
 
 const MENTORS_LIST = [
   'Dr. S. Dhamodharan',
@@ -191,7 +192,7 @@ export const UserManagement: React.FC = () => {
       header: 'User',
       cell: (row) => (
         <div className="flex items-center gap-3">
-          <img src={row.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+          <img src={getDocumentUrl(row.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
             alt={row.full_name} className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-200" />
           <div>
             <p className="font-bold text-slate-900">{row.full_name}</p>

@@ -4,6 +4,7 @@ import { Card } from '../../components/common/Card';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../services/api';
 import { compressImage } from '../../utils/compressImage';
+import { getDocumentUrl } from '../../types';
 
 export const StudentSettings: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -99,7 +100,7 @@ export const StudentSettings: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="flex items-center space-x-4 pb-4 border-b border-slate-100">
             <img
-              src={profilePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getDocumentUrl(profilePhoto) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={fullName}
               className="w-16 h-16 rounded-full object-cover ring-4 ring-[#004990]/20 shadow-md"
             />

@@ -2,6 +2,7 @@ import React from 'react';
 import { Sparkles, Calendar as CalendarIcon, Award } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
+import { getDocumentUrl } from '../../types';
 
 interface HeaderProps {
   title?: string;
@@ -60,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, aiScore }) => {
           {/* Avatar */}
           <div className="pl-2 border-l border-slate-200">
             <img
-              src={user.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getDocumentUrl(user.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={user.full_name}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover ring-2 ring-[#004990]"
             />

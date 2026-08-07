@@ -20,6 +20,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getDocumentUrl } from '../../types';
 
 interface NavItem {
   label: string;
@@ -142,7 +143,7 @@ export const Sidebar: React.FC = () => {
         <div className="p-4 border-t border-slate-700/60 bg-[#001E42]">
           <div className="flex items-center space-x-3 mb-3 p-2 rounded-xl bg-slate-800/40">
             <img
-              src={user.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getDocumentUrl(user.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={user.full_name}
               className="w-9 h-9 rounded-full object-cover ring-2 ring-[#F3B631]"
             />

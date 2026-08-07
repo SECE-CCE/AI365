@@ -5,6 +5,7 @@ import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { apiFetch } from '../../services/api';
+import { getDocumentUrl } from '../../types';
 
 export const FacultyDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -117,7 +118,7 @@ export const FacultyDashboard: React.FC = () => {
       cell: (row) =>
         row.document_url ? (
           <a
-            href={row.document_url}
+            href={getDocumentUrl(row.document_url)}
             target="_blank"
             rel="noreferrer"
             className="text-xs font-semibold text-[#004990] hover:underline"
