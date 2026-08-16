@@ -28,6 +28,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+cookies.txt
 
 # User Uploads
 assets/Documents/*
