@@ -39,5 +39,5 @@ jobs:
           context: .
           push: true
           tags: |
-            darshan190607/ai365-cce:latest
-            darshan190607/ai365-cce:${{ github.sha }}
+            varun00056/ai365-cce:latest
+            varun00056/ai365-cce:${{ github.sha }}
