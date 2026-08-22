@@ -1,13 +1,25 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest, JWT_SECRET } from '../_middleware/auth.js';
 
 const router = Router();
 
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many authentication attempts. Please try again in 15 minutes.',
+  },
+  skipSuccessfulRequests: false,
+});
+
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
@@ -81,7 +93,7 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const {
       full_name,
@@ -166,7 +178,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/register-faculty
-router.post('/register-faculty', async (req, res) => {
+router.post('/register-faculty', authLimiter, async (req, res) => {
   try {
     const { full_name, email, phone, password, department, designation } = req.body;
 
