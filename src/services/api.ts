@@ -7,12 +7,6 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     headers.set('Content-Type', 'application/json');
   }
 
-  // Check if token exists in localStorage fallback
-  const token = localStorage.getItem('ai365_token');
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
   const response = await fetch(endpoint, {
     ...options,
     headers,

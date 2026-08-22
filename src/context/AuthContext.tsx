@@ -23,7 +23,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
     } catch (err) {
       setUser(null);
-      localStorage.removeItem('ai365_token');
     } finally {
       setIsLoading(false);
     }
@@ -39,9 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ email, password, role }),
     });
 
-    if (data.token) {
-      localStorage.setItem('ai365_token', data.token);
-    }
     setUser(data.user);
     return data.user;
   };
@@ -60,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       // ignore
     } finally {
-      localStorage.removeItem('ai365_token');
       setUser(null);
     }
   };
