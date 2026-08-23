@@ -1,5 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 import authRoutes from './auth/index.js';
 import studentRoutes from './students/index.js';
@@ -15,6 +16,7 @@ import uploadRoutes from './upload/index.js';
 const app = express();
 
 // Middlewares
+app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
