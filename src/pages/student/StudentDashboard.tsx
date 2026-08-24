@@ -264,7 +264,7 @@ export const StudentDashboard: React.FC = () => {
                   b.unlocked ? 'bg-amber-200 text-amber-900' : 'bg-slate-200 text-slate-600'
                 }`}
               >
-                {b.unlocked ? 'Unlocked' : `${b.progress}%`}
+                {b.unlocked ? 'Unlocked' : `${stats.aiScore}/${b.requiredPoints || 500} pts`}
               </span>
             </div>
           ))}
