@@ -8,7 +8,7 @@ export function App() {
   return (
     <AuthProvider>
       <RouterProvider router={router} />
-      <SpeedInsights />
+      {typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && <SpeedInsights />}
     </AuthProvider>
   );
 }
