@@ -2,7 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db, UserRow } from '../_db/client.js';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'ai365_cce_super_secret_jwt_key_2026';
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in environment');
+}
+
+export const JWT_SECRET = process.env.JWT_SECRET;
 
 export interface AuthenticatedRequest extends Request {
   user?: UserRow;
