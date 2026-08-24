@@ -16,7 +16,7 @@ import uploadRoutes from './upload/index.js';
 const app = express();
 
 // Middlewares
-app.use(helmet());
+app.use('/api', helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
