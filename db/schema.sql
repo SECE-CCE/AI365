@@ -123,6 +123,23 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS auth_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE SET NULL,
+  email VARCHAR(255) NOT NULL,
+  role VARCHAR(50),
+  event_type VARCHAR(50) NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  reason VARCHAR(255),
+  ip_address VARCHAR(100),
+  user_agent TEXT,
+  session_duration_seconds INT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_logs_user_id ON auth_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_logs_created_at ON auth_logs(created_at DESC);
+
 CREATE TABLE IF NOT EXISTS targets (
   id SERIAL PRIMARY KEY,
   year VARCHAR(50) NOT NULL UNIQUE,

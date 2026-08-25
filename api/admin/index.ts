@@ -444,4 +444,28 @@ router.get('/reports', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// GET /api/admin/auth-logs
+router.get('/auth-logs', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '50'), 10)));
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
+    const offset = (page - 1) * limit;
+    const eventType = req.query.event_type ? String(req.query.event_type) : undefined;
+
+    const result = await db.getAuthLogs(limit, offset, eventType);
+    const totalPages = Math.ceil(result.total / limit) || 1;
+
+    return res.json({
+      logs: result.logs,
+      total: result.total,
+      page,
+      limit,
+      totalPages,
+    });
+  } catch (err) {
+    console.error('Admin Auth Logs Error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve authentication logs.' });
+  }
+});
+
 export default router;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Edit, Plus, Check, X, UserCheck, ShieldCheck } from 'lucide-react';
+import { Users, Search, Edit, Plus, Check, X, UserCheck, ShieldCheck, Key, Clock, ShieldAlert, RefreshCw } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { StatusPill } from '../../components/common/StatusPill';
@@ -15,11 +15,18 @@ const MENTORS_LIST = [
 ];
 
 export const UserManagement: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'users' | 'auth_logs'>('users');
   const [users, setUsers] = useState<any[]>([]);
   const [facultyList, setFacultyList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Auth Logs state
+  const [authLogs, setAuthLogs] = useState<any[]>([]);
+  const [authLogsLoading, setAuthLogsLoading] = useState(false);
+  const [authEventFilter, setAuthEventFilter] = useState<string>('All');
+  const [authSearchTerm, setAuthSearchTerm] = useState('');
 
   // Edit user modal
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -48,7 +55,28 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  const fetchAuthLogs = async (eventType?: string) => {
+    setAuthLogsLoading(true);
+    try {
+      const query = eventType && eventType !== 'All' ? `?event_type=${eventType}&limit=100` : '?limit=100';
+      const data = await apiFetch<{ logs: any[]; total: number }>(`/api/admin/auth-logs${query}`);
+      setAuthLogs(data.logs || []);
+    } catch (err) {
+      console.error('Failed to load auth logs:', err);
+    } finally {
+      setAuthLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'auth_logs') {
+      fetchAuthLogs(authEventFilter);
+    }
+  }, [activeTab, authEventFilter]);
 
   const handleApproveStatus = async (userId: number, action: 'approve' | 'reject') => {
     try {
@@ -239,24 +267,208 @@ export const UserManagement: React.FC = () => {
     },
   ];
 
+  const formatDuration = (seconds?: number | null) => {
+    if (!seconds && seconds !== 0) return '—';
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
+  const filteredAuthLogs = authLogs.filter((log) => {
+    if (!authSearchTerm) return true;
+    const q = authSearchTerm.toLowerCase();
+    return (
+      log.email?.toLowerCase().includes(q) ||
+      log.user_name?.toLowerCase().includes(q) ||
+      log.ip_address?.toLowerCase().includes(q) ||
+      log.reason?.toLowerCase().includes(q)
+    );
+  });
+
+  const authLogsColumns: Column<any>[] = [
+    {
+      header: 'Timestamp',
+      cell: (row) => (
+        <div className="text-xs">
+          <p className="font-bold text-slate-800">{new Date(row.created_at).toLocaleDateString()}</p>
+          <p className="text-[11px] text-slate-500 font-medium">{new Date(row.created_at).toLocaleTimeString()}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'User Account',
+      cell: (row) => (
+        <div>
+          <p className="font-bold text-slate-900">{row.user_name || 'Anonymous'}</p>
+          <p className="text-[11px] text-slate-500 font-medium">{row.email}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'Role',
+      cell: (row) => (
+        <span className={`font-bold px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider ${
+          row.role === 'admin'
+            ? 'bg-purple-100 text-purple-800'
+            : row.role === 'faculty'
+            ? 'bg-indigo-100 text-indigo-800'
+            : row.role === 'student'
+            ? 'bg-blue-100 text-blue-800'
+            : 'bg-slate-100 text-slate-600'
+        }`}>
+          {row.role || 'Visitor'}
+        </span>
+      ),
+    },
+    {
+      header: 'Event',
+      cell: (row) => {
+        const isSuccess = row.status === 'SUCCESS';
+        return (
+          <span className={`inline-flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg text-xs ${
+            row.event_type === 'LOGIN_SUCCESS'
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : row.event_type === 'LOGIN_FAILED'
+              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+              : row.event_type === 'LOGOUT'
+              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+              : 'bg-amber-50 text-amber-700 border border-amber-200'
+          }`}>
+            {row.event_type}
+          </span>
+        );
+      },
+    },
+    {
+      header: 'Status & Reason',
+      cell: (row) => (
+        <div className="max-w-xs text-xs">
+          <span className={`font-bold text-[11px] uppercase tracking-wider ${
+            row.status === 'SUCCESS' ? 'text-emerald-700' : 'text-rose-600'
+          }`}>
+            [{row.status}]
+          </span>{' '}
+          <span className="text-slate-600 font-medium">{row.reason || 'N/A'}</span>
+          {row.session_duration_seconds !== null && row.session_duration_seconds !== undefined && (
+            <p className="text-[11px] text-blue-600 font-bold mt-0.5">
+              Duration: {formatDuration(row.session_duration_seconds)}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: 'Client IP & Device',
+      cell: (row) => (
+        <div className="text-xs">
+          <span className="font-mono text-slate-800 font-semibold">{row.ip_address || '127.0.0.1'}</span>
+          <p className="text-[10px] text-slate-400 truncate max-w-[180px]" title={row.user_agent}>
+            {row.user_agent ? row.user_agent.split(' ')[0] : 'Browser'}
+          </p>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">CCE User Directory</h2>
-          <p className="text-xs text-slate-500 font-medium">Manage student registrations, approvals, and chosen faculty mentors</p>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">CCE User & Security Management</h2>
+          <p className="text-xs text-slate-500 font-medium">Manage student registrations, approvals, and monitor authentication security logs</p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all ${
+              activeTab === 'users' ? 'bg-white text-[#004990] shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>User Accounts</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('auth_logs')}
+            className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all ${
+              activeTab === 'auth_logs' ? 'bg-white text-[#004990] shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Authentication Logs</span>
+          </button>
         </div>
       </div>
 
-      {/* Pending Approvals Queue */}
-      {pendingUsers.length > 0 && (
-        <Card
-          title={`Pending Approvals (${pendingUsers.length})`}
-          subtitle="Students waiting for account activation"
-        >
-          <Table columns={pendingColumns} data={pendingUsers} keyExtractor={(r) => r.id} />
+      {activeTab === 'auth_logs' ? (
+        /* Authentication Logs View */
+        <Card title="Security & Authentication Audit Trail" subtitle="Persistent logs of user sign-in events, session timeouts, and failed login attempts">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-xs mb-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <input
+                type="text"
+                value={authSearchTerm}
+                onChange={(e) => setAuthSearchTerm(e.target.value)}
+                placeholder="Filter by email, user, IP address, or reason..."
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                {['All', 'LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT'].map((evt) => (
+                  <button
+                    key={evt}
+                    onClick={() => setAuthEventFilter(evt)}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all text-xs ${
+                      authEventFilter === evt ? 'bg-[#004990] text-white shadow' : 'text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {evt === 'LOGIN_SUCCESS' ? 'Logins' : evt === 'LOGIN_FAILED' ? 'Failed' : evt === 'LOGOUT' ? 'Logouts' : 'All Events'}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => fetchAuthLogs(authEventFilter)}
+                disabled={authLogsLoading}
+                className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all font-bold flex items-center gap-1 text-xs"
+                title="Refresh logs"
+              >
+                <RefreshCw className={`w-4 h-4 ${authLogsLoading ? 'animate-spin text-[#004990]' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {authLogsLoading ? (
+            <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004990]" />
+              <span className="text-xs font-semibold">Loading security logs...</span>
+            </div>
+          ) : filteredAuthLogs.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs font-medium">
+              No authentication events match your filter criteria.
+            </div>
+          ) : (
+            <Table columns={authLogsColumns} data={filteredAuthLogs} keyExtractor={(r) => r.id} />
+          )}
         </Card>
-      )}
+      ) : (
+        /* User Directory View */
+        <>
+          {/* Pending Approvals Queue */}
+          {pendingUsers.length > 0 && (
+            <Card
+              title={`Pending Approvals (${pendingUsers.length})`}
+              subtitle="Students waiting for account activation"
+            >
+              <Table columns={pendingColumns} data={pendingUsers} keyExtractor={(r) => r.id} />
+            </Card>
+          )}
 
       {/* Filter + All Users Table */}
       <Card>
@@ -384,6 +596,8 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
       </Modal>
+        </>
+      )}
     </div>
   );
 };

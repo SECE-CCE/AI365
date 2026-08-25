@@ -1,15 +1,25 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { db } from '../_db/client.js';
-import { authMiddleware, AuthenticatedRequest, JWT_SECRET } from '../_middleware/auth.js';
+import { authMiddleware, AuthenticatedRequest, JWT_SECRET, SESSION_EXPIRES_IN, SESSION_MAX_AGE_MS } from '../_middleware/auth.js';
 
 const router = Router();
 
+function getClientIp(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+  return req.socket.remoteAddress || req.ip || '127.0.0.1';
+}
+
+function getUserAgent(req: Request): string {
+  return req.headers['user-agent'] || 'Unknown Device / Browser';
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -19,21 +29,53 @@ const authLimiter = rateLimit({
 });
 
 // POST /api/auth/login
-router.post('/login', authLimiter, async (req, res) => {
-  try {
-    const { email, password, role } = req.body;
+router.post('/login', authLimiter, async (req: Request, res: Response) => {
+  const ip_address = getClientIp(req);
+  const user_agent = getUserAgent(req);
+  const { email, password, role } = req.body;
 
+  try {
     if (!email || !password || !role) {
+      await db.createAuthLog({
+        user_id: null,
+        email: email || 'Unknown',
+        role: role || null,
+        event_type: 'LOGIN_FAILED',
+        status: 'FAILED',
+        reason: 'Missing email, password, or role',
+        ip_address,
+        user_agent,
+      });
       return res.status(400).json({ error: 'Email, password, and role are required.' });
     }
 
     const user = await db.findUserByEmail(email);
     if (!user) {
+      await db.createAuthLog({
+        user_id: null,
+        email,
+        role,
+        event_type: 'LOGIN_FAILED',
+        status: 'FAILED',
+        reason: 'User account does not exist',
+        ip_address,
+        user_agent,
+      });
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     // Verify role matches actual account role in DB
     if (user.role !== role) {
+      await db.createAuthLog({
+        user_id: user.id,
+        email,
+        role,
+        event_type: 'LOGIN_FAILED',
+        status: 'FAILED',
+        reason: `Role mismatch: selected '${role}' but account is '${user.role}'`,
+        ip_address,
+        user_agent,
+      });
       return res.status(403).json({
         error: `Role mismatch: This account belongs to a '${user.role}', but you selected '${role}'.`,
       });
@@ -42,23 +84,53 @@ router.post('/login', authLimiter, async (req, res) => {
     // Verify password
     const valid = await bcrypt.compare(password, user.password || '');
     if (!valid) {
+      await db.createAuthLog({
+        user_id: user.id,
+        email,
+        role: user.role,
+        event_type: 'LOGIN_FAILED',
+        status: 'FAILED',
+        reason: 'Incorrect password',
+        ip_address,
+        user_agent,
+      });
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     // Check account status
     if (user.status === 'pending_approval') {
+      await db.createAuthLog({
+        user_id: user.id,
+        email,
+        role: user.role,
+        event_type: 'LOGIN_FAILED',
+        status: 'FAILED',
+        reason: 'Account pending admin approval',
+        ip_address,
+        user_agent,
+      });
       return res.status(403).json({
         error: 'Your student account is pending approval by the CCE Department Administrator.',
       });
     }
 
     if (user.status === 'rejected') {
+      await db.createAuthLog({
+        user_id: user.id,
+        email,
+        role: user.role,
+        event_type: 'LOGIN_FAILED',
+        status: 'FAILED',
+        reason: 'Account registration was rejected',
+        ip_address,
+        user_agent,
+      });
       return res.status(403).json({
         error: 'Your account registration was rejected by CCE Administration.',
       });
     }
 
-    // Generate JWT
+    // Generate JWT with configured session expiration (default 1h)
     const token = jwt.sign(
       {
         id: user.id,
@@ -68,22 +140,33 @@ router.post('/login', authLimiter, async (req, res) => {
         name: user.full_name,
       },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: (SESSION_EXPIRES_IN as any) }
     );
 
-    // Set httpOnly cookie
+    // Set secure httpOnly cookie
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: SESSION_MAX_AGE_MS,
+    });
+
+    // Record successful login in persistent auth_logs
+    await db.createAuthLog({
+      user_id: user.id,
+      email: user.email,
+      role: user.role,
+      event_type: 'LOGIN_SUCCESS',
+      status: 'SUCCESS',
+      reason: 'Authenticated successfully',
+      ip_address,
+      user_agent,
     });
 
     const { password: _, ...userWithoutPass } = user;
 
     return res.json({
       message: 'Login successful.',
-      token,
       user: userWithoutPass,
     });
   } catch (err: any) {
@@ -264,9 +347,53 @@ router.put('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
-  res.clearCookie('token');
-  return res.json({ message: 'Logged out successfully.' });
+router.post('/logout', async (req: Request, res: Response) => {
+  const ip_address = getClientIp(req);
+  const user_agent = getUserAgent(req);
+
+  try {
+    let token: string | undefined = req.cookies?.token;
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as {
+          id: number;
+          email: string;
+          role: string;
+          iat?: number;
+        };
+
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const durationSeconds = decoded.iat ? Math.max(0, nowSeconds - decoded.iat) : 0;
+
+        await db.createAuthLog({
+          user_id: decoded.id,
+          email: decoded.email,
+          role: decoded.role,
+          event_type: 'LOGOUT',
+          status: 'SUCCESS',
+          reason: 'User initiated logout',
+          session_duration_seconds: durationSeconds,
+          ip_address,
+          user_agent,
+        });
+      } catch (decodeErr) {
+        // Token was malformed, ignore error for logout
+      }
+    }
+  } catch (err) {
+    console.error('Logout error:', err);
+  } finally {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+    return res.json({ message: 'Logged out successfully.' });
+  }
 });
 
 export default router;

@@ -14,6 +14,9 @@ const wipeAll = process.argv.includes('--all');
 console.log('🗑️  Wiping database data from Neon DB...\n');
 
 try {
+  await sql`DELETE FROM auth_logs`;
+  console.log('  [x] Cleared: auth_logs');
+
   await sql`DELETE FROM activity_logs`;
   console.log('  [x] Cleared: activity_logs');
 
@@ -38,22 +41,25 @@ try {
   await sql`DELETE FROM events`;
   console.log('  [x] Cleared: events');
 
+  const adminEmail = process.env.ADMIN_EMAIL || 'dhamodharan.s@sece.ac.in';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMeSecurely123!';
+
   if (wipeAll) {
     await sql`DELETE FROM users`;
     console.log('  [x] Cleared: ALL users (including admin)');
   } else {
     // Delete all users except admin
-    await sql`DELETE FROM users WHERE email != 'dhamodharan.s@sece.ac.in'`;
+    await sql`DELETE FROM users WHERE email != ${adminEmail}`;
     console.log('  [x] Cleared: all student & faculty users (kept admin)');
 
-    // Ensure Admin account exists with standard password ($ece@2739)
-    const adminPassHash = await bcrypt.hash('$ece@2739', 10);
+    // Ensure Admin account exists with bcrypt hash from environment variable
+    const adminPassHash = await bcrypt.hash(adminPassword, 10);
     await sql`
       INSERT INTO users (full_name, email, password, role, department, status, is_department_wide)
-      VALUES ('Dhamodharan S', 'dhamodharan.s@sece.ac.in', ${adminPassHash}, 'admin', 'Computer & Communication Engineering', 'approved', true)
+      VALUES ('Dhamodharan S', ${adminEmail}, ${adminPassHash}, 'admin', 'Computer & Communication Engineering', 'approved', true)
       ON CONFLICT (email) DO UPDATE SET status = 'approved', role = 'admin', password = ${adminPassHash}
     `;
-    console.log('  [+] Verified Admin account: dhamodharan.s@sece.ac.in (Password: $ece@2739)');
+    console.log(`  [+] Verified Admin account: ${adminEmail} (Bcrypt hashed from environment)`);
   }
 
   // Reset Targets
