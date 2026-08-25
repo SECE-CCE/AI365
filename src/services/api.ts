@@ -23,6 +23,15 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
   }
 
   if (!response.ok) {
+    if (response.status === 401 && !endpoint.includes('/api/auth/login')) {
+      try {
+        window.dispatchEvent(new CustomEvent('ai365_session_expired', {
+          detail: { message: typeof data === 'object' && data.error ? data.error : 'Session expired' }
+        }));
+      } catch (e) {
+        // ignore dispatch errors
+      }
+    }
     const errorMsg = typeof data === 'object' && data.error ? data.error : 'An API error occurred.';
     throw new Error(errorMsg);
   }

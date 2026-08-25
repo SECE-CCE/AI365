@@ -16,7 +16,7 @@ export const pool = DATABASE_URL
 
 export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
-// Pre-computed bcrypt hash (cost=10) for admin account — password: $ece@2739
+// Pre-computed fallback bcrypt hash (cost=10) for in-memory emergency bootstrapping
 const HASHED_ADMIN_PASS = '$2b$10$fnHGtIY9MePG3vUlc7M2JeyxmVUiBCtWgaRc7EZIS/SC3R.ft7yAe';
 const HASHED_FACULTY_PASS = '$2b$10$AV6knQtK/66NTqQXBStDVOTPQNvf.UIsdyRA4TVJo40P8PZsFoZDe';
 const HASHED_STUDENT_PASS = '$2b$10$myxE12Mu90RdnBya.YejZeipT8BhYV6WIXzXHPM6l28rVWFuW9UT6';
@@ -145,6 +145,20 @@ export interface ActivityLogRow {
   created_at: string;
 }
 
+export interface AuthLogRow {
+  id: number;
+  user_id?: number | null;
+  email: string;
+  role?: string;
+  event_type: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'LOGOUT' | 'SESSION_TIMEOUT';
+  status: 'SUCCESS' | 'FAILED';
+  reason?: string;
+  ip_address?: string;
+  user_agent?: string;
+  session_duration_seconds?: number | null;
+  created_at: string;
+}
+
 export interface TargetRow {
   id: number;
   year: string;
@@ -239,6 +253,7 @@ const initialStore = {
   event_registrations: [] as EventRegistrationRow[],
   notifications: [] as NotificationRow[],
   activity_logs: [] as ActivityLogRow[],
+  auth_logs: [] as AuthLogRow[],
 
   targets: [
     {
@@ -1270,6 +1285,93 @@ class DbStore {
         target_student_name: targetStudent?.full_name,
       };
     });
+  }
+
+  // Authentication Logs
+  async createAuthLog(data: Omit<AuthLogRow, 'id' | 'created_at'>): Promise<AuthLogRow> {
+    if (sql) {
+      try {
+        const rows = await sql.query(
+          `INSERT INTO auth_logs (user_id, email, role, event_type, status, reason, ip_address, user_agent, session_duration_seconds)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING *`,
+          [
+            data.user_id || null,
+            data.email,
+            data.role || null,
+            data.event_type,
+            data.status,
+            data.reason || null,
+            data.ip_address || null,
+            data.user_agent || null,
+            data.session_duration_seconds || null,
+          ]
+        );
+        if (rows && rows.length > 0) {
+          const item = rows[0] as AuthLogRow;
+          if (!this.store.auth_logs) this.store.auth_logs = [];
+          this.store.auth_logs.unshift(item);
+          return item;
+        }
+      } catch (err) {
+        console.error('Neon DB createAuthLog error:', (err as Error).message);
+      }
+    }
+    const newItem: AuthLogRow = {
+      ...data,
+      id: this.nextId('auth_logs' as any),
+      created_at: new Date().toISOString(),
+    };
+    if (!this.store.auth_logs) this.store.auth_logs = [];
+    this.store.auth_logs.unshift(newItem);
+    return newItem;
+  }
+
+  async getAuthLogs(limit = 100, offset = 0, eventType?: string): Promise<{ logs: (AuthLogRow & { user_name?: string })[]; total: number }> {
+    if (sql) {
+      try {
+        let query = `
+          SELECT al.*, u.full_name as user_name
+          FROM auth_logs al
+          LEFT JOIN users u ON al.user_id = u.id
+        `;
+        const params: any[] = [];
+        if (eventType) {
+          query += ` WHERE al.event_type = $1`;
+          params.push(eventType);
+        }
+        query += ` ORDER BY al.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limit, offset);
+
+        const rows = await this.queryDb(query, params);
+        const countRows = await this.queryDb(
+          `SELECT COUNT(*) as total FROM auth_logs ${eventType ? 'WHERE event_type = $1' : ''}`,
+          eventType ? [eventType] : []
+        );
+        return {
+          logs: rows || [],
+          total: Number(countRows[0]?.total || 0),
+        };
+      } catch (err) {
+        console.error('Neon DB getAuthLogs error:', (err as Error).message);
+      }
+    }
+
+    let filtered = this.store.auth_logs || [];
+    if (eventType) {
+      filtered = filtered.filter((l: AuthLogRow) => l.event_type === eventType);
+    }
+    const sliced = filtered.slice(offset, offset + limit).map((log: AuthLogRow) => {
+      const user = log.user_id ? this.store.users.find((u: UserRow) => u.id === log.user_id) : null;
+      return {
+        ...log,
+        user_name: user?.full_name || 'Anonymous / Guest',
+      };
+    });
+    return {
+      logs: sliced,
+      total: filtered.length,
+    };
   }
 
   // Targets
