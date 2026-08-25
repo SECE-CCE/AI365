@@ -483,14 +483,17 @@ router.get('/analytics', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const events = await db.getAnalyticsEvents();
     const stats = await db.getTotalUsageStats();
-    
-    // Calculate page views and unique visitors simply based on session IP/User agent or just count
-    const pageViews = events.filter(e => e.event_type === 'page_view');
-    
+
+    // Calculate page views
+    const pageViews = events.filter(
+      e => e.event_type === 'page_view'
+    );
+
     // Group by page
     const pageCounts: Record<string, number> = {};
+
     pageViews.forEach(v => {
-      const p = v.page_url.split('?')[0]; // simple path
+      const p = v.page_url.split('?')[0];
       pageCounts[p] = (pageCounts[p] || 0) + 1;
     });
 
@@ -504,32 +507,63 @@ router.get('/analytics', async (req: AuthenticatedRequest, res: Response) => {
       totalSessions: stats.totalSessions,
       totalUsageMinutes: stats.totalMinutes,
       topPages,
-      totalPageViews: pageViews.length
+      totalPageViews: pageViews.length,
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch analytics.' });
-// GET /api/admin/auth-logs
-router.get('/auth-logs', async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '50'), 10)));
-    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
-    const offset = (page - 1) * limit;
-    const eventType = req.query.event_type ? String(req.query.event_type) : undefined;
-
-    const result = await db.getAuthLogs(limit, offset, eventType);
-    const totalPages = Math.ceil(result.total / limit) || 1;
-
-    return res.json({
-      logs: result.logs,
-      total: result.total,
-      page,
-      limit,
-      totalPages,
+    return res.status(500).json({
+      error: 'Failed to fetch analytics.',
     });
-  } catch (err) {
-    console.error('Admin Auth Logs Error:', err);
-    return res.status(500).json({ error: 'Failed to retrieve authentication logs.' });
   }
 });
+
+// GET /api/admin/auth-logs
+router.get(
+  '/auth-logs',
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const limit = Math.min(
+        100,
+        Math.max(
+          1,
+          parseInt(String(req.query.limit || '50'), 10)
+        )
+      );
+
+      const page = Math.max(
+        1,
+        parseInt(String(req.query.page || '1'), 10)
+      );
+
+      const offset = (page - 1) * limit;
+
+      const eventType = req.query.event_type
+        ? String(req.query.event_type)
+        : undefined;
+
+      const result = await db.getAuthLogs(
+        limit,
+        offset,
+        eventType
+      );
+
+      const totalPages =
+        Math.ceil(result.total / limit) || 1;
+
+      return res.json({
+        logs: result.logs,
+        total: result.total,
+        page,
+        limit,
+        totalPages,
+      });
+    } catch (err) {
+      console.error('Admin Auth Logs Error:', err);
+
+      return res.status(500).json({
+        error: 'Failed to retrieve authentication logs.',
+      });
+    }
+  }
+);
 
 export default router;
