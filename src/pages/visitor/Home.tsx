@@ -16,12 +16,12 @@ const ParticleCanvas: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     let animationFrameId: number;
-    let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
-    let height = (canvas.height = canvas.parentElement?.clientHeight || 520);
+    let width = (canvas.width = Math.max(canvas.parentElement?.clientWidth || window.innerWidth || 800, 100));
+    let height = (canvas.height = Math.max(canvas.parentElement?.clientHeight || 520, 100));
     const handleResize = () => {
       if (!canvas) return;
-      width = canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
-      height = canvas.height = canvas.parentElement?.clientHeight || 520;
+      width = canvas.width = Math.max(canvas.parentElement?.clientWidth || window.innerWidth || 800, 100);
+      height = canvas.height = Math.max(canvas.parentElement?.clientHeight || 520, 100);
     };
     window.addEventListener('resize', handleResize);
     const particles = Array.from({ length: 55 }, () => ({

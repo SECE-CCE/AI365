@@ -8,6 +8,10 @@ import app from './api/index';
 async function startServer() {
   const PORT = 3000;
 
+  if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = fs.existsSync(path.join(process.cwd(), 'dist', 'index.html')) ? 'production' : 'development';
+  }
+
   // Middleware to resolve document paths (with or without extension fallback) for intranet access
   const documentsMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const reqPath = decodeURIComponent(req.path);

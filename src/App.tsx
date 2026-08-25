@@ -1,5 +1,6 @@
 import React, { Component, ReactNode } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AuthProvider } from './context/AuthContext';
 import { router } from './router';
 
@@ -56,6 +57,7 @@ export function App() {
     <ErrorBoundary>
       <AuthProvider>
         <RouterProvider router={router} />
+        {typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && <SpeedInsights />}
       </AuthProvider>
     </ErrorBoundary>
   );
