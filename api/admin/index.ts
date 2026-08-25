@@ -1,9 +1,11 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
 import { roleGuard } from '../_middleware/roleGuard.js';
-import { isValidId, isValidNumber, isValidPagination } from '../_validators/index.js';
 
 const router = Router();
 
@@ -12,6 +14,28 @@ function formatDate(val: any): string {
   if (val instanceof Date) return val.toISOString().split('T')[0];
   const str = String(val);
   return str.includes('T') ? str.split('T')[0] : str.slice(0, 10);
+}
+
+// Helper to copy approved profile photo to backups/uploads
+function copyProfilePhotoToBackup(user: any) {
+  const profilePhoto = user.profile_photo;
+  if (profilePhoto && typeof profilePhoto === 'string' && profilePhoto.startsWith('/assets/')) {
+    try {
+      const sourcePath = path.join(process.cwd(), profilePhoto);
+      if (fs.existsSync(sourcePath)) {
+        const filename = path.basename(sourcePath);
+        const backupsDir = path.join(process.cwd(), 'backups', 'uploads');
+        if (!fs.existsSync(backupsDir)) {
+          fs.mkdirSync(backupsDir, { recursive: true });
+        }
+        const destPath = path.join(backupsDir, filename);
+        fs.copyFileSync(sourcePath, destPath);
+        console.log(`💾 Approved user profile photo backed up to: ${destPath}`);
+      }
+    } catch (fsErr: any) {
+      console.error('⚠️ Real-time profile photo backup failed:', fsErr.message);
+    }
+  }
 }
 
 router.use(authMiddleware);
@@ -96,11 +120,6 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
 // GET & POST /api/admin/users
 router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const pagCheck = isValidPagination(req.query);
-    if (!pagCheck.valid) {
-      return res.status(400).json({ error: pagCheck.error });
-    }
-
     const { role, department, year, status } = req.query;
     const users = await db.getAllUsers({
       role: role ? String(role) : undefined,
@@ -160,9 +179,6 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
 // PUT /api/admin/users/:id
 router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!isValidId(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid User ID provided.' });
-    }
     const userId = Number(req.params.id);
     const { status, role, mentor_id, mentor_name, is_department_wide, full_name, register_number, year, department, password } = req.body;
 
@@ -188,6 +204,7 @@ router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
 
     // If approving pending student, send notification
     if (status === 'approved') {
+      copyProfilePhotoToBackup(updatedUser);
       await db.createNotification({
         user_id: userId,
         title: 'Account Approved!',
@@ -210,10 +227,10 @@ router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/users/approve', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { user_id, action } = req.body;
-    if (!isValidId(user_id) || !action) {
-      return res.status(400).json({ error: 'Valid User ID and action are required.' });
-    }
     const targetUserId = Number(user_id);
+    if (!targetUserId || !action) {
+      return res.status(400).json({ error: 'User ID and action are required.' });
+    }
 
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
     const updatedUser = await db.updateUser(targetUserId, { status: newStatus });
@@ -222,6 +239,7 @@ router.post('/users/approve', async (req: AuthenticatedRequest, res: Response) =
     }
 
     if (newStatus === 'approved') {
+      copyProfilePhotoToBackup(updatedUser);
       const roleLabel = updatedUser.role === 'faculty' ? 'faculty mentor' : 'student';
       const link = updatedUser.role === 'faculty' ? '/faculty' : '/student';
       await db.createNotification({
@@ -245,9 +263,6 @@ router.post('/users/approve', async (req: AuthenticatedRequest, res: Response) =
 // DELETE /api/admin/users/:id
 router.delete('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!isValidId(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid User ID provided.' });
-    }
     const userId = Number(req.params.id);
     if (userId === req.user!.id) {
       return res.status(400).json({ error: 'You cannot delete your own admin account.' });
@@ -272,16 +287,6 @@ router.get('/targets', async (req: AuthenticatedRequest, res: Response) => {
 router.put('/targets', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { target_learning_hours, target_certifications, target_research_papers, target_projects, target_startups } = req.body;
-
-    if (
-      !isValidNumber(target_learning_hours, { min: 0, max: 1000000 }) ||
-      !isValidNumber(target_certifications, { min: 0, max: 1000000 }) ||
-      !isValidNumber(target_research_papers, { min: 0, max: 1000000 }) ||
-      !isValidNumber(target_projects, { min: 0, max: 1000000 }) ||
-      !isValidNumber(target_startups, { min: 0, max: 1000000 })
-    ) {
-      return res.status(400).json({ error: 'All target values must be valid non-negative numbers.' });
-    }
 
     const updated = await db.updateTargets('2026', {
       target_learning_hours: Number(target_learning_hours),
@@ -363,6 +368,26 @@ router.post('/approvals', async (req: AuthenticatedRequest, res: Response) => {
 
     // Credit learning hours on approval — only admin does this
     if (action === 'Approved') {
+      // Copy approved uploads to backups/uploads in real-time
+      const relativeUrl = updatedItem.certificate_url || updatedItem.pdf_url;
+      if (relativeUrl && typeof relativeUrl === 'string' && relativeUrl.startsWith('/assets/')) {
+        try {
+          const sourcePath = path.join(process.cwd(), relativeUrl);
+          if (fs.existsSync(sourcePath)) {
+            const filename = path.basename(sourcePath);
+            const backupsDir = path.join(process.cwd(), 'backups', 'uploads');
+            if (!fs.existsSync(backupsDir)) {
+              fs.mkdirSync(backupsDir, { recursive: true });
+            }
+            const destPath = path.join(backupsDir, filename);
+            fs.copyFileSync(sourcePath, destPath);
+            console.log(`💾 Approved file copy backed up to: ${destPath}`);
+          }
+        } catch (fsErr: any) {
+          console.error('⚠️ Real-time file backup copy failed:', fsErr.message);
+        }
+      }
+
       const certUrl = updatedItem.certificate_url || updatedItem.pdf_url || updatedItem.github_link || '';
 
       if (normType === 'certificate' || normType === 'project') {
@@ -463,6 +488,77 @@ router.get('/reports', async (req: AuthenticatedRequest, res: Response) => {
     return res.json(reportData);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to generate report.' });
+  }
+});
+
+// GET /api/admin/backups
+router.get('/backups', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const backupsDir = path.join(process.cwd(), 'backups');
+    if (!fs.existsSync(backupsDir)) {
+      return res.json({ backups: [] });
+    }
+    const files = fs.readdirSync(backupsDir)
+      .filter(f => f.startsWith('backup_') && f.endsWith('.json'))
+      .map(f => {
+        const fullPath = path.join(backupsDir, f);
+        const stats = fs.statSync(fullPath);
+        return {
+          filename: f,
+          size: stats.size,
+          mtime: stats.mtime
+        };
+      })
+      .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+
+    return res.json({ backups: files });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/backup
+router.post('/backup', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    exec('node backup_db.mjs', (error, stdout, stderr) => {
+      if (error) {
+        console.error('Backup API execution error:', error);
+        return res.status(500).json({ error: `Backup failed: ${error.message}` });
+      }
+      console.log('Backup API stdout:', stdout);
+      return res.json({ message: 'Backup created successfully.' });
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/restore
+router.post('/restore', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { filename } = req.body;
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required.' });
+    }
+    
+    // Path sanitization to prevent directory traversal
+    const sanitizedFilename = path.basename(filename);
+    const backupFilePath = path.join(process.cwd(), 'backups', sanitizedFilename);
+
+    if (!fs.existsSync(backupFilePath)) {
+      return res.status(404).json({ error: 'Backup file not found.' });
+    }
+
+    exec(`node restore_db.mjs "${backupFilePath}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Restore API execution error:', error);
+        return res.status(500).json({ error: `Restoration failed: ${error.message}` });
+      }
+      console.log('Restore API stdout:', stdout);
+      return res.json({ message: 'Database successfully restored from backup snapshot.' });
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
