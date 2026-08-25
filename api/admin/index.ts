@@ -56,6 +56,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
     const totalStartupsCount = 3;
 
     const activityLogs = await db.getActivityLogs();
+    const totalUsageStats = await db.getTotalUsageStats();
 
     return res.json({
       admin: req.user,
@@ -72,6 +73,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
         totalApprovedPapersCount: totalPapersCount || pendingPapers.length,
         totalApprovedProjectsCount: totalProjectsCount || pendingProjects.length,
         totalStartupsCount,
+        totalUsageHours: Math.round(totalUsageStats.totalMinutes / 60),
       },
       targets: target,
       missionProgress: {
@@ -104,6 +106,16 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
     });
 
     const sanitizedUsers = users.map(({ password, ...u }) => u);
+    
+    // Attach usage hours for students
+    const usageMap = await db.getAllStudentUsageStatsMap();
+    sanitizedUsers.forEach(u => {
+      if (u.role === 'student') {
+        const totalMins = usageMap[u.id] || 0;
+        (u as any).usage_hours = Math.round(totalMins / 60);
+      }
+    });
+
     const allUsers = await db.getAllUsers();
     const faculty = allUsers.filter(u => u.role === 'faculty').map(({ password, ...u }) => u);
     return res.json({ users: sanitizedUsers, faculty });
@@ -441,6 +453,39 @@ router.get('/reports', async (req: AuthenticatedRequest, res: Response) => {
     return res.json(reportData);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to generate report.' });
+  }
+});
+
+// GET /api/admin/analytics
+router.get('/analytics', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const events = await db.getAnalyticsEvents();
+    const stats = await db.getTotalUsageStats();
+    
+    // Calculate page views and unique visitors simply based on session IP/User agent or just count
+    const pageViews = events.filter(e => e.event_type === 'page_view');
+    
+    // Group by page
+    const pageCounts: Record<string, number> = {};
+    pageViews.forEach(v => {
+      const p = v.page_url.split('?')[0]; // simple path
+      pageCounts[p] = (pageCounts[p] || 0) + 1;
+    });
+
+    const topPages = Object.entries(pageCounts)
+      .map(([url, views]) => ({ url, views }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 10);
+
+    return res.json({
+      events,
+      totalSessions: stats.totalSessions,
+      totalUsageMinutes: stats.totalMinutes,
+      topPages,
+      totalPageViews: pageViews.length
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch analytics.' });
   }
 });
 

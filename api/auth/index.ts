@@ -71,6 +71,13 @@ router.post('/login', authLimiter, async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Create a usage session for students
+    let sessionId = null;
+    if (user.role === 'student') {
+      const session = await db.createUsageSession(user.id);
+      sessionId = session.id;
+    }
+
     // Set httpOnly cookie
     res.cookie('token', token, {
       httpOnly: true,
@@ -85,6 +92,7 @@ router.post('/login', authLimiter, async (req, res) => {
       message: 'Login successful.',
       token,
       user: userWithoutPass,
+      sessionId,
     });
   } catch (err: any) {
     console.error('Login Error:', err);
@@ -264,9 +272,32 @@ router.put('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  const { sessionId } = req.body;
+  if (sessionId) {
+    try {
+      await db.updateUsageSession(Number(sessionId), true);
+    } catch (err) {
+      console.error('Error closing session on logout:', err);
+    }
+  }
   res.clearCookie('token');
   return res.json({ message: 'Logged out successfully.' });
+});
+
+// PUT /api/auth/session
+router.put('/session', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { sessionId, isLogout } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+    const session = await db.updateUsageSession(Number(sessionId), Boolean(isLogout));
+    return res.json({ session });
+  } catch (err) {
+    console.error('Session Heartbeat Error:', err);
+    return res.status(500).json({ error: 'Server error updating session.' });
+  }
 });
 
 export default router;

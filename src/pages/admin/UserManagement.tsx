@@ -229,6 +229,13 @@ export const UserManagement: React.FC = () => {
       },
     },
     {
+      header: 'Usage Hrs',
+      cell: (row) => {
+        if (row.role === 'student') return <span className="text-indigo-600 font-bold text-xs">{row.usage_hours || 0} hrs</span>;
+        return <span className="text-slate-400 text-xs">-</span>;
+      },
+    },
+    {
       header: 'Actions',
       cell: (row) => (
         <button onClick={() => handleOpenEdit(row)}

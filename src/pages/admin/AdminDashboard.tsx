@@ -164,6 +164,7 @@ export const AdminDashboard: React.FC = () => {
     pendingSubmissionsCount: 0,
     totalDepartmentHours: 0,
     avgAiScore: 0,
+    totalUsageHours: 0,
   };
   const pendingUsers = dashboardData?.pendingUsers || [];
   const pendingFaculty = dashboardData?.pendingFaculty || [];
@@ -365,7 +366,11 @@ export const AdminDashboard: React.FC = () => {
           )}
         </div>
 
-
+        <div className="bg-white p-5 rounded-[20px] border border-slate-200/80 shadow-2xs">
+          <p className="text-xs font-bold text-slate-500">Platform Usage</p>
+          <p className="text-2xl font-black text-indigo-600 mt-1">{stats.totalUsageHours || 0} <span className="text-sm font-semibold text-slate-400">hrs</span></p>
+          <p className="text-[11px] text-slate-500 font-medium mt-0.5">Total student active time</p>
+        </div>
       </div>
 
       {/* Pending Student Activity Submissions (Certificates, Research Papers, Projects) */}
