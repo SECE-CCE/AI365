@@ -9,10 +9,18 @@ if (!DATABASE_URL) {
 }
 const sql = neon(DATABASE_URL);
 
-const password = '$ece@2739';
-const hash = await bcrypt.hash(password, 10);
+const adminEmail = process.env.ADMIN_EMAIL || 'dhamodharan.s@sece.ac.in';
+const adminPassword = process.env.ADMIN_PASSWORD;
 
-// Remove old mock admin and upsert real admin
+if (!adminPassword) {
+  console.error('❌ Error: ADMIN_PASSWORD environment variable is not defined in .env');
+  console.error('Please set ADMIN_PASSWORD in your .env file before running seed_admin.');
+  process.exit(1);
+}
+
+const hash = await bcrypt.hash(adminPassword, 10);
+
+// Remove old mock accounts
 await sql`DELETE FROM users WHERE email IN ('admin@cce.edu', 'dr.sharma@cce.edu', 'prof.kapoor@cce.edu', 'alex.student@cce.edu', 'priya.patel@cce.edu', 'rahul.verma@cce.edu', 'sanya.singh@cce.edu')`;
 console.log('✅ Removed mock accounts from Neon DB');
 
@@ -20,7 +28,7 @@ await sql`
   INSERT INTO users (full_name, email, password, role, department, phone, profile_photo, status, mentor_id, is_department_wide)
   VALUES (
     'Dhamodharan S',
-    'dhamodharan.s@sece.ac.in',
+    ${adminEmail},
     ${hash},
     'admin',
     'Computer & Communication Engineering',
@@ -38,7 +46,7 @@ await sql`
     status    = EXCLUDED.status,
     is_department_wide = EXCLUDED.is_department_wide
 `;
-console.log('✅ Admin user upserted: dhamodharan.s@sece.ac.in');
+console.log(`✅ Admin user upserted securely: ${adminEmail}`);
 
 const users = await sql`SELECT id, full_name, email, role, status FROM users ORDER BY id`;
 console.log('\n📋 Current users in Neon DB:');

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
 import { roleGuard } from '../_middleware/roleGuard.js';
+import { isValidId, isValidNumber, isValidPagination } from '../_validators/index.js';
 
 const router = Router();
 
@@ -97,6 +98,11 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
 // GET & POST /api/admin/users
 router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const pagCheck = isValidPagination(req.query);
+    if (!pagCheck.valid) {
+      return res.status(400).json({ error: pagCheck.error });
+    }
+
     const { role, department, year, status } = req.query;
     const users = await db.getAllUsers({
       role: role ? String(role) : undefined,
@@ -166,6 +172,9 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
 // PUT /api/admin/users/:id
 router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid User ID provided.' });
+    }
     const userId = Number(req.params.id);
     const { status, role, mentor_id, mentor_name, is_department_wide, full_name, register_number, year, department, password } = req.body;
 
@@ -213,10 +222,10 @@ router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/users/approve', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { user_id, action } = req.body;
-    const targetUserId = Number(user_id);
-    if (!targetUserId || !action) {
-      return res.status(400).json({ error: 'User ID and action are required.' });
+    if (!isValidId(user_id) || !action) {
+      return res.status(400).json({ error: 'Valid User ID and action are required.' });
     }
+    const targetUserId = Number(user_id);
 
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
     const updatedUser = await db.updateUser(targetUserId, { status: newStatus });
@@ -248,6 +257,9 @@ router.post('/users/approve', async (req: AuthenticatedRequest, res: Response) =
 // DELETE /api/admin/users/:id
 router.delete('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid User ID provided.' });
+    }
     const userId = Number(req.params.id);
     if (userId === req.user!.id) {
       return res.status(400).json({ error: 'You cannot delete your own admin account.' });
@@ -272,6 +284,16 @@ router.get('/targets', async (req: AuthenticatedRequest, res: Response) => {
 router.put('/targets', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { target_learning_hours, target_certifications, target_research_papers, target_projects, target_startups } = req.body;
+
+    if (
+      !isValidNumber(target_learning_hours, { min: 0, max: 1000000 }) ||
+      !isValidNumber(target_certifications, { min: 0, max: 1000000 }) ||
+      !isValidNumber(target_research_papers, { min: 0, max: 1000000 }) ||
+      !isValidNumber(target_projects, { min: 0, max: 1000000 }) ||
+      !isValidNumber(target_startups, { min: 0, max: 1000000 })
+    ) {
+      return res.status(400).json({ error: 'All target values must be valid non-negative numbers.' });
+    }
 
     const updated = await db.updateTargets('2026', {
       target_learning_hours: Number(target_learning_hours),
@@ -486,6 +508,27 @@ router.get('/analytics', async (req: AuthenticatedRequest, res: Response) => {
     });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch analytics.' });
+// GET /api/admin/auth-logs
+router.get('/auth-logs', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '50'), 10)));
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
+    const offset = (page - 1) * limit;
+    const eventType = req.query.event_type ? String(req.query.event_type) : undefined;
+
+    const result = await db.getAuthLogs(limit, offset, eventType);
+    const totalPages = Math.ceil(result.total / limit) || 1;
+
+    return res.json({
+      logs: result.logs,
+      total: result.total,
+      page,
+      limit,
+      totalPages,
+    });
+  } catch (err) {
+    console.error('Admin Auth Logs Error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve authentication logs.' });
   }
 });
 
