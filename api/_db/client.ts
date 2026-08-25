@@ -1100,8 +1100,8 @@ class DbStore {
         name: 'CCE AI Explorer',
         level: 'Level 1',
         description: 'Earn 500+ AI Portfolio Points',
+        requiredPoints: 500,
         unlocked: aiScore >= 500,
-        progress: Math.min(100, Math.round((aiScore / 500) * 100)),
         icon: 'Compass',
       },
       {
@@ -1109,8 +1109,8 @@ class DbStore {
         name: 'CCE AI Practitioner',
         level: 'Level 2',
         description: 'Earn 1000+ AI Portfolio Points',
+        requiredPoints: 1000,
         unlocked: aiScore >= 1000,
-        progress: Math.min(100, Math.round((aiScore / 1000) * 100)),
         icon: 'Award',
       },
       {
@@ -1118,8 +1118,8 @@ class DbStore {
         name: 'CCE AI Innovator',
         level: 'Level 3',
         description: 'Earn 2000+ AI Portfolio Points',
+        requiredPoints: 2000,
         unlocked: aiScore >= 2000,
-        progress: Math.min(100, Math.round((aiScore / 2000) * 100)),
         icon: 'Code',
       },
       {
@@ -1127,8 +1127,8 @@ class DbStore {
         name: 'CCE AI Scholar & Researcher',
         level: 'Level 4',
         description: 'Earn 3000+ AI Portfolio Points',
+        requiredPoints: 3000,
         unlocked: aiScore >= 3000,
-        progress: Math.min(100, Math.round((aiScore / 3000) * 100)),
         icon: 'FileText',
       },
       {
@@ -1136,8 +1136,8 @@ class DbStore {
         name: 'CCE AI Pioneer',
         level: 'Level 5',
         description: 'Earn 4000+ AI Portfolio Points',
+        requiredPoints: 4000,
         unlocked: aiScore >= 4000,
-        progress: Math.min(100, Math.round((aiScore / 4000) * 100)),
         icon: 'Zap',
       },
       {
@@ -1145,8 +1145,8 @@ class DbStore {
         name: 'CCE AI Entrepreneur',
         level: 'Level 6',
         description: 'Reach Maximum 5000 AI Portfolio Points',
+        requiredPoints: 5000,
         unlocked: aiScore >= 5000,
-        progress: Math.min(100, Math.round((aiScore / 5000) * 100)),
         icon: 'Rocket',
       },
     ];

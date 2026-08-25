@@ -135,8 +135,9 @@ export interface PassportBadge {
   name: string;
   level: string;
   description: string;
+  requiredPoints: number;
   unlocked: boolean;
-  progress: number;
+  progress?: number;
   icon: string;
 }
 
