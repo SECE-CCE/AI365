@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { db } from '../_db/client.js';
@@ -549,7 +549,7 @@ router.post('/restore', async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ error: 'Backup file not found.' });
     }
 
-    exec(`node restore_db.mjs "${backupFilePath}"`, (error, stdout, stderr) => {
+    execFile('node', ['restore_db.mjs', backupFilePath], (error, stdout, stderr) => {
       if (error) {
         console.error('Restore API execution error:', error);
         return res.status(500).json({ error: `Restoration failed: ${error.message}` });
