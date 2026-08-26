@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest, JWT_SECRET, SESSION_EXPIRES_IN, SESSION_MAX_AGE_MS } from '../_middleware/auth.js';
-import { isValidSeceEmail } from '../_validators/index.js';
 
 const router = Router();
 

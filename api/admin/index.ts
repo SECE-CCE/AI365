@@ -559,6 +559,9 @@ router.post('/restore', async (req: AuthenticatedRequest, res: Response) => {
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/admin/auth-logs
 router.get('/auth-logs', async (req: AuthenticatedRequest, res: Response) => {
   try {
