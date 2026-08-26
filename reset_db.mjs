@@ -23,6 +23,9 @@ const wipeAll = process.argv.includes('--all');
 console.log('🗑️  Wiping database data from Neon DB...\n');
 
 try {
+  await sql`DELETE FROM auth_logs`;
+  console.log('  [x] Cleared: auth_logs');
+
   await sql`DELETE FROM activity_logs`;
   console.log('  [x] Cleared: activity_logs');
 
@@ -46,6 +49,9 @@ try {
 
   await sql`DELETE FROM events`;
   console.log('  [x] Cleared: events');
+
+  const adminEmail = process.env.ADMIN_EMAIL || 'dhamodharan.s@sece.ac.in';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMeSecurely123!';
 
   if (wipeAll) {
     await sql`DELETE FROM users`;
