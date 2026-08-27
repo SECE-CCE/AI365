@@ -1128,7 +1128,6 @@ class DbStore {
         level: 'Level 1',
         description: 'Earn 500+ AI Portfolio Points',
         unlocked: aiScore >= 500,
-        progress: Math.min(100, Math.round((aiScore / 500) * 100)),
         icon: 'Compass',
       },
       {
@@ -1137,7 +1136,7 @@ class DbStore {
         level: 'Level 2',
         description: 'Earn 1000+ AI Portfolio Points',
         unlocked: aiScore >= 1000,
-        progress: Math.min(100, Math.round((aiScore / 1000) * 100)),
+        
         icon: 'Award',
       },
       {
@@ -1146,7 +1145,7 @@ class DbStore {
         level: 'Level 3',
         description: 'Earn 2000+ AI Portfolio Points',
         unlocked: aiScore >= 2000,
-        progress: Math.min(100, Math.round((aiScore / 2000) * 100)),
+        
         icon: 'Code',
       },
       {
@@ -1155,7 +1154,7 @@ class DbStore {
         level: 'Level 4',
         description: 'Earn 3000+ AI Portfolio Points',
         unlocked: aiScore >= 3000,
-        progress: Math.min(100, Math.round((aiScore / 3000) * 100)),
+        
         icon: 'FileText',
       },
       {
@@ -1164,7 +1163,7 @@ class DbStore {
         level: 'Level 5',
         description: 'Earn 4000+ AI Portfolio Points',
         unlocked: aiScore >= 4000,
-        progress: Math.min(100, Math.round((aiScore / 4000) * 100)),
+        
         icon: 'Zap',
       },
       {
@@ -1173,7 +1172,7 @@ class DbStore {
         level: 'Level 6',
         description: 'Reach Maximum 5000 AI Portfolio Points',
         unlocked: aiScore >= 5000,
-        progress: Math.min(100, Math.round((aiScore / 5000) * 100)),
+        
         icon: 'Rocket',
       },
     ];
