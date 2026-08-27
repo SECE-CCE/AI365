@@ -505,6 +505,42 @@ router.get('/reports', async (req: AuthenticatedRequest, res: Response) => {
 
 // GET /api/admin/analytics
 router.get('/analytics', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const events = await db.getAnalyticsEvents();
+    const stats = await db.getTotalUsageStats();
+
+    // Calculate page views
+    const pageViews = events.filter(
+      e => e.event_type === 'page_view'
+    );
+
+    // Group by page
+    const pageCounts: Record<string, number> = {};
+
+    pageViews.forEach(v => {
+      const p = v.page_url.split('?')[0];
+      pageCounts[p] = (pageCounts[p] || 0) + 1;
+    });
+
+    const topPages = Object.entries(pageCounts)
+      .map(([url, views]) => ({ url, views }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 10);
+
+    return res.json({
+      events,
+      totalSessions: stats.totalSessions,
+      totalUsageMinutes: stats.totalMinutes,
+      topPages,
+      totalPageViews: pageViews.length,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: 'Failed to fetch analytics.',
+    });
+  }
+});
+
 // GET /api/admin/backups
 router.get('/backups', async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -573,44 +609,6 @@ router.post('/restore', async (req: AuthenticatedRequest, res: Response) => {
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /api/admin/auth-logs
-router.get('/auth-logs', async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const events = await db.getAnalyticsEvents();
-    const stats = await db.getTotalUsageStats();
-
-    // Calculate page views
-    const pageViews = events.filter(
-      e => e.event_type === 'page_view'
-    );
-
-    // Group by page
-    const pageCounts: Record<string, number> = {};
-
-    pageViews.forEach(v => {
-      const p = v.page_url.split('?')[0];
-      pageCounts[p] = (pageCounts[p] || 0) + 1;
-    });
-
-    const topPages = Object.entries(pageCounts)
-      .map(([url, views]) => ({ url, views }))
-      .sort((a, b) => b.views - a.views)
-      .slice(0, 10);
-
-    return res.json({
-      events,
-      totalSessions: stats.totalSessions,
-      totalUsageMinutes: stats.totalMinutes,
-      topPages,
-      totalPageViews: pageViews.length,
-    });
-  } catch (err) {
-    return res.status(500).json({
-      error: 'Failed to fetch analytics.',
-    });
   }
 });
 
