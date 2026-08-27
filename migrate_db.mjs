@@ -243,6 +243,29 @@ try {
   `;
   console.log('✅ announcements table ready');
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS student_usage_sessions (
+      id SERIAL PRIMARY KEY,
+      student_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      login_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      last_active_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      logout_time TIMESTAMP WITH TIME ZONE,
+      duration_minutes INT DEFAULT 0
+    )
+  `;
+  console.log('✅ student_usage_sessions table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id SERIAL PRIMARY KEY,
+      event_type VARCHAR(100) NOT NULL,
+      page_url TEXT NOT NULL,
+      user_agent TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  console.log('✅ analytics_events table ready');
+
   // Check user count
   const count = await sql`SELECT COUNT(*) as c FROM users`;
   console.log('\n🎯 Users in NeonDB:', count[0].c);

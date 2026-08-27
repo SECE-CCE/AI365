@@ -3,6 +3,8 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
+import cookieParser from 'cookie-parser';
+import { authMiddleware } from './api/_middleware/auth.js';
 import app from './api/index';
 
 async function startServer() {
@@ -11,6 +13,19 @@ async function startServer() {
   if (!process.env.NODE_ENV) {
     process.env.NODE_ENV = fs.existsSync(path.join(process.cwd(), 'dist', 'index.html')) ? 'production' : 'development';
   }
+
+  // Prevent indexing of internal and admin resources
+  app.use((req, res, next) => {
+    if (
+      req.path.startsWith('/admin') ||
+      req.path.startsWith('/api/admin') ||
+      req.path.startsWith('/documents') ||
+      req.path.startsWith('/assets/Documents')
+    ) {
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    }
+    next();
+  });
 
   // Middleware to resolve document paths (with or without extension fallback) for intranet access
   const documentsMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -42,8 +57,8 @@ async function startServer() {
     // Document static routes MUST come before Vite so that direct file links
     // (e.g. /documents/User/certificates/file.pdf) are served as raw files.
     // Otherwise Vite's SPA fallback serves index.html → React redirects to home.
-    app.use('/documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
-    app.use('/assets/Documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use('/documents', cookieParser(), authMiddleware, documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use('/assets/Documents', cookieParser(), authMiddleware, documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
 
     // Vite middleware handles module imports (transforms image imports into JS modules).
     // It MUST come before the generic /assets static route, otherwise Express serves
@@ -67,8 +82,8 @@ async function startServer() {
       }
     });
   } else {
-    app.use('/documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
-    app.use('/assets/Documents', documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use('/documents', cookieParser(), authMiddleware, documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    app.use('/assets/Documents', cookieParser(), authMiddleware, documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
     app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
     app.use(express.static(path.join(process.cwd(), 'public')));
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Sidebar } from '../components/common/Sidebar';
@@ -6,6 +6,30 @@ import { Header } from '../components/common/Header';
 
 export const AdminLayout: React.FC = () => {
   const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    // Add noindex meta tag when admin layout mounts
+    let meta = document.querySelector('meta[name="robots"]');
+    let created = false;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'robots');
+      document.head.appendChild(meta);
+      created = true;
+    }
+    const oldContent = meta.getAttribute('content');
+    meta.setAttribute('content', 'noindex, nofollow');
+
+    return () => {
+      if (created && meta) {
+        document.head.removeChild(meta);
+      } else if (meta && oldContent !== null) {
+        meta.setAttribute('content', oldContent);
+      } else if (meta) {
+        meta.removeAttribute('content');
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (

@@ -200,6 +200,23 @@ export interface AnnouncementRow {
   created_at: string;
 }
 
+export interface UsageSessionRow {
+  id: number;
+  student_id: number;
+  login_time: string;
+  last_active_time: string;
+  logout_time: string | null;
+  duration_minutes: number;
+}
+
+export interface AnalyticsEventRow {
+  id: number;
+  event_type: string;
+  page_url: string;
+  user_agent?: string;
+  created_at: string;
+}
+
 // Initial Memory Store Seed Data — only admin bootstrapped, all real data lives in Neon DB
 const initialStore = {
   users: [
@@ -255,6 +272,8 @@ const initialStore = {
   event_registrations: [] as EventRegistrationRow[],
   notifications: [] as NotificationRow[],
   activity_logs: [] as ActivityLogRow[],
+  student_usage_sessions: [] as UsageSessionRow[],
+  analytics_events: [] as AnalyticsEventRow[],
   auth_logs: [] as AuthLogRow[],
 
   targets: [
@@ -526,6 +545,182 @@ class DbStore {
       if (filters?.status && u.status !== filters.status) return false;
       return true;
     });
+  }
+
+  // Usage Sessions
+  async createUsageSession(studentId: number): Promise<UsageSessionRow> {
+    const now = new Date().toISOString();
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO student_usage_sessions (student_id, login_time, last_active_time, duration_minutes) VALUES ($1, $2, $3, 0) RETURNING *`,
+        [studentId, now, now]
+      );
+      if (rows && rows.length > 0) {
+        const session = rows[0] as UsageSessionRow;
+        this.store.student_usage_sessions.push(session);
+        return session;
+      }
+    } catch (err) {
+      console.error('Neon DB createUsageSession error:', (err as Error).message);
+    }
+    const newSession: UsageSessionRow = {
+      id: this.nextId('student_usage_sessions'),
+      student_id: studentId,
+      login_time: now,
+      last_active_time: now,
+      logout_time: null,
+      duration_minutes: 0,
+    };
+    this.store.student_usage_sessions.push(newSession);
+    return newSession;
+  }
+
+  async updateUsageSession(sessionId: number, isLogout: boolean = false): Promise<UsageSessionRow | undefined> {
+    const now = new Date();
+    try {
+      const sessionRows = await this.queryDb(`SELECT * FROM student_usage_sessions WHERE id=$1`, [sessionId]);
+      if (sessionRows && sessionRows.length > 0) {
+        const session = sessionRows[0] as UsageSessionRow;
+        if (session.logout_time) return session; // Already logged out
+
+        const loginTime = new Date(session.login_time);
+        const durationMinutes = Math.floor((now.getTime() - loginTime.getTime()) / 60000);
+        
+        let query = `UPDATE student_usage_sessions SET last_active_time=$1, duration_minutes=$2 WHERE id=$3 RETURNING *`;
+        const params: any[] = [now.toISOString(), durationMinutes, sessionId];
+        
+        if (isLogout) {
+          query = `UPDATE student_usage_sessions SET last_active_time=$1, logout_time=$2, duration_minutes=$3 WHERE id=$4 RETURNING *`;
+          params.splice(1, 0, now.toISOString()); // insert logout_time
+        }
+
+        const rows = await this.queryDb(query, params);
+        if (rows && rows.length > 0) {
+          const updated = rows[0] as UsageSessionRow;
+          const idx = this.store.student_usage_sessions.findIndex((s: UsageSessionRow) => s.id === sessionId);
+          if (idx !== -1) this.store.student_usage_sessions[idx] = updated;
+          return updated;
+        }
+      }
+    } catch (err) {
+      console.error('Neon DB updateUsageSession error:', (err as Error).message);
+    }
+
+    const idx = this.store.student_usage_sessions.findIndex((s: UsageSessionRow) => s.id === sessionId);
+    if (idx === -1) return undefined;
+    const session = this.store.student_usage_sessions[idx];
+    if (session.logout_time) return session; // Already logged out
+
+    const loginTime = new Date(session.login_time);
+    const durationMinutes = Math.floor((now.getTime() - loginTime.getTime()) / 60000);
+
+    session.last_active_time = now.toISOString();
+    session.duration_minutes = durationMinutes;
+    if (isLogout) session.logout_time = now.toISOString();
+
+    return session;
+  }
+
+  async getStudentUsageStats(studentId: number): Promise<{ totalSessions: number, totalMinutes: number }> {
+    try {
+      const rows = await this.queryDb(
+        `SELECT COUNT(*) as total_sessions, COALESCE(SUM(duration_minutes), 0) as total_minutes FROM student_usage_sessions WHERE student_id=$1`,
+        [studentId]
+      );
+      if (rows && rows.length > 0) {
+        return {
+          totalSessions: Number(rows[0].total_sessions),
+          totalMinutes: Number(rows[0].total_minutes),
+        };
+      }
+    } catch (err) {
+      console.error('Neon DB getStudentUsageStats error:', (err as Error).message);
+    }
+    
+    const sessions = this.store.student_usage_sessions.filter((s: UsageSessionRow) => s.student_id === studentId);
+    return {
+      totalSessions: sessions.length,
+      totalMinutes: sessions.reduce((sum: number, s: UsageSessionRow) => sum + s.duration_minutes, 0),
+    };
+  }
+
+  async getTotalUsageStats(): Promise<{ totalSessions: number, totalMinutes: number }> {
+    try {
+      const rows = await this.queryDb(
+        `SELECT COUNT(*) as total_sessions, COALESCE(SUM(duration_minutes), 0) as total_minutes FROM student_usage_sessions`
+      );
+      if (rows && rows.length > 0) {
+        return {
+          totalSessions: Number(rows[0].total_sessions),
+          totalMinutes: Number(rows[0].total_minutes),
+        };
+      }
+    } catch (err) {
+      console.error('Neon DB getTotalUsageStats error:', (err as Error).message);
+    }
+    
+    return {
+      totalSessions: this.store.student_usage_sessions.length,
+      totalMinutes: this.store.student_usage_sessions.reduce((sum: number, s: UsageSessionRow) => sum + s.duration_minutes, 0),
+    };
+  }
+
+  async getAllStudentUsageStatsMap(): Promise<Record<number, number>> {
+    const usageMap: Record<number, number> = {};
+    try {
+      const rows = await this.queryDb(
+        `SELECT student_id, COALESCE(SUM(duration_minutes), 0) as total_minutes FROM student_usage_sessions GROUP BY student_id`
+      );
+      if (rows && rows.length > 0) {
+        rows.forEach(r => {
+          usageMap[r.student_id] = Number(r.total_minutes);
+        });
+        return usageMap;
+      }
+    } catch (err) {
+      console.error('Neon DB getAllStudentUsageStatsMap error:', (err as Error).message);
+    }
+    
+    // Fallback
+    this.store.student_usage_sessions.forEach((s: UsageSessionRow) => {
+      if (!usageMap[s.student_id]) usageMap[s.student_id] = 0;
+      usageMap[s.student_id] += s.duration_minutes;
+    });
+    return usageMap;
+  }
+
+  // Analytics
+  async trackAnalyticsEvent(data: Omit<AnalyticsEventRow, 'id' | 'created_at'>): Promise<AnalyticsEventRow> {
+    const now = new Date().toISOString();
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO analytics_events (event_type, page_url, user_agent, created_at) VALUES ($1, $2, $3, $4) RETURNING *`,
+        [data.event_type, data.page_url, data.user_agent || null, now]
+      );
+      if (rows && rows.length > 0) {
+        const item = rows[0] as AnalyticsEventRow;
+        this.store.analytics_events.unshift(item);
+        return item;
+      }
+    } catch (err) {
+      console.error('Neon DB trackAnalyticsEvent error:', (err as Error).message);
+    }
+    const newItem: AnalyticsEventRow = { ...data, id: this.nextId('analytics_events'), created_at: now };
+    this.store.analytics_events.unshift(newItem);
+    return newItem;
+  }
+
+  async getAnalyticsEvents(): Promise<AnalyticsEventRow[]> {
+    try {
+      const rows = await this.queryDb(`SELECT * FROM analytics_events ORDER BY created_at DESC`);
+      if (rows) {
+        this.store.analytics_events = rows;
+        return rows;
+      }
+    } catch (err) {
+      console.error('Neon DB getAnalyticsEvents error:', (err as Error).message);
+    }
+    return this.store.analytics_events || [];
   }
 
   // Learning Hours

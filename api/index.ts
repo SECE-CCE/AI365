@@ -12,6 +12,7 @@ import leaderboardRoutes from './leaderboard/index.js';
 import notificationRoutes from './notifications/index.js';
 import searchRoutes from './search/index.js';
 import uploadRoutes from './upload/index.js';
+import analyticsRoutes from './analytics/index.js';
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

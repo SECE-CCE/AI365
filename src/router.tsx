@@ -40,6 +40,7 @@ import { UserManagement } from './pages/admin/UserManagement';
 import { TargetManagement } from './pages/admin/TargetManagement';
 import { AdminReports } from './pages/admin/AdminReports';
 import { AdminSettings } from './pages/admin/AdminSettings';
+import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 
 export const router = createBrowserRouter([
   // Visitor Public Routes
@@ -97,6 +98,7 @@ export const router = createBrowserRouter([
       { path: 'users', element: <UserManagement /> },
       { path: 'targets', element: <TargetManagement /> },
       { path: 'events', element: <FacultyEvents /> },
+      { path: 'analytics', element: <AdminAnalytics /> },
       { path: 'reports', element: <AdminReports /> },
       { path: 'settings', element: <AdminSettings /> },
     ],
@@ -108,3 +110,18 @@ export const router = createBrowserRouter([
     element: <Navigate to="/" replace />,
   },
 ]);
+
+if (typeof window !== 'undefined') {
+  let lastPath = '';
+  router.subscribe((state) => {
+    const currentPath = state.location.pathname + state.location.search;
+    if (currentPath !== lastPath) {
+      lastPath = currentPath;
+      fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_type: 'page_view', page_url: currentPath }),
+      }).catch(() => { /* silent fail */ });
+    }
+  });
+}

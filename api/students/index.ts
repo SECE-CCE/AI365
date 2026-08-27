@@ -19,6 +19,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
     const certificates = await db.getCertificates(studentId);
     const researchPapers = await db.getResearchPapers(studentId);
     const projects = await db.getProjects(studentId);
+    const usageStats = await db.getStudentUsageStats(studentId);
 
     // Collect all recent activities from own submissions
 function formatDate(val: any): string {
@@ -83,6 +84,7 @@ function formatDate(val: any): string {
     return res.json({
       student: req.user,
       stats: passportData?.stats,
+      usageStats,
       recentActivities: recentActivities.slice(0, 10),
       badges: passportData?.badges,
     });
