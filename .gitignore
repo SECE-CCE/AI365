@@ -33,3 +33,7 @@ cookies.txt
 # User Uploads
 assets/Documents/*
 !assets/Documents/.gitkeep
+
+# Backups (NEVER commit these!)
+backups/
+deo

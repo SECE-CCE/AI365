@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import pg from 'pg';
 import { neon } from '@neondatabase/serverless';
 
@@ -220,8 +222,8 @@ const initialStore = {
   users: [
     {
       id: 1,
-      full_name: 'Dhamodharan S',
-      email: 'dhamodharan.s@sece.ac.in',
+      full_name: process.env.ADMIN_NAME || 'Dhamodharan S',
+      email: process.env.ADMIN_EMAIL || 'dhamodharan.s@sece.ac.in',
       password: HASHED_ADMIN_PASS,
       role: 'admin',
       department: 'Computer & Communication Engineering',
@@ -355,6 +357,22 @@ class DbStore {
     return Math.max(...list.map(item => item.id || 0)) + 1;
   }
 
+  public async syncRegisteredUsers(): Promise<void> {
+    try {
+      const allUsers = await this.getAllUsers();
+      const users = allUsers.filter(u => u.status === 'approved');
+      const backupsDir = path.join(process.cwd(), 'backups');
+      if (!fs.existsSync(backupsDir)) {
+        fs.mkdirSync(backupsDir, { recursive: true });
+      }
+      const filePath = path.join(backupsDir, 'registered_users.json');
+      fs.writeFileSync(filePath, JSON.stringify(users, null, 2), 'utf-8');
+      console.log(`💾 Real-time user database sync written to: ${filePath}`);
+    } catch (err: any) {
+      console.error('⚠️ Real-time user sync failed:', err.message);
+    }
+  }
+
   private async queryDb(text: string, params: any[] = []): Promise<any[]> {
     // Use neon HTTP driver (works without TCP/port 5432 access, unlike pg.Pool)
     if (!sql) throw new Error('Database not configured: DATABASE_URL is missing.');
@@ -428,6 +446,7 @@ class DbStore {
         if (rows && rows.length > 0) {
           const newUser = rows[0] as UserRow;
           this.store.users.push(newUser);
+          this.syncRegisteredUsers();
           return newUser;
         }
       } catch (err) {
@@ -440,6 +459,7 @@ class DbStore {
       created_at: new Date().toISOString(),
     };
     this.store.users.push(newUser);
+    this.syncRegisteredUsers();
     return newUser;
   }
 
@@ -463,6 +483,7 @@ class DbStore {
         const idx = this.store.users.findIndex((u: UserRow) => u.id === id);
         if (idx !== -1) this.store.users[idx] = updatedUser;
         else this.store.users.push(updatedUser);
+        this.syncRegisteredUsers();
         return updatedUser;
       }
     } catch (err) {
@@ -473,6 +494,7 @@ class DbStore {
     const idx = this.store.users.findIndex((u: UserRow) => u.id === id);
     if (idx === -1) return undefined;
     this.store.users[idx] = { ...this.store.users[idx], ...data };
+    this.syncRegisteredUsers();
     return this.store.users[idx];
   }
 
@@ -481,6 +503,7 @@ class DbStore {
       const rows = await this.queryDb('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
       if (rows && rows.length > 0) {
         this.store.users = this.store.users.filter((u: UserRow) => u.id !== id);
+        this.syncRegisteredUsers();
         return true;
       }
     } catch (err) {
@@ -488,7 +511,11 @@ class DbStore {
     }
     const initialLen = this.store.users.length;
     this.store.users = this.store.users.filter((u: UserRow) => u.id !== id);
-    return this.store.users.length < initialLen;
+    const deleted = this.store.users.length < initialLen;
+    if (deleted) {
+      this.syncRegisteredUsers();
+    }
+    return deleted;
   }
 
   async getAllUsers(filters?: { role?: string; department?: string; year?: string; status?: string }): Promise<UserRow[]> {
@@ -1295,7 +1322,6 @@ class DbStore {
         name: 'CCE AI Explorer',
         level: 'Level 1',
         description: 'Earn 500+ AI Portfolio Points',
-        requiredPoints: 500,
         unlocked: aiScore >= 500,
         icon: 'Compass',
       },
@@ -1304,8 +1330,8 @@ class DbStore {
         name: 'CCE AI Practitioner',
         level: 'Level 2',
         description: 'Earn 1000+ AI Portfolio Points',
-        requiredPoints: 1000,
         unlocked: aiScore >= 1000,
+        
         icon: 'Award',
       },
       {
@@ -1313,8 +1339,8 @@ class DbStore {
         name: 'CCE AI Innovator',
         level: 'Level 3',
         description: 'Earn 2000+ AI Portfolio Points',
-        requiredPoints: 2000,
         unlocked: aiScore >= 2000,
+        
         icon: 'Code',
       },
       {
@@ -1322,8 +1348,8 @@ class DbStore {
         name: 'CCE AI Scholar & Researcher',
         level: 'Level 4',
         description: 'Earn 3000+ AI Portfolio Points',
-        requiredPoints: 3000,
         unlocked: aiScore >= 3000,
+        
         icon: 'FileText',
       },
       {
@@ -1331,8 +1357,8 @@ class DbStore {
         name: 'CCE AI Pioneer',
         level: 'Level 5',
         description: 'Earn 4000+ AI Portfolio Points',
-        requiredPoints: 4000,
         unlocked: aiScore >= 4000,
+        
         icon: 'Zap',
       },
       {
@@ -1340,8 +1366,8 @@ class DbStore {
         name: 'CCE AI Entrepreneur',
         level: 'Level 6',
         description: 'Reach Maximum 5000 AI Portfolio Points',
-        requiredPoints: 5000,
         unlocked: aiScore >= 5000,
+        
         icon: 'Rocket',
       },
     ];
@@ -1432,7 +1458,7 @@ class DbStore {
   async getNotifications(userId: number): Promise<NotificationRow[]> {
     return this.store.notifications
       .filter((n: NotificationRow) => n.user_id === userId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      .sort((a: NotificationRow, b: NotificationRow) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
   async createNotification(data: Omit<NotificationRow, 'id' | 'created_at' | 'is_read'>): Promise<NotificationRow> {

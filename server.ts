@@ -41,7 +41,7 @@ async function startServer() {
     for (const ext of extensions) {
       const fileWithExt = fullPath + ext;
       if (fs.existsSync(fileWithExt) && fs.statSync(fileWithExt).isFile()) {
-        return res.sendFile(fileWithExt);
+        return res.sendFile(path.basename(fileWithExt), { root: path.dirname(fileWithExt) });
       }
     }
 
@@ -69,7 +69,7 @@ async function startServer() {
     app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
     app.use(express.static(path.join(process.cwd(), 'public')));
 
-    app.use('*', async (req, res, next) => {
+    app.use('/*splat', async (req, res, next) => {
       if (req.originalUrl.startsWith('/api')) return next();
       try {
         const url = req.originalUrl;
@@ -89,8 +89,8 @@ async function startServer() {
 
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get('/*splat', (req, res) => {
+      res.sendFile('index.html', { root: distPath });
     });
   }
 

@@ -2,13 +2,6 @@ import { Router, Response } from 'express';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
 import { roleGuard } from '../_middleware/roleGuard.js';
-import {
-  isValidNumber,
-  isValidDate,
-  isValidMonthlyResearchBoundary,
-  isValidGithubUrl,
-  isValidDocumentFile,
-} from '../_validators/index.js';
 
 const router = Router();
 
@@ -116,16 +109,8 @@ router.post('/learning-hours', async (req: AuthenticatedRequest, res: Response) 
     const studentId = req.user!.id;
     const { activity_name, platform, date, hours, description, certificate_url } = req.body;
 
-    if (!activity_name || !platform || !date || hours === undefined || hours === null) {
+    if (!activity_name || !platform || !date || !hours) {
       return res.status(400).json({ error: 'Activity Name, Platform, Date, and Hours are required.' });
-    }
-
-    if (!isValidNumber(hours, { min: 0.5, max: 1000 })) {
-      return res.status(400).json({ error: 'Hours must be a positive number between 0.5 and 1000.' });
-    }
-
-    if (!isValidDate(date)) {
-      return res.status(400).json({ error: 'Invalid date string provided.' });
     }
 
     const newRecord = await db.createLearningHour({
@@ -176,17 +161,6 @@ router.post('/certificates', async (req: AuthenticatedRequest, res: Response) =>
       return res.status(400).json({ error: 'Title, Issuer, Completion Date, and Certificate Document/URL are required.' });
     }
 
-    if (!isValidDate(completion_date)) {
-      return res.status(400).json({ error: 'Invalid completion date string.' });
-    }
-
-    if (certificate_url && typeof certificate_url === 'string' && certificate_url.includes('.')) {
-      const docCheck = isValidDocumentFile(certificate_url);
-      if (!docCheck.valid && !certificate_url.startsWith('http')) {
-        return res.status(400).json({ error: docCheck.error });
-      }
-    }
-
     const newCert = await db.createCertificate({
       student_id: studentId,
       title,
@@ -227,22 +201,10 @@ router.get('/research', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const studentId = req.user!.id;
-    const { title, conference_journal, authors, total_hours, abstract, pdf_url, publication_date, date } = req.body;
+    const { title, conference_journal, authors, total_hours, abstract, pdf_url } = req.body;
 
     if (!title || !conference_journal || !authors || !pdf_url) {
       return res.status(400).json({ error: 'Title, Conference/Journal, Authors, and PDF Document/URL are required.' });
-    }
-
-    const hoursVal = total_hours !== undefined && total_hours !== null ? Number(total_hours) : 80;
-    if (!isValidNumber(hoursVal, { min: 1, max: 2000 })) {
-      return res.status(400).json({ error: 'Total hours must be a positive number between 1 and 2000.' });
-    }
-
-    // Research paper monthly boundary validation
-    const subDate = publication_date || date || new Date().toISOString().split('T')[0];
-    const monthlyBoundary = isValidMonthlyResearchBoundary(subDate);
-    if (!monthlyBoundary.valid) {
-      return res.status(400).json({ error: monthlyBoundary.error });
     }
 
     const newPaper = await db.createResearchPaper({
@@ -250,7 +212,7 @@ router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
       title,
       conference_journal,
       authors,
-      total_hours: hoursVal,
+      total_hours: Number(total_hours) || 80,
       abstract: abstract || '',
       pdf_url,
       status: 'Pending',
@@ -290,10 +252,6 @@ router.post('/projects', async (req: AuthenticatedRequest, res: Response) => {
 
     if (!title || !description || !tech_stack) {
       return res.status(400).json({ error: 'Project Title, Description, and Tech Stack are required.' });
-    }
-
-    if (github_link && !isValidGithubUrl(github_link)) {
-      return res.status(400).json({ error: 'Invalid GitHub repository URL. Must be a valid github.com repository link.' });
     }
 
     const newProject = await db.createProject({

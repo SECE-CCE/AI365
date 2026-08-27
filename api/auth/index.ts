@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest, JWT_SECRET, SESSION_EXPIRES_IN, SESSION_MAX_AGE_MS } from '../_middleware/auth.js';
-import { isValidSeceEmail } from '../_validators/index.js';
 
 const router = Router();
 
@@ -205,10 +204,6 @@ router.post('/register', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Full Name, Email, and Password are required.' });
     }
 
-    if (!isValidSeceEmail(email)) {
-      return res.status(400).json({ error: 'Registration is restricted to valid @sece.ac.in college email addresses.' });
-    }
-
     if (!register_number) {
       return res.status(400).json({ error: 'Register Number is required for students.' });
     }
@@ -281,10 +276,6 @@ router.post('/register-faculty', authLimiter, async (req, res) => {
 
     if (!full_name || !email || !password || !designation) {
       return res.status(400).json({ error: 'Full Name, Email, Password, and Designation are required.' });
-    }
-
-    if (!isValidSeceEmail(email)) {
-      return res.status(400).json({ error: 'Registration is restricted to valid @sece.ac.in college email addresses.' });
     }
 
     const existing = await db.findUserByEmail(email);
