@@ -365,22 +365,20 @@ router.put('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
 });
 
 // POST /api/auth/logout
-router.post('/logout', async (req, res) => {
+router.post('/logout', authLimiter, async (req: Request, res: Response) => {
   const { sessionId } = req.body;
-  if (sessionId) {
-    try {
-      await db.updateUsageSession(Number(sessionId), true);
-    } catch (err) {
-      console.error('Error closing session on logout:', err);
-    }
-  }
-  res.clearCookie('token');
-  return res.json({ message: 'Logged out successfully.' });
-router.post('/logout', async (req: Request, res: Response) => {
   const ip_address = getClientIp(req);
   const user_agent = getUserAgent(req);
 
   try {
+    if (sessionId) {
+      try {
+        await db.updateUsageSession(Number(sessionId), true);
+      } catch (err) {
+        console.error('Error closing session on logout:', err);
+      }
+    }
+
     let token: string | undefined = req.cookies?.token;
     if (!token && req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
