@@ -9,6 +9,15 @@ if (!DATABASE_URL) {
 }
 const sql = neon(DATABASE_URL);
 
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_NAME = process.env.ADMIN_NAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+if (!ADMIN_EMAIL || !ADMIN_NAME || !ADMIN_PASSWORD) {
+  console.error('❌ Error: ADMIN_EMAIL, ADMIN_NAME, or ADMIN_PASSWORD is not defined in .env.');
+  process.exit(1);
+}
+
 const wipeAll = process.argv.includes('--all');
 
 console.log('🗑️  Wiping database data from Neon DB...\n');
@@ -49,17 +58,17 @@ try {
     console.log('  [x] Cleared: ALL users (including admin)');
   } else {
     // Delete all users except admin
-    await sql`DELETE FROM users WHERE email != ${adminEmail}`;
+    await sql`DELETE FROM users WHERE email != ${ADMIN_EMAIL}`;
     console.log('  [x] Cleared: all student & faculty users (kept admin)');
 
-    // Ensure Admin account exists with bcrypt hash from environment variable
-    const adminPassHash = await bcrypt.hash(adminPassword, 10);
+    // Ensure Admin account exists with standard password
+    const adminPassHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
     await sql`
       INSERT INTO users (full_name, email, password, role, department, status, is_department_wide)
-      VALUES ('Dhamodharan S', ${adminEmail}, ${adminPassHash}, 'admin', 'Computer & Communication Engineering', 'approved', true)
+      VALUES (${ADMIN_NAME}, ${ADMIN_EMAIL}, ${adminPassHash}, 'admin', 'Computer & Communication Engineering', 'approved', true)
       ON CONFLICT (email) DO UPDATE SET status = 'approved', role = 'admin', password = ${adminPassHash}
     `;
-    console.log(`  [+] Verified Admin account: ${adminEmail} (Bcrypt hashed from environment)`);
+    console.log(`  [+] Verified Admin account: ${ADMIN_EMAIL}`);
   }
 
   // Reset Targets

@@ -53,10 +53,12 @@ try {
       faculty_id INTEGER,
       faculty_remarks TEXT,
       admin_marks NUMERIC(6,2),
-      created_at TIMESTAMPTZ DEFAULT NOW()
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
   await sql`ALTER TABLE learning_hours ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
+  await sql`ALTER TABLE learning_hours ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
   console.log('✅ learning_hours table ready');
 
   await sql`
@@ -204,7 +206,42 @@ try {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
-  console.log('✅ targets table ready');
+  await sql`
+    CREATE TABLE IF NOT EXISTS roadmap (
+      id SERIAL PRIMARY KEY,
+      month VARCHAR(50) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      status VARCHAR(50) DEFAULT 'upcoming' CHECK (status IN ('completed', 'in_progress', 'upcoming')),
+      order_index INT DEFAULT 0
+    )
+  `;
+  console.log('✅ roadmap table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS gallery (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      category VARCHAR(100) DEFAULT 'Achievement',
+      image_url TEXT NOT NULL,
+      description TEXT,
+      is_public BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  console.log('✅ gallery table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      content TEXT NOT NULL,
+      author_id INTEGER,
+      is_public BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  console.log('✅ announcements table ready');
 
   // Check user count
   const count = await sql`SELECT COUNT(*) as c FROM users`;

@@ -9,7 +9,7 @@ if (!DATABASE_URL) {
 }
 const sql = neon(DATABASE_URL);
 
-const adminEmail = process.env.ADMIN_EMAIL || 'dhamodharan.s@sece.ac.in';
+const adminEmail = 'dhamodharan.s@sece.ac.in';
 const adminPassword = process.env.ADMIN_PASSWORD;
 
 if (!adminPassword) {
