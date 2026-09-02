@@ -2,7 +2,6 @@ import { Router, Response } from 'express';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
 import { roleGuard } from '../_middleware/roleGuard.js';
-import { isValidId, isValidDate, isValidNumber } from '../_validators/index.js';
 
 const router = Router();
 
@@ -30,7 +29,7 @@ router.get('/my-registrations', authMiddleware, roleGuard(['student']), async (r
 router.post('/register', authMiddleware, roleGuard(['student']), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { event_id } = req.body;
-    if (!isValidId(event_id)) return res.status(400).json({ error: 'Valid event_id is required.' });
+    if (!event_id) return res.status(400).json({ error: 'event_id is required.' });
 
     const reg = await db.registerForEvent(Number(event_id), req.user!.id);
 
@@ -57,14 +56,6 @@ router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: Au
       return res.status(400).json({ error: 'Title, Venue, Event Date, and Event Time are required.' });
     }
 
-    if (!isValidDate(event_date)) {
-      return res.status(400).json({ error: 'Invalid event date string.' });
-    }
-
-    if (max_participants !== undefined && max_participants !== null && !isValidNumber(max_participants, { min: 1, max: 10000, integerOnly: true })) {
-      return res.status(400).json({ error: 'Max participants must be an integer between 1 and 10000.' });
-    }
-
     const newEvent = await db.createEvent({
       created_by: req.user!.id,
       title,
@@ -88,9 +79,6 @@ router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: Au
 // DELETE /api/events/:id (Faculty can delete own created event, Admin can delete any)
 router.delete('/:id', authMiddleware, roleGuard(['faculty', 'admin']), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!isValidId(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid event ID provided.' });
-    }
     const eventId = Number(req.params.id);
     const events = await db.getEvents();
     const event = events.find(e => e.id === eventId);

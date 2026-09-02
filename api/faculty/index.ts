@@ -2,7 +2,6 @@ import { Router, Response } from 'express';
 import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
 import { roleGuard } from '../_middleware/roleGuard.js';
-import { isValidId } from '../_validators/index.js';
 
 const router = Router();
 
@@ -125,10 +124,6 @@ const handleApproveReject = async (req: AuthenticatedRequest, res: Response) => 
 
     if (!rawType || !rawId || !rawStatus) {
       return res.status(400).json({ error: 'Submission type, ID, and status are required.' });
-    }
-
-    if (!isValidId(rawId)) {
-      return res.status(400).json({ error: 'Invalid submission ID provided.' });
     }
 
     let normType = String(rawType).toLowerCase();

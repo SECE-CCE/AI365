@@ -145,6 +145,14 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       { expiresIn: (SESSION_EXPIRES_IN as any) }
     );
 
+    // Create a usage session for students
+    let sessionId = null;
+    if (user.role === 'student') {
+      const session = await db.createUsageSession(user.id);
+      sessionId = session.id;
+    }
+
+    // Set httpOnly cookie
     // Set secure httpOnly cookie
     res.cookie('token', token, {
       httpOnly: true,
@@ -170,6 +178,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
     return res.json({
       message: 'Login successful.',
       user: userWithoutPass,
+      sessionId,
     });
   } catch (err: any) {
     console.error('Login Error:', err);
@@ -195,10 +204,6 @@ router.post('/register', authLimiter, async (req, res) => {
 
     if (!full_name || !email || !password) {
       return res.status(400).json({ error: 'Full Name, Email, and Password are required.' });
-    }
-
-    if (!isValidSeceEmail(email)) {
-      return res.status(400).json({ error: 'Registration is restricted to valid @sece.ac.in college email addresses.' });
     }
 
     if (!register_number) {
@@ -273,10 +278,6 @@ router.post('/register-faculty', authLimiter, async (req, res) => {
 
     if (!full_name || !email || !password || !designation) {
       return res.status(400).json({ error: 'Full Name, Email, Password, and Designation are required.' });
-    }
-
-    if (!isValidSeceEmail(email)) {
-      return res.status(400).json({ error: 'Registration is restricted to valid @sece.ac.in college email addresses.' });
     }
 
     const existing = await db.findUserByEmail(email);
@@ -358,10 +359,20 @@ router.put('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
 
 // POST /api/auth/logout
 router.post('/logout', async (req: Request, res: Response) => {
+router.post('/logout', authLimiter, async (req: Request, res: Response) => {
+  const { sessionId } = req.body;
   const ip_address = getClientIp(req);
   const user_agent = getUserAgent(req);
 
   try {
+    if (sessionId) {
+      try {
+        await db.updateUsageSession(Number(sessionId), true);
+      } catch (err) {
+        console.error('Error closing session on logout:', err);
+      }
+    }
+
     let token: string | undefined = req.cookies?.token;
     if (!token && req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
@@ -403,6 +414,21 @@ router.post('/logout', async (req: Request, res: Response) => {
       sameSite: 'lax',
     });
     return res.json({ message: 'Logged out successfully.' });
+  }
+});
+
+// PUT /api/auth/session
+router.put('/session', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { sessionId, isLogout } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+    const session = await db.updateUsageSession(Number(sessionId), Boolean(isLogout));
+    return res.json({ session });
+  } catch (err) {
+    console.error('Session Heartbeat Error:', err);
+    return res.status(500).json({ error: 'Server error updating session.' });
   }
 });
 

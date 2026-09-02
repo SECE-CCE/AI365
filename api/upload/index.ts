@@ -2,12 +2,13 @@ import { Router, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
-import { isValidDocumentFile } from '../_validators/index.js';
 
 const router = Router();
 
 // BASE DIRECTORY LOCATION FOR USER STORAGE INSIDE ASSETS
 export const UPLOADS_BASE_DIR = path.join(process.cwd(), 'assets', 'Documents');
+
+
 
 // POST /api/upload/photo
 // Handles compressed photo upload, creates assets/Documents/<User_Name>/photos/ directory,
@@ -56,17 +57,9 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
 // formats filename as <User_Name>_<Certificate_Title>.<ext>, and stores file inside that directory.
 router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { fileBase64, extension = 'pdf', certificateTitle = 'Certificate' } = req.body;
+    const { fileBase64, extension = 'jpg', certificateTitle = 'Certificate' } = req.body;
     if (!fileBase64 || typeof fileBase64 !== 'string') {
       return res.status(400).json({ error: 'Certificate file data is required.' });
-    }
-
-    const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    const validation = isValidDocumentFile(extension, fileBase64, buffer.length);
-    if (!validation.valid) {
-      return res.status(400).json({ error: validation.error });
     }
 
     const userName = req.user?.full_name || 'User';
@@ -78,6 +71,9 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
     if (!fs.existsSync(certificatesFolder)) {
       fs.mkdirSync(certificatesFolder, { recursive: true });
     }
+
+    const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
 
     // Custom filename: <Sanitized_User_Name>_<Sanitized_Certificate_Title>.<ext>
     const cleanExt = extension.replace(/^\./, '');
@@ -101,21 +97,13 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
 });
 
 // POST /api/upload/paper
-// Handles research paper upload in PDF/DOC format, creates assets/Documents/<User_Name>/papers/ directory,
+// Handles research paper upload in PDF format, creates assets/Documents/<User_Name>/papers/ directory,
 // formats filename as <User_Name>_<Paper_Title>.<ext>, compresses and stores file inside that folder.
 router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { fileBase64, extension = 'pdf', paperTitle = 'Research_Paper' } = req.body;
     if (!fileBase64 || typeof fileBase64 !== 'string') {
       return res.status(400).json({ error: 'Paper PDF file data is required.' });
-    }
-
-    const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    const validation = isValidDocumentFile(extension, fileBase64, buffer.length);
-    if (!validation.valid) {
-      return res.status(400).json({ error: validation.error });
     }
 
     const userName = req.user?.full_name || 'User';
@@ -127,6 +115,9 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
     if (!fs.existsSync(papersFolder)) {
       fs.mkdirSync(papersFolder, { recursive: true });
     }
+
+    const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
 
     // Custom filename: <Sanitized_User_Name>_<Sanitized_Paper_Title>.<ext>
     const cleanExt = extension.replace(/^\./, '');
@@ -147,7 +138,7 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
     });
   } catch (err: any) {
     console.error('Paper Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save research paper document on server.' });
+    return res.status(500).json({ error: 'Failed to save research paper PDF on server.' });
   }
 });
 

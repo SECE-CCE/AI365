@@ -1,6 +1,5 @@
-// Google Drive & Cloud Storage Integration Service
-// Supports Google Drive API v3 via standard REST API endpoints.
-// Also supports post-approval auto-deletion of file payloads to conserve cloud storage space.
+import fs from 'fs';
+import path from 'path';
 
 export interface DriveUploadResult {
   fileId: string;
@@ -8,6 +7,19 @@ export interface DriveUploadResult {
 }
 
 export async function uploadToDrive(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<DriveUploadResult> {
+  // Real-time file backup copy on local server disk
+  try {
+    const uploadsBackupDir = path.join(process.cwd(), 'backups', 'uploads');
+    if (!fs.existsSync(uploadsBackupDir)) {
+      fs.mkdirSync(uploadsBackupDir, { recursive: true });
+    }
+    const fileBackupPath = path.join(uploadsBackupDir, fileName);
+    fs.writeFileSync(fileBackupPath, fileBuffer);
+    console.log(`💾 Real-time file backup saved to: ${fileBackupPath}`);
+  } catch (fsErr: any) {
+    console.error('⚠️ Real-time file backup failed:', fsErr.message);
+  }
+
   try {
     const accessToken = process.env.GOOGLE_DRIVE_ACCESS_TOKEN;
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
@@ -20,7 +32,7 @@ export async function uploadToDrive(fileBuffer: Buffer, fileName: string, mimeTy
 
       const formData = new FormData();
       formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      formData.append('file', new Blob([fileBuffer], { type: mimeType }));
+      formData.append('file', new Blob([new Uint8Array(fileBuffer)], { type: mimeType }));
 
       const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
         method: 'POST',

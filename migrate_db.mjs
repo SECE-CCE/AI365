@@ -53,10 +53,12 @@ try {
       faculty_id INTEGER,
       faculty_remarks TEXT,
       admin_marks NUMERIC(6,2),
-      created_at TIMESTAMPTZ DEFAULT NOW()
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
   await sql`ALTER TABLE learning_hours ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
+  await sql`ALTER TABLE learning_hours ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
   console.log('✅ learning_hours table ready');
 
   await sql`
@@ -204,7 +206,65 @@ try {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
-  console.log('✅ targets table ready');
+  await sql`
+    CREATE TABLE IF NOT EXISTS roadmap (
+      id SERIAL PRIMARY KEY,
+      month VARCHAR(50) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      status VARCHAR(50) DEFAULT 'upcoming' CHECK (status IN ('completed', 'in_progress', 'upcoming')),
+      order_index INT DEFAULT 0
+    )
+  `;
+  console.log('✅ roadmap table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS gallery (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      category VARCHAR(100) DEFAULT 'Achievement',
+      image_url TEXT NOT NULL,
+      description TEXT,
+      is_public BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  console.log('✅ gallery table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      content TEXT NOT NULL,
+      author_id INTEGER,
+      is_public BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  console.log('✅ announcements table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS student_usage_sessions (
+      id SERIAL PRIMARY KEY,
+      student_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      login_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      last_active_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      logout_time TIMESTAMP WITH TIME ZONE,
+      duration_minutes INT DEFAULT 0
+    )
+  `;
+  console.log('✅ student_usage_sessions table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id SERIAL PRIMARY KEY,
+      event_type VARCHAR(100) NOT NULL,
+      page_url TEXT NOT NULL,
+      user_agent TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  console.log('✅ analytics_events table ready');
 
   // Check user count
   const count = await sql`SELECT COUNT(*) as c FROM users`;

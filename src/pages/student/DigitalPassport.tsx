@@ -274,24 +274,15 @@ export const DigitalPassport: React.FC = () => {
 
               <div className="mt-4 pt-3 border-t border-slate-200/60">
                 <div className="flex justify-between items-center text-[11px] font-bold text-slate-700 mb-1">
-                  <span>Points Requirement</span>
-                  <span>
-                    {badge.unlocked
-                      ? 'Threshold Reached'
-                      : `${stats.aiScore} / ${badge.requiredPoints || 500} pts`}
-                  </span>
+                  <span>Requirement Status</span>
+                  <span>{badge.unlocked ? '100% Complete' : `${badge.progress}%`}</span>
                 </div>
                 <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
                       badge.unlocked ? 'bg-[#F3B631]' : 'bg-slate-400'
                     }`}
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        Math.round((stats.aiScore / (badge.requiredPoints || 500)) * 100)
-                      )}%`,
-                    }}
+                    style={{ width: `${badge.unlocked ? 100 : badge.progress}%` }}
                   />
                 </div>
               </div>

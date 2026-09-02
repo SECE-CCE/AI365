@@ -71,6 +71,9 @@ export const StudentDashboard: React.FC = () => {
     projects: 0,
   };
 
+  const usageStats = dashboardData?.usageStats || { totalSessions: 0, totalMinutes: 0 };
+  const studyHours = (usageStats.totalMinutes / 60).toFixed(1);
+
   const activities = dashboardData?.recentActivities || [];
   const badges: PassportBadge[] = dashboardData?.badges || [];
 
@@ -136,10 +139,17 @@ export const StudentDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/20 text-center w-full sm:w-auto sm:min-w-[180px] shrink-0">
-          <p className="text-[10px] text-amber-300 uppercase font-bold tracking-widest">Total AI Score</p>
-          <p className="text-4xl font-black text-white mt-1">{stats.aiScore}</p>
-          <p className="text-[11px] text-slate-300 mt-1 font-medium">Department Rank #1</p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/20 text-center w-full sm:w-auto sm:min-w-[140px] shrink-0">
+            <p className="text-[10px] text-emerald-300 uppercase font-bold tracking-widest">Study Hours</p>
+            <p className="text-4xl font-black text-white mt-1">{studyHours}</p>
+            <p className="text-[11px] text-slate-300 mt-1 font-medium">{usageStats.totalSessions} Sessions</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/20 text-center w-full sm:w-auto sm:min-w-[180px] shrink-0">
+            <p className="text-[10px] text-amber-300 uppercase font-bold tracking-widest">Total AI Score</p>
+            <p className="text-4xl font-black text-white mt-1">{stats.aiScore}</p>
+            <p className="text-[11px] text-slate-300 mt-1 font-medium">Department Rank #1</p>
+          </div>
         </div>
       </div>
 
@@ -264,7 +274,7 @@ export const StudentDashboard: React.FC = () => {
                   b.unlocked ? 'bg-amber-200 text-amber-900' : 'bg-slate-200 text-slate-600'
                 }`}
               >
-                {b.unlocked ? 'Unlocked' : `${stats.aiScore}/${b.requiredPoints || 500} pts`}
+                {b.unlocked ? 'Unlocked' : `${b.progress}%`}
               </span>
             </div>
           ))}
