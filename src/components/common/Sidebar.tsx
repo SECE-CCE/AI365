@@ -11,6 +11,7 @@ import {
   Calendar,
   Settings,
   Users,
+  GraduationCap,
   Target,
   BarChart3,
   LogOut,
@@ -61,7 +62,8 @@ export const Sidebar: React.FC = () => {
 
   const adminNav: NavItem[] = [
     { label: 'Command Center', path: '/admin', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { label: 'User Management', path: '/admin/users', icon: <Users className="w-5 h-5" /> },
+    { label: 'Student Management', path: '/admin/students', icon: <GraduationCap className="w-5 h-5" /> },
+    { label: 'User Directory', path: '/admin/users', icon: <Users className="w-5 h-5" /> },
     { label: 'Target Management', path: '/admin/targets', icon: <Target className="w-5 h-5" /> },
     { label: 'Manage Events', path: '/admin/events', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Website Analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" /> },

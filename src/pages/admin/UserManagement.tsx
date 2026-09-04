@@ -43,6 +43,20 @@ export const UserManagement: React.FC = () => {
   const [addError, setAddError] = useState('');
   const [adding, setAdding] = useState(false);
 
+  // Add/Provision Student modal
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    full_name: '',
+    email: '',
+    register_number: '',
+    year: '1st Year',
+    mentor_name: MENTORS_LIST[0],
+    password: '',
+    phone: '',
+  });
+  const [addStudentError, setAddStudentError] = useState('');
+  const [addingStudent, setAddingStudent] = useState(false);
+
   const fetchUsers = async () => {
     try {
       const data = await apiFetch<{ users: any[]; faculty: any[] }>('/api/admin/users');
@@ -147,6 +161,49 @@ export const UserManagement: React.FC = () => {
       setAddError(err.message || 'Failed to add faculty.');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleAddStudent = async () => {
+    setAddStudentError('');
+    if (!newStudent.full_name.trim() || !newStudent.email.trim() || !newStudent.register_number.trim() || !newStudent.password) {
+      return setAddStudentError('Full Name, Official Email, Roll Number, and Password are required.');
+    }
+    if (!newStudent.email.toLowerCase().endsWith('@sece.ac.in')) {
+      return setAddStudentError('Official email must end with @sece.ac.in');
+    }
+
+    setAddingStudent(true);
+    try {
+      await apiFetch('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: newStudent.full_name,
+          email: newStudent.email,
+          register_number: newStudent.register_number.toUpperCase(),
+          year: newStudent.year,
+          mentor_name: newStudent.mentor_name,
+          password: newStudent.password,
+          phone: newStudent.phone,
+          role: 'student',
+          department: 'Computer & Communication Engineering',
+        }),
+      });
+      setShowAddStudent(false);
+      setNewStudent({
+        full_name: '',
+        email: '',
+        register_number: '',
+        year: '1st Year',
+        mentor_name: MENTORS_LIST[0],
+        password: '',
+        phone: '',
+      });
+      fetchUsers();
+    } catch (err: any) {
+      setAddStudentError(err.message || 'Failed to provision student account.');
+    } finally {
+      setAddingStudent(false);
     }
   };
 
@@ -486,13 +543,21 @@ export const UserManagement: React.FC = () => {
               placeholder="Search name, email, register number, mentor..."
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-            {['All', 'Student', 'Admin'].map((rl) => (
-              <button key={rl} onClick={() => setRoleFilter(rl)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all text-xs ${roleFilter === rl ? 'bg-[#004990] text-white shadow' : 'text-slate-600 hover:bg-slate-200'}`}>
-                {rl}s
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              {['All', 'Student', 'Admin'].map((rl) => (
+                <button key={rl} onClick={() => setRoleFilter(rl)}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all text-xs ${roleFilter === rl ? 'bg-[#004990] text-white shadow' : 'text-slate-600 hover:bg-slate-200'}`}>
+                  {rl}s
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowAddStudent(true)}
+              className="px-3.5 py-2 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-bold transition-all text-xs flex items-center gap-1.5 shadow-sm shrink-0"
+            >
+              <Plus className="w-4 h-4" /> Provision Student Account
+            </button>
           </div>
         </div>
         {loading ? (
@@ -599,6 +664,88 @@ export const UserManagement: React.FC = () => {
             <button onClick={handleAddFaculty} disabled={adding}
               className="px-5 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-bold transition-all shadow-md flex items-center gap-2 disabled:opacity-50">
               {adding ? 'Creating...' : <><UserCheck className="w-4 h-4" /> Create Faculty Account</>}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Provision Student Modal */}
+      <Modal isOpen={showAddStudent} onClose={() => setShowAddStudent(false)}
+        title="Provision Student Account"
+        subtitle="Pre-create student credentials with official @sece.ac.in email and assigned password">
+        <div className="space-y-4 text-xs">
+          {addStudentError && <div className="p-3 bg-rose-50 text-rose-700 rounded-xl border border-rose-200 font-medium">{addStudentError}</div>}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
+              <input type="text" value={newStudent.full_name} onChange={(e) => setNewStudent(p => ({ ...p, full_name: e.target.value }))}
+                placeholder="e.g. Alex Mercer"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none" />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Roll Number / Reg No *</label>
+              <input type="text" value={newStudent.register_number} onChange={(e) => setNewStudent(p => ({ ...p, register_number: e.target.value.toUpperCase() }))}
+                placeholder="e.g. 24CC009"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none font-mono" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Official Email (@sece.ac.in) *</label>
+              <input type="email" value={newStudent.email} onChange={(e) => setNewStudent(p => ({ ...p, email: e.target.value }))}
+                placeholder="alex.student@sece.ac.in"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none" />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Academic Year *</label>
+              <select value={newStudent.year} onChange={(e) => setNewStudent(p => ({ ...p, year: e.target.value }))}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#004990] outline-none">
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Mobile Number (used for auto-password) *</label>
+              <input type="tel" value={newStudent.phone} onChange={(e) => setNewStudent(p => ({ ...p, phone: e.target.value }))}
+                placeholder="e.g. 9876543210"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none" />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Assigned Faculty Mentor *</label>
+              <select value={newStudent.mentor_name} onChange={(e) => setNewStudent(p => ({ ...p, mentor_name: e.target.value }))}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white focus:border-[#004990] outline-none">
+                {MENTORS_LIST.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">
+              Initial Password (Auto: <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-700 font-mono">sece@{newStudent.phone.replace(/\D/g, '').slice(-5) || 'XXXXX'}</code>)
+            </label>
+            <input type="text" value={newStudent.password} onChange={(e) => setNewStudent(p => ({ ...p, password: e.target.value }))}
+              placeholder={`Default: sece@${newStudent.phone.replace(/\D/g, '').slice(-5) || '12345'} (leave blank to auto-generate)`}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none font-mono" />
+          </div>
+
+          <p className="text-[11px] text-amber-700 font-medium bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+            Note: Username is the official email (<code className="font-mono">@sece.ac.in</code>). Password auto-generates as <code className="font-mono">sece@&lt;last 5 digits of mobile&gt;</code>. Student will be forced to set a new password on first login.
+          </p>
+
+          <div className="pt-2 flex justify-end gap-3">
+            <button onClick={() => setShowAddStudent(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold">Cancel</button>
+            <button onClick={handleAddStudent} disabled={addingStudent}
+              className="px-5 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-bold transition-all shadow-md flex items-center gap-2 disabled:opacity-50">
+              {addingStudent ? 'Provisioning...' : <><UserCheck className="w-4 h-4" /> Provision Student Account</>}
             </button>
           </div>
         </div>

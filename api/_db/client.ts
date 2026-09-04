@@ -39,6 +39,7 @@ export interface UserRow {
   mentor_id?: number | null;
   mentor_name?: string | null;
   is_department_wide?: boolean;
+  must_change_password?: boolean;
   created_at: string;
 }
 
@@ -424,8 +425,8 @@ class DbStore {
     if (sql) {
       try {
         const rows = await sql.query(
-          `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, mentor_name, is_department_wide)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, mentor_name, is_department_wide, must_change_password)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            RETURNING *`,
           [
             data.full_name,
@@ -441,6 +442,7 @@ class DbStore {
             data.mentor_id || null,
             data.mentor_name || null,
             data.is_department_wide || false,
+            data.must_change_password || false,
           ]
         );
         if (rows && rows.length > 0) {
@@ -1455,6 +1457,24 @@ class DbStore {
   }
 
   // Notifications
+  async getAdminUserIds(): Promise<number[]> {
+    const admins = await this.getAllUsers({ role: 'admin' });
+    if (admins && admins.length > 0) {
+      return admins.map(a => a.id);
+    }
+    return [1];
+  }
+
+  async notifyAdmins(data: Omit<NotificationRow, 'id' | 'user_id' | 'created_at' | 'is_read'>): Promise<void> {
+    const adminIds = await this.getAdminUserIds();
+    for (const adminId of adminIds) {
+      await this.createNotification({
+        user_id: adminId,
+        ...data,
+      });
+    }
+  }
+
   async getNotifications(userId: number): Promise<NotificationRow[]> {
     return this.store.notifications
       .filter((n: NotificationRow) => n.user_id === userId)

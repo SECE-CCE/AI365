@@ -3,9 +3,10 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Sidebar } from '../components/common/Sidebar';
 import { Header } from '../components/common/Header';
+import { ForcePasswordChangeModal } from '../components/auth/ForcePasswordChangeModal';
 
 export const StudentLayout: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshUser } = useAuth();
 
   if (isLoading) {
     return (
@@ -20,7 +21,10 @@ export const StudentLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col lg:flex-row relative">
+      {user.must_change_password && (
+        <ForcePasswordChangeModal onSuccess={() => refreshUser()} />
+      )}
       <Sidebar />
       <div className="flex-1 lg:ml-64 flex flex-col min-w-0 pt-16 lg:pt-0">
         <Header />
