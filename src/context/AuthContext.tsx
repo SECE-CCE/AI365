@@ -9,7 +9,7 @@ import React, {
 import { User } from '../types';
 import { apiFetch } from '../services/api';
 
-const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes (1 hour) session inactivity timeout
 
 interface AuthContextType {
   user: User | null;

@@ -50,9 +50,6 @@ try {
   await sql`DELETE FROM events`;
   console.log('  [x] Cleared: events');
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'dhamodharan.s@sece.ac.in';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMeSecurely123!';
-
   if (wipeAll) {
     await sql`DELETE FROM users`;
     console.log('  [x] Cleared: ALL users (including admin)');
