@@ -241,6 +241,26 @@ export const StudentManagement: React.FC = () => {
     return [];
   };
 
+function isGarbageJsOrHtmlLine(str: string): boolean {
+  if (!str) return false;
+  const lower = str.toLowerCase();
+  const codeKeywords = [
+    'function', 'var ', 'let ', 'const ', 'return', 'pagexoffset', 'pageyoffset',
+    'getboundingclientrect', 'document.', 'window.', 'eval(', 'console.',
+    'c[b]=', '.length', 'prototype', 'typeof', 'undefined', 'null', '==', '=>',
+    '<script', '<div', '<html', '<body', '{', '}', ';', '()', '[]', '='
+  ];
+  return codeKeywords.some((pat) => lower.includes(pat));
+}
+
+function isValidStudentName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (trimmed.length < 2 || trimmed.length > 80) return false;
+  if (isGarbageJsOrHtmlLine(trimmed)) return false;
+  return /^[a-zA-Z\s\.\-']{2,80}$/.test(trimmed);
+}
+
   const loadYearCredentials = (year: string, students: any[]): StudentCredentialRow[] => {
     const yearCode = year.split(' ')[0].toLowerCase();
     const batchLabel = (batchLabels[year] || DEFAULT_BATCHES[year] || '').toLowerCase();
@@ -251,22 +271,24 @@ export const StudentManagement: React.FC = () => {
       return sy === year.toLowerCase() || sy.includes(yearCode) || (batchLabel && sy === batchLabel);
     });
 
-    const dbRows: StudentCredentialRow[] = dbYearStudents.map((s, index) => {
-      const last5 = (s.phone || '12345').replace(/\D/g, '').slice(-5) || '12345';
-      return {
-        sno: index + 1,
-        registrationnumber: s.register_number || '-',
-        rollno: s.register_number || '-',
-        name: s.full_name || s.name,
-        username: s.email || s.username,
-        password: `sece@${last5}`,
-        phone: s.phone || '',
-        year,
-      };
-    });
+    const dbRows: StudentCredentialRow[] = dbYearStudents
+      .filter((s) => isValidStudentName(s.full_name || s.name))
+      .map((s, index) => {
+        const last5 = (s.phone || '12345').replace(/\D/g, '').slice(-5) || '12345';
+        return {
+          sno: index + 1,
+          registrationnumber: isGarbageJsOrHtmlLine(s.register_number) ? '-' : s.register_number || '-',
+          rollno: isGarbageJsOrHtmlLine(s.register_number) ? '-' : s.register_number || '-',
+          name: s.full_name || s.name,
+          username: s.email || s.username,
+          password: `sece@${last5}`,
+          phone: s.phone || '',
+          year,
+        };
+      });
 
     // 2. Get local stored generated credentials for this year
-    const storedRows = getStoredGeneratedListForYear(year);
+    const storedRows = getStoredGeneratedListForYear(year).filter((r) => isValidStudentName(r.name));
 
     // Merge: Combine storedRows and dbRows without duplicates (keyed by username/email)
     const rowMap = new Map<string, StudentCredentialRow>();
@@ -280,12 +302,12 @@ export const StudentManagement: React.FC = () => {
           existing.password = r.password;
         }
         if (r.sno) existing.sno = r.sno;
-        if (r.registrationnumber) existing.registrationnumber = r.registrationnumber;
-        if (r.rollno) existing.rollno = r.rollno;
+        if (r.registrationnumber && !isGarbageJsOrHtmlLine(r.registrationnumber)) existing.registrationnumber = r.registrationnumber;
+        if (r.rollno && !isGarbageJsOrHtmlLine(r.rollno)) existing.rollno = r.rollno;
       }
     });
 
-    const finalRows = Array.from(rowMap.values());
+    const finalRows = Array.from(rowMap.values()).filter((r) => isValidStudentName(r.name));
     finalRows.sort((a, b) => (a.sno || 0) - (b.sno || 0));
     finalRows.forEach((r, i) => {
       r.sno = i + 1;

@@ -282,13 +282,33 @@ async function fetchDriveCsvText(drive_link: string): Promise<string | null> {
   return null;
 }
 
+function isGarbageJsOrHtmlLine(str: string): boolean {
+  if (!str) return false;
+  const lower = str.toLowerCase();
+  const codeKeywords = [
+    'function', 'var ', 'let ', 'const ', 'return', 'pagexoffset', 'pageyoffset',
+    'getboundingclientrect', 'document.', 'window.', 'eval(', 'console.',
+    'c[b]=', '.length', 'prototype', 'typeof', 'undefined', 'null', '==', '=>',
+    '<script', '<div', '<html', '<body', '{', '}', ';', '()', '[]', '='
+  ];
+  return codeKeywords.some((pat) => lower.includes(pat));
+}
+
+function isValidStudentName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (trimmed.length < 2 || trimmed.length > 80) return false;
+  if (isGarbageJsOrHtmlLine(trimmed)) return false;
+  return /^[a-zA-Z\s\.\-']{2,80}$/.test(trimmed);
+}
+
 // Helper to parse student rows from CSV text
 function parseStudentCsv(csvText: string, targetYear: string) {
-  const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (lines.length === 0) return [];
 
   const firstRow = parseCsvRow(lines[0]);
-  const isHeader = firstRow.some(col => {
+  const isHeader = firstRow.some((col) => {
     const c = col.toLowerCase();
     return c.includes('name') || c.includes('email') || c.includes('sno') || c.includes('roll') || c.includes('reg') || c.includes('mobile');
   });
@@ -321,17 +341,25 @@ function parseStudentCsv(csvText: string, targetYear: string) {
     if (parts.length < 2) continue;
 
     const rawSno = parts[snoIdx] || `${i + (isHeader ? 0 : 1)}`;
-    const sno = parseInt(rawSno, 10) || (i + (isHeader ? 0 : 1));
-    const rollno = parts[rollIdx] || parts[regIdx] || '';
-    const registrationnumber = parts[regIdx] || parts[rollIdx] || '';
-    const name = parts[nameIdx] || parts[0] || '';
-    const mobileno = parts[phoneIdx] || '';
-    let rawEmail = parts[emailIdx] || (name ? `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@sece.ac.in` : '');
-    if (rawEmail && !rawEmail.includes('@')) {
+    const sno = parseInt(rawSno, 10) || i + (isHeader ? 0 : 1);
+    let rollno = isGarbageJsOrHtmlLine(parts[rollIdx]) ? '' : parts[rollIdx] || parts[regIdx] || '';
+    let registrationnumber = isGarbageJsOrHtmlLine(parts[regIdx]) ? '' : parts[regIdx] || parts[rollIdx] || '';
+    let name = parts[nameIdx] || parts[0] || '';
+    let mobileno = isGarbageJsOrHtmlLine(parts[phoneIdx]) ? '' : parts[phoneIdx] || '';
+    let rawEmail = parts[emailIdx] || '';
+
+    // Discard JavaScript / HTML code garbage lines
+    if (isGarbageJsOrHtmlLine(name) || !isValidStudentName(name)) {
+      continue;
+    }
+
+    if (!rawEmail) {
+      rawEmail = `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@sece.ac.in`;
+    } else if (!rawEmail.includes('@')) {
       rawEmail = `${rawEmail}@sece.ac.in`;
     }
 
-    if (!name.trim() || !rawEmail.trim()) {
+    if (isGarbageJsOrHtmlLine(rawEmail)) {
       continue;
     }
 
