@@ -110,9 +110,12 @@ export const StudentManagement: React.FC = () => {
   };
 
   const getYearCount = (year: string) => {
-    return allStudents.filter(
-      (s) => s.year?.toLowerCase().includes(year.split(' ')[0].toLowerCase()) || s.year === year
-    ).length;
+    const label = (batchLabels[year] || DEFAULT_BATCHES[year] || '').toLowerCase();
+    const yearKey = year.split(' ')[0].toLowerCase();
+    return allStudents.filter((s) => {
+      const sy = (s.year || '').toLowerCase();
+      return sy === year.toLowerCase() || sy.includes(yearKey) || (label && sy === label);
+    }).length;
   };
 
   const handleOpenYear = (year: string) => {
@@ -351,7 +354,7 @@ export const StudentManagement: React.FC = () => {
                 <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Users className="w-4 h-4 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-700">{studentCount} Students</span>
+                    <span className="text-xs font-bold text-slate-700">{studentCount} Student Details</span>
                   </div>
                   <span className="text-xs font-bold text-[#004990] group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 shrink-0">
                     Open Box →
@@ -372,12 +375,12 @@ export const StudentManagement: React.FC = () => {
               </span>
               <h3 className="text-2xl font-black">{selectedYear} — Student Database & Credentials</h3>
               <p className="text-xs text-slate-300 font-medium mt-0.5">
-                Paste Google Drive database links, upload CSV files, or load sample templates to generate credentials.
+                Upload CSV files or paste database records to provision student credentials for this batch.
               </p>
             </div>
             <div className="flex items-center gap-3">
               <span className="bg-white/10 px-4 py-2 rounded-xl text-xs font-bold border border-white/10">
-                {generatedList.length} Active Student Records
+                {generatedList.length} Student Details Loaded
               </span>
             </div>
           </div>
