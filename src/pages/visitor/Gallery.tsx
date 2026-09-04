@@ -17,56 +17,7 @@ interface GalleryItem {
   isCustomAdmin?: boolean;
 }
 
-const defaultGalleryItems: GalleryItem[] = [
-  {
-    id: 'default-1',
-    title: 'CCE Innovation & AI Hardware Lab',
-    category: 'Campus Facilities',
-    venue: 'CCE Hardware Lab, 2nd Floor, Main Block',
-    event_date: 'Every Weekday',
-    event_time: '09:00 AM - 05:00 PM',
-    max_participants: 60,
-    poster_url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
-    description: 'State-of-the-art laboratory equipped with high-performance GPU workstations, NVIDIA Jetson Orin Nano development kits, edge TPU accelerators, and embedded AI development hardware for student research and innovation projects.',
-    highlights: ['NVIDIA Jetson Orin Kits', 'High-end RTX GPU Workstations', 'Edge AI & Embedded Systems Lab'],
-  },
-  {
-    id: 'default-2',
-    title: 'National AI & Robotics Hackathon 2026',
-    category: 'Department Events',
-    venue: 'Sri Eshwar Central Auditorium & CCE Computing Labs',
-    event_date: 'August 15-16, 2026',
-    event_time: '36-Hour Continuous Build',
-    max_participants: 250,
-    poster_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800',
-    description: 'A national-level 36-hour hackathon bringing together top engineering talent to solve real-world industry challenges using Generative AI, Computer Vision, Autonomous Robotics, and Agentic Workflows.',
-    highlights: ['₹1,50,000 Cash Prize Pool', 'Industry Mentors from Top Tech Companies', 'Direct Incubation Opportunities'],
-  },
-  {
-    id: 'default-3',
-    title: 'NVIDIA Deep Learning Institute Hands-On Workshop',
-    category: 'Workshops',
-    venue: 'CCE AI Research Lab',
-    event_date: 'September 5, 2026',
-    event_time: '10:00 AM - 04:30 PM',
-    max_participants: 80,
-    poster_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
-    description: 'Certified hands-on workshop on Fundamentals of Deep Learning, Transformer Architecture, and Model Optimization using PyTorch and CUDA.',
-    highlights: ['Official NVIDIA DLI Certificate', 'Hands-on Cloud GPU Workstations', 'Transformer & LLM Fine-tuning'],
-  },
-  {
-    id: 'default-4',
-    title: 'IEEE Research Paper Presentation & AI Symposium',
-    category: 'Conferences',
-    venue: 'Seminar Hall 2',
-    event_date: 'October 12, 2026',
-    event_time: '09:30 AM - 04:00 PM',
-    max_participants: 120,
-    poster_url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800',
-    description: 'Departmental symposium featuring peer-reviewed student research presentations, keynotes by distinguished scientists, and poster exhibition of domain-specific AI projects.',
-    highlights: ['IEEE Scopus-Indexed Publication Tracks', 'Best Paper Awards', 'Peer Review Feedback from Professors'],
-  },
-];
+const defaultGalleryItems: GalleryItem[] = [];
 
 export const Gallery: React.FC = () => {
   const [items, setItems] = useState<GalleryItem[]>(defaultGalleryItems);
@@ -93,11 +44,11 @@ export const Gallery: React.FC = () => {
         }));
         setItems(fetchedItems);
       } else {
-        setItems(defaultGalleryItems);
+        setItems([]);
       }
     } catch (err) {
       console.error('Failed to load dynamic gallery events:', err);
-      setItems(defaultGalleryItems);
+      setItems([]);
     } finally {
       setLoading(false);
     }
