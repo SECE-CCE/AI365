@@ -365,7 +365,16 @@ class DbStore {
     return Math.max(...list.map(item => item.id || 0)) + 1;
   }
 
+  private syncTimer: NodeJS.Timeout | null = null;
+
   public async syncRegisteredUsers(): Promise<void> {
+    if (this.syncTimer) clearTimeout(this.syncTimer);
+    this.syncTimer = setTimeout(() => {
+      this.doSyncRegisteredUsers();
+    }, 150);
+  }
+
+  private async doSyncRegisteredUsers(): Promise<void> {
     try {
       const allUsers = await this.getAllUsers();
       const users = allUsers.filter(u => u.status === 'approved');

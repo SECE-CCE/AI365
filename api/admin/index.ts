@@ -374,76 +374,100 @@ router.post('/users/bulk-students', async (req: AuthenticatedRequest, res: Respo
     }
 
     if (!Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({ error: 'No student records could be parsed. Check your CSV header format or Drive link access.' });
+      return res.status(400).json({ error: 'No student records could be parsed. Check your CSV header format.' });
     }
+
+    // High-performance parallel provisioning
+    const allExistingUsers = await db.getAllUsers();
+    const existingMap = new Map(allExistingUsers.map((u) => [u.email.toLowerCase(), u]));
+
+    const passwordHashCache = new Map<string, string>();
+    const getHashedPass = async (plain: string) => {
+      if (passwordHashCache.has(plain)) return passwordHashCache.get(plain)!;
+      const h = await bcrypt.hash(plain, 8);
+      passwordHashCache.set(plain, h);
+      return h;
+    };
 
     const created: any[] = [];
     const skipped: any[] = [];
 
-    for (const item of students) {
-      const name = item.name || item.full_name;
-      const email = item.email;
-      const rollno = item.rollno || item.register_number || item.registrationnumber;
-      const mobileno = item.mobileno || item.phone || '';
-      const studentYear = item.year || targetYear;
-      const mentor_name = item.mentor_name || null;
+    // Process students concurrently in parallel chunks of 15
+    const CHUNK_SIZE = 15;
+    for (let i = 0; i < students.length; i += CHUNK_SIZE) {
+      const chunk = students.slice(i, i + CHUNK_SIZE);
+      await Promise.all(
+        chunk.map(async (item: any, chunkIndex: number) => {
+          const name = item.name || item.full_name;
+          const email = item.email ? String(item.email).toLowerCase().trim() : '';
+          const rollno = item.rollno || item.register_number || item.registrationnumber || '';
+          const mobileno = item.mobileno || item.phone || '';
+          const studentYear = item.year || targetYear;
+          const mentor_name = item.mentor_name || null;
 
-      if (!name || !email) {
-        skipped.push({ email: email || 'Unknown', reason: 'Missing name or email' });
-        continue;
-      }
+          if (!name || !email) {
+            skipped.push({ email: email || 'Unknown', reason: 'Missing name or email' });
+            return;
+          }
 
-      const cleanPhone = String(mobileno).replace(/\D/g, '');
-      const last5 = cleanPhone.slice(-5) || '12345';
-      const autoPassword = `sece@${last5}`;
-      const hashedPassword = await bcrypt.hash(autoPassword, 10);
+          const cleanPhone = String(mobileno).replace(/\D/g, '');
+          const last5 = cleanPhone.slice(-5) || '12345';
+          const autoPassword = `sece@${last5}`;
+          const hashedPassword = await getHashedPass(autoPassword);
 
-      const existing = await db.findUserByEmail(email);
-      let userRecord: any;
+          const existing = existingMap.get(email);
+          let userRecord: any;
 
-      if (existing) {
-        userRecord = await db.updateUser(existing.id, {
-          password: hashedPassword,
-          status: 'approved',
-          must_change_password: true,
-          register_number: rollno || existing.register_number,
-          phone: mobileno || existing.phone,
-          year: studentYear || existing.year,
-        });
-      } else {
-        userRecord = await db.createUser({
-          full_name: name,
-          email,
-          password: hashedPassword,
-          role: 'student',
-          department: 'Computer & Communication Engineering',
-          register_number: rollno || '',
-          year: studentYear,
-          phone: mobileno || '',
-          profile_photo: '/boy-avatar.svg',
-          status: 'approved',
-          mentor_name,
-          is_department_wide: false,
-          must_change_password: true,
-        });
-      }
+          if (existing) {
+            userRecord = await db.updateUser(existing.id, {
+              password: hashedPassword,
+              status: 'approved',
+              must_change_password: true,
+              register_number: rollno || existing.register_number,
+              phone: mobileno || existing.phone,
+              year: studentYear || existing.year,
+            });
+          } else {
+            userRecord = await db.createUser({
+              full_name: name,
+              email,
+              password: hashedPassword,
+              role: 'student',
+              department: 'Computer & Communication Engineering',
+              register_number: rollno || '',
+              year: studentYear,
+              phone: mobileno || '',
+              profile_photo: '/boy-avatar.svg',
+              status: 'approved',
+              mentor_name,
+              is_department_wide: false,
+              must_change_password: true,
+            });
+          }
 
-      const { password: _, ...sanitized } = userRecord;
-      created.push({
-        ...sanitized,
-        sno: item.sno || created.length + 1,
-        registrationnumber: item.registrationnumber || rollno,
-        rollno,
-        username: email,
-        password: autoPassword,
-        autoPassword,
-      });
+          if (userRecord) {
+            const { password: _, ...sanitized } = userRecord;
+            created.push({
+              ...sanitized,
+              sno: item.sno || i + chunkIndex + 1,
+              registrationnumber: item.registrationnumber || rollno,
+              rollno,
+              username: email,
+              password: autoPassword,
+              autoPassword,
+            });
+          }
+        })
+      );
     }
+
+    // Sort created list by S.No
+    created.sort((a, b) => (a.sno || 0) - (b.sno || 0));
 
     await db.logActivity(req.user!.id, 'Bulk Provisioned Students', `Bulk provisioned ${created.length} student accounts.`);
 
     return res.status(201).json({
-      message: `Successfully provisioned ${created.length} student account(s) for ${targetYear}.`,
+      message: `Successfully generated credentials for ${created.length} student(s) in ${targetYear}.`,
       createdCount: created.length,
       skippedCount: skipped.length,
       created,
