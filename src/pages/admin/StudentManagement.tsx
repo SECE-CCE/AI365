@@ -16,6 +16,7 @@ import {
   FileUp,
   UserPlus,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
@@ -265,55 +266,67 @@ function isValidStudentName(name: string): boolean {
     const yearCode = year.split(' ')[0].toLowerCase();
     const batchLabel = (batchLabels[year] || DEFAULT_BATCHES[year] || '').toLowerCase();
 
-    // 1. Get DB students for this year
+    // 1. Get stored credentials generated via CSV upload / Lateral Joinee
+    const storedRows = getStoredGeneratedListForYear(year).filter((r) => {
+      const nameLower = (r.name || '').toLowerCase();
+      return isValidStudentName(r.name) && !nameLower.includes('test student') && !nameLower.includes('dummy');
+    });
+
+    // 2. Get DB provisioned students for this year (excluding unprovisioned test accounts)
     const dbYearStudents = students.filter((s) => {
       const sy = (s.year || '').toLowerCase();
-      return sy === year.toLowerCase() || sy.includes(yearCode) || (batchLabel && sy === batchLabel);
+      const isBatchMatch = sy === year.toLowerCase() || sy.includes(yearCode) || (batchLabel && sy === batchLabel);
+      const nameLower = (s.full_name || s.name || '').toLowerCase();
+      const isTest = nameLower.includes('test student') || nameLower.includes('dummy') || (s.email || '').toLowerCase().includes('teststudent');
+      return isBatchMatch && !isTest && isValidStudentName(s.full_name || s.name);
     });
 
-    const dbRows: StudentCredentialRow[] = dbYearStudents
-      .filter((s) => isValidStudentName(s.full_name || s.name))
-      .map((s, index) => {
-        const last5 = (s.phone || '12345').replace(/\D/g, '').slice(-5) || '12345';
-        return {
-          sno: index + 1,
-          registrationnumber: isGarbageJsOrHtmlLine(s.register_number) ? '-' : s.register_number || '-',
-          rollno: isGarbageJsOrHtmlLine(s.register_number) ? '-' : s.register_number || '-',
-          name: s.full_name || s.name,
-          username: s.email || s.username,
-          password: `sece@${last5}`,
-          phone: s.phone || '',
-          year,
-        };
-      });
+    const dbRows: StudentCredentialRow[] = dbYearStudents.map((s, index) => {
+      const last5 = (s.phone || '12345').replace(/\D/g, '').slice(-5) || '12345';
+      return {
+        sno: index + 1,
+        registrationnumber: isGarbageJsOrHtmlLine(s.register_number) ? '-' : s.register_number || '-',
+        rollno: isGarbageJsOrHtmlLine(s.register_number) ? '-' : s.register_number || '-',
+        name: s.full_name || s.name,
+        username: s.email || s.username,
+        password: `sece@${last5}`,
+        phone: s.phone || '',
+        year,
+      };
+    });
 
-    // 2. Get local stored generated credentials for this year
-    const storedRows = getStoredGeneratedListForYear(year).filter((r) => isValidStudentName(r.name));
-
-    // Merge: Combine storedRows and dbRows without duplicates (keyed by username/email)
     const rowMap = new Map<string, StudentCredentialRow>();
-    dbRows.forEach((r) => rowMap.set(r.username.toLowerCase(), r));
-    storedRows.forEach((r) => {
-      if (!rowMap.has(r.username.toLowerCase())) {
-        rowMap.set(r.username.toLowerCase(), r);
-      } else {
-        const existing = rowMap.get(r.username.toLowerCase())!;
-        if (r.password && r.password !== 'sece@12345') {
-          existing.password = r.password;
+    storedRows.forEach((r) => rowMap.set(r.username.toLowerCase(), r));
+
+    // If no local stored rows exist for this year, load DB rows that have real roll/register numbers
+    if (storedRows.length === 0) {
+      dbRows.forEach((r) => {
+        if (r.registrationnumber !== '-' || r.rollno !== '-') {
+          rowMap.set(r.username.toLowerCase(), r);
         }
-        if (r.sno) existing.sno = r.sno;
-        if (r.registrationnumber && !isGarbageJsOrHtmlLine(r.registrationnumber)) existing.registrationnumber = r.registrationnumber;
-        if (r.rollno && !isGarbageJsOrHtmlLine(r.rollno)) existing.rollno = r.rollno;
-      }
+      });
+    }
+
+    const finalRows = Array.from(rowMap.values()).filter((r) => {
+      const nameLower = (r.name || '').toLowerCase();
+      return isValidStudentName(r.name) && !nameLower.includes('test student') && !nameLower.includes('dummy');
     });
 
-    const finalRows = Array.from(rowMap.values()).filter((r) => isValidStudentName(r.name));
     finalRows.sort((a, b) => (a.sno || 0) - (b.sno || 0));
     finalRows.forEach((r, i) => {
       r.sno = i + 1;
     });
 
     return finalRows;
+  };
+
+  const handleClearBatchList = () => {
+    if (!selectedYear) return;
+    if (window.confirm(`Are you sure you want to clear the generated credentials table for ${selectedYear}?`)) {
+      saveGeneratedListForYear(selectedYear, []);
+      setGeneratedList([]);
+      setSuccessMsg(`Cleared generated credentials table for ${selectedYear}.`);
+    }
   };
 
   const getYearCount = (year: string) => {
@@ -699,6 +712,16 @@ function isValidStudentName(name: string): boolean {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClearBatchList}
+                  disabled={generatedList.length === 0}
+                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  title="Clear generated credentials table for this batch"
+                >
+                  <Trash2 className="w-4 h-4" /> Clear Table
+                </button>
+
                 <button
                   onClick={handleExportCsv}
                   disabled={generatedList.length === 0}
