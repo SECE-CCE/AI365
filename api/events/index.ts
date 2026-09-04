@@ -5,6 +5,17 @@ import { roleGuard } from '../_middleware/roleGuard.js';
 
 const router = Router();
 
+function sanitizeString(val: any, maxLen: number = 255): string {
+  if (typeof val !== 'string') return '';
+  return val.trim().slice(0, maxLen);
+}
+
+function isValidDateString(val: any): boolean {
+  if (!val || typeof val !== 'string') return false;
+  const d = new Date(val);
+  return !isNaN(d.getTime());
+}
+
 // GET /api/events (Publicly accessible to logged in users, or public visitor view)
 router.get('/', async (req, res) => {
   try {
@@ -29,14 +40,23 @@ router.get('/my-registrations', authMiddleware, roleGuard(['student']), async (r
 router.post('/register', authMiddleware, roleGuard(['student']), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { event_id } = req.body;
-    if (!event_id) return res.status(400).json({ error: 'event_id is required.' });
+    const numericEventId = Number(event_id);
+    if (!event_id || isNaN(numericEventId) || numericEventId <= 0) {
+      return res.status(400).json({ error: 'A valid numeric event_id is required.' });
+    }
 
-    const reg = await db.registerForEvent(Number(event_id), req.user!.id);
+    const events = await db.getEvents();
+    const targetEvent = events.find((e) => e.id === numericEventId);
+    if (!targetEvent) {
+      return res.status(404).json({ error: 'Event not found.' });
+    }
+
+    const reg = await db.registerForEvent(numericEventId, req.user!.id);
 
     await db.createNotification({
       user_id: req.user!.id,
       title: 'Event Registration Confirmed',
-      message: `You have successfully registered for CCE Event #${event_id}.`,
+      message: `You have successfully registered for CCE Event "${targetEvent.title}".`,
       type: 'event',
       link: '/student/events',
     });
@@ -52,23 +72,42 @@ router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: Au
   try {
     const { title, description, venue, event_date, event_time, max_participants, poster_url, category } = req.body;
 
-    if (!title || !venue || !event_date || !event_time) {
+    const cleanTitle = sanitizeString(title, 255);
+    const cleanVenue = sanitizeString(venue, 255);
+    const cleanDesc = sanitizeString(description, 5000);
+    const cleanTime = sanitizeString(event_time, 50);
+    const cleanPoster = sanitizeString(poster_url, 2048);
+    const cleanCategory = sanitizeString(category, 100);
+
+    if (!cleanTitle || !cleanVenue || !event_date || !cleanTime) {
       return res.status(400).json({ error: 'Title, Venue, Event Date, and Event Time are required.' });
+    }
+
+    if (!isValidDateString(event_date)) {
+      return res.status(400).json({ error: 'Event Date must be a valid date string (YYYY-MM-DD).' });
+    }
+
+    let parsedMax = 100;
+    if (max_participants !== undefined && max_participants !== null && max_participants !== '') {
+      parsedMax = Number(max_participants);
+      if (isNaN(parsedMax) || parsedMax <= 0 || parsedMax > 10000) {
+        return res.status(400).json({ error: 'max_participants must be a valid positive integer between 1 and 10000.' });
+      }
     }
 
     const newEvent = await db.createEvent({
       created_by: req.user!.id,
-      title,
-      description: description || '',
-      venue,
-      event_date,
-      event_time,
-      max_participants: max_participants ? Number(max_participants) : 100,
-      poster_url: poster_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600',
-      category: category || 'Workshop',
+      title: cleanTitle,
+      description: cleanDesc,
+      venue: cleanVenue,
+      event_date: String(event_date).slice(0, 10),
+      event_time: cleanTime,
+      max_participants: parsedMax,
+      poster_url: cleanPoster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600',
+      category: cleanCategory || 'Workshop',
     });
 
-    await db.logActivity(req.user!.id, 'Created CCE Event', `Created event "${title}" on ${event_date}`);
+    await db.logActivity(req.user!.id, 'Created CCE Event', `Created event "${cleanTitle}" on ${event_date}`);
 
     return res.status(201).json({ message: 'Event created successfully.', event: newEvent });
   } catch (err) {
@@ -80,6 +119,10 @@ router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: Au
 router.delete('/:id', authMiddleware, roleGuard(['faculty', 'admin']), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const eventId = Number(req.params.id);
+    if (isNaN(eventId) || eventId <= 0) {
+      return res.status(400).json({ error: 'Valid numeric event id parameter is required.' });
+    }
+
     const events = await db.getEvents();
     const event = events.find(e => e.id === eventId);
 
