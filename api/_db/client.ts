@@ -18,6 +18,13 @@ export const pool = DATABASE_URL
 
 export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
+// Ensure schema compatibility on Neon Postgres
+if (sql) {
+  sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;`.catch((err) => {
+    console.warn('[AI365 DB] Schema auto-migration notice:', err.message || err);
+  });
+}
+
 // Pre-computed fallback bcrypt hash (cost=10) for in-memory emergency bootstrapping
 const HASHED_ADMIN_PASS = '$2b$10$fnHGtIY9MePG3vUlc7M2JeyxmVUiBCtWgaRc7EZIS/SC3R.ft7yAe';
 const HASHED_FACULTY_PASS = '$2b$10$AV6knQtK/66NTqQXBStDVOTPQNvf.UIsdyRA4TVJo40P8PZsFoZDe';
