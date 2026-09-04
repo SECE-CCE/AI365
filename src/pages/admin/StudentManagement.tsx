@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   GraduationCap,
   Upload,
-  Link as LinkIcon,
   Key,
   FileSpreadsheet,
   CheckCircle2,
@@ -15,7 +14,6 @@ import {
   Edit2,
   Save,
   FileUp,
-  RefreshCcw,
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
@@ -61,8 +59,7 @@ export const StudentManagement: React.FC = () => {
   const [editingYear, setEditingYear] = useState<string | null>(null);
   const [editBatchName, setEditBatchName] = useState('');
 
-  // Database Upload / Link Input States
-  const [driveLink, setDriveLink] = useState('');
+  // Database Upload / CSV Input States
   const [rawCsvInput, setRawCsvInput] = useState('');
   const [processing, setProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -120,7 +117,6 @@ export const StudentManagement: React.FC = () => {
 
   const handleOpenYear = (year: string) => {
     setSelectedYear(year);
-    setDriveLink('');
     setRawCsvInput('');
     setErrorMsg('');
     setSuccessMsg('');
@@ -157,31 +153,10 @@ export const StudentManagement: React.FC = () => {
       const content = evt.target?.result as string;
       if (content) {
         setRawCsvInput(content);
-        setDriveLink('');
         setSuccessMsg(`Loaded file "${file.name}" into table generator.`);
       }
     };
     reader.readAsText(file);
-  };
-
-  const handleLoadSampleTemplate = () => {
-    if (!selectedYear) return;
-    const yearCode = selectedYear.split(' ')[0];
-    const sample = `sno,rollno,registrationnumber,name,mobileno,email
-1, 24CC01, 73782414001, Aravind Kumar S, 9876543210, aravind.k@sece.ac.in
-2, 24CC02, 73782414002, Bhavana Sharma, 9843210987, bhavana.s@sece.ac.in
-3, 24CC03, 73782414003, Charan Raj M, 9789012345, charan.r@sece.ac.in
-4, 24CC04, 73782414004, Deepika R, 9654321098, deepika.r@sece.ac.in
-5, 24CC05, 73782414005, Ezhil V, 9543210987, ezhil.v@sece.ac.in
-6, 24CC06, 73782414006, Farhan Khan, 9432109876, farhan.k@sece.ac.in
-7, 24CC07, 73782414007, Gokulnath P, 9321098765, gokul.p@sece.ac.in
-8, 24CC08, 73782414008, Hariharan T, 9210987654, hari.t@sece.ac.in
-9, 24CC09, 73782414009, Ishwarya B, 9109876543, ishwarya.b@sece.ac.in
-10, 24CC10, 73782414010, Jaydev N, 9098765432, jaydev.n@sece.ac.in`;
-
-    setRawCsvInput(sample);
-    setDriveLink('');
-    setSuccessMsg('Loaded sample class database with 10 student records.');
   };
 
   const handleParseAndGenerate = async () => {
@@ -190,18 +165,17 @@ export const StudentManagement: React.FC = () => {
 
     if (!selectedYear) return;
 
-    if (!driveLink.trim() && !rawCsvInput.trim()) {
-      return setErrorMsg('Please paste a Google Drive DB Link, upload a CSV file, or load sample database.');
+    if (!rawCsvInput.trim()) {
+      return setErrorMsg('Please upload a CSV file or paste raw CSV database text to generate student credentials.');
     }
 
     setProcessing(true);
     try {
-      // Send drive_link or raw_csv directly to Node.js backend for CORS-free processing & database provisioning
+      // Send raw_csv directly to Node.js backend for database provisioning & credential generation
       const response = await apiFetch<{ created: any[]; message: string }>('/api/admin/users/bulk-students', {
         method: 'POST',
         body: JSON.stringify({
-          drive_link: driveLink.trim() || undefined,
-          raw_csv: rawCsvInput.trim() || undefined,
+          raw_csv: rawCsvInput.trim(),
           year: selectedYear,
         }),
       });
@@ -409,7 +383,7 @@ export const StudentManagement: React.FC = () => {
           </div>
 
           {/* Database Input & Credentials Generator Form */}
-          <Card title="Upload Student Database File / Link" subtitle="Provide the student database file or Google Drive URL for credential generation">
+          <Card title="Upload Student Database CSV File" subtitle="Upload a CSV file or paste database table text (sno, rollno, registrationnumber, name, mobileno, email)">
             {errorMsg && (
               <div className="mb-4 p-3 bg-rose-50 text-rose-700 text-xs rounded-xl border border-rose-200 font-medium flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -424,56 +398,41 @@ export const StudentManagement: React.FC = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs">
-              {/* Option A: Google Drive Link */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-                <label className="font-bold text-slate-900 flex items-center gap-2">
-                  <LinkIcon className="w-4 h-4 text-[#004990]" /> Option A: Google Drive Student DB Link
-                </label>
-                <input
-                  type="url"
-                  value={driveLink}
-                  onChange={(e) => setDriveLink(e.target.value)}
-                  placeholder="https://drive.google.com/file/d/your_student_db_file/view"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 focus:border-[#004990] outline-none font-mono"
-                />
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Paste the shared Google Drive / Google Sheets link containing all student records.
-                </p>
-              </div>
+            <div className="space-y-4 text-xs">
+              {/* Primary Option: File Upload & Raw CSV Data */}
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <label className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      <FileSpreadsheet className="w-4 h-4 text-[#004990]" /> Student Database File Upload / CSV Input
+                    </label>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Required columns: <code className="bg-slate-200/70 px-1.5 py-0.5 rounded text-slate-800 font-mono">sno, rollno, registrationnumber, name, mobileno, email</code>
+                    </p>
+                  </div>
 
-              {/* Option B: File Upload / Raw CSV Data */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-900 flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-[#004990]" /> Option B: Upload File or Paste CSV (sno, rollno, reg_no, name, mobile, email)
-                  </label>
-                  <label className="cursor-pointer px-2.5 py-1 bg-white hover:bg-blue-50 text-[#004990] border border-blue-200 rounded-lg font-bold text-[11px] flex items-center gap-1 shadow-xs transition-colors">
-                    <FileUp className="w-3.5 h-3.5" /> Upload File
+                  <label className="cursor-pointer px-4 py-2 bg-[#004990] hover:bg-[#002B5C] text-white border border-blue-900 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all self-start sm:self-auto">
+                    <FileUp className="w-4 h-4" /> Browse & Upload CSV File
                     <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
                   </label>
                 </div>
-                <textarea
-                  rows={3}
-                  value={rawCsvInput}
-                  onChange={(e) => setRawCsvInput(e.target.value)}
-                  placeholder="1, 24CC001, 73782414001, Alex Mercer, 9876543210, alex.m@sece.ac.in"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 focus:border-[#004990] outline-none font-mono text-[11px]"
-                />
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Paste CSV Data Text directly:
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={rawCsvInput}
+                    onChange={(e) => setRawCsvInput(e.target.value)}
+                    placeholder={`sno, rollno, registrationnumber, name, mobileno, email\n1, 24CC001, 73782414001, Alex Mercer, 9876543210, alex.m@sece.ac.in\n2, 24CC002, 73782414002, Bella Swan, 9876543211, bella.s@sece.ac.in`}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 focus:border-[#004990] outline-none font-mono text-xs leading-relaxed"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleLoadSampleTemplate}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors"
-                >
-                  <RefreshCcw className="w-3.5 h-3.5 text-[#004990]" /> Load Sample Class Database (10 Records)
-                </button>
-              </div>
-
+            <div className="mt-6 flex justify-end pt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={handleParseAndGenerate}

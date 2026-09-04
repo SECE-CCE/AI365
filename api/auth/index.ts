@@ -57,10 +57,17 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
         role,
         event_type: 'LOGIN_FAILED',
         status: 'FAILED',
-        reason: 'User account does not exist',
+        reason: 'User account does not exist in CCE database',
         ip_address,
         user_agent,
       });
+
+      if (role === 'student') {
+        return res.status(401).json({
+          error: 'Access Denied: Your student account has not been imported or provisioned in the CCE Admin Portal. Please contact your CCE Department Administrator.',
+        });
+      }
+
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
