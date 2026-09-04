@@ -322,22 +322,26 @@ function parseStudentCsv(csvText: string, targetYear: string) {
 
     const rawSno = parts[snoIdx] || `${i + (isHeader ? 0 : 1)}`;
     const sno = parseInt(rawSno, 10) || (i + (isHeader ? 0 : 1));
-    const rollno = parts[rollIdx] || parts[regIdx] || `24CC0${i}`;
-    const registrationnumber = parts[regIdx] || parts[rollIdx] || `737824140${i}`;
-    const name = parts[nameIdx] || parts[0] || `Student ${i}`;
-    const mobileno = parts[phoneIdx] || '9876543210';
-    let rawEmail = parts[emailIdx] || `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@sece.ac.in`;
-    if (!rawEmail.includes('@')) {
+    const rollno = parts[rollIdx] || parts[regIdx] || '';
+    const registrationnumber = parts[regIdx] || parts[rollIdx] || '';
+    const name = parts[nameIdx] || parts[0] || '';
+    const mobileno = parts[phoneIdx] || '';
+    let rawEmail = parts[emailIdx] || (name ? `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@sece.ac.in` : '');
+    if (rawEmail && !rawEmail.includes('@')) {
       rawEmail = `${rawEmail}@sece.ac.in`;
+    }
+
+    if (!name.trim() || !rawEmail.trim()) {
+      continue;
     }
 
     students.push({
       sno,
-      rollno,
-      registrationnumber,
-      name,
-      mobileno,
-      email: rawEmail.toLowerCase(),
+      rollno: rollno.trim(),
+      registrationnumber: registrationnumber.trim(),
+      name: name.trim(),
+      mobileno: mobileno.trim(),
+      email: rawEmail.toLowerCase().trim(),
       year: targetYear,
     });
   }

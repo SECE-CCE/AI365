@@ -255,8 +255,8 @@ export const StudentManagement: React.FC = () => {
       const last5 = (s.phone || '12345').replace(/\D/g, '').slice(-5) || '12345';
       return {
         sno: index + 1,
-        registrationnumber: s.register_number || `737824140${String(index + 1).padStart(2, '0')}`,
-        rollno: s.register_number || `24CC${String(index + 1).padStart(2, '0')}`,
+        registrationnumber: s.register_number || '-',
+        rollno: s.register_number || '-',
         name: s.full_name || s.name,
         username: s.email || s.username,
         password: `sece@${last5}`,
@@ -368,8 +368,8 @@ export const StudentManagement: React.FC = () => {
         const last5 = cleanPhone.slice(-5) || '12345';
         return {
           sno: s.sno || index + 1,
-          registrationnumber: s.registrationnumber || s.register_number || s.rollno || `737824140${index + 1}`,
-          rollno: s.rollno || s.register_number || `24CC0${index + 1}`,
+          registrationnumber: s.registrationnumber || s.register_number || s.rollno || '-',
+          rollno: s.rollno || s.register_number || s.registrationnumber || '-',
           name: s.full_name || s.name,
           username: s.email || s.username,
           password: s.autoPassword || `sece@${last5}`,
