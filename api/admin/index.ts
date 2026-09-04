@@ -205,6 +205,146 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// Helper function to parse CSV row with quote awareness
+function parseCsvRow(row: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    if (char === '"' || char === "'") {
+      inQuotes = !inQuotes;
+    } else if ((char === ',' || char === '\t' || char === ';') && !inQuotes) {
+      result.push(current.trim().replace(/^["']|["']$/g, ''));
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current || row.endsWith(',') || row.endsWith('\t') || row.endsWith(';')) {
+    result.push(current.trim().replace(/^["']|["']$/g, ''));
+  }
+  return result;
+}
+
+// Helper to fetch CSV text from Google Drive / Sheets URLs
+async function fetchDriveCsvText(drive_link: string): Promise<string | null> {
+  const link = drive_link.trim();
+  const candidates: string[] = [];
+
+  const sheetMatch = link.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (sheetMatch && sheetMatch[1]) {
+    const fileId = sheetMatch[1];
+    candidates.push(`https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`);
+    candidates.push(`https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq?tqx=out:csv`);
+  }
+
+  const pubMatch = link.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
+  if (pubMatch && pubMatch[1]) {
+    candidates.push(`https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pub?output=csv`);
+  }
+
+  const driveFileMatch = link.match(/(?:\/file\/d\/|id=|\/d\/)([a-zA-Z0-9_-]+)/);
+  if (driveFileMatch && driveFileMatch[1]) {
+    const fileId = driveFileMatch[1];
+    candidates.push(`https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`);
+    candidates.push(`https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`);
+  }
+
+  if (candidates.length === 0 && link.startsWith('http')) {
+    candidates.push(link);
+  }
+
+  for (const exportUrl of candidates) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+      const fetchRes = await fetch(exportUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/csv,text/plain,*/*'
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (fetchRes.ok) {
+        const text = await fetchRes.text();
+        if (text && !text.trim().startsWith('<!DOCTYPE') && !text.trim().startsWith('<html')) {
+          return text;
+        }
+      }
+    } catch (e) {
+      // Continue to next candidate
+    }
+  }
+
+  return null;
+}
+
+// Helper to parse student rows from CSV text
+function parseStudentCsv(csvText: string, targetYear: string) {
+  const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const firstRow = parseCsvRow(lines[0]);
+  const isHeader = firstRow.some(col => {
+    const c = col.toLowerCase();
+    return c.includes('name') || c.includes('email') || c.includes('sno') || c.includes('roll') || c.includes('reg') || c.includes('mobile');
+  });
+
+  let snoIdx = 0;
+  let rollIdx = 1;
+  let regIdx = 2;
+  let nameIdx = 3;
+  let phoneIdx = 4;
+  let emailIdx = 5;
+
+  let startIndex = 0;
+
+  if (isHeader) {
+    startIndex = 1;
+    firstRow.forEach((col, idx) => {
+      const c = col.toLowerCase();
+      if (c.includes('sno') || c.includes('s.no') || c.includes('sl') || c.includes('index') || c === '#') snoIdx = idx;
+      else if (c.includes('roll')) rollIdx = idx;
+      else if (c.includes('reg') || c.includes('register')) regIdx = idx;
+      else if (c.includes('name')) nameIdx = idx;
+      else if (c.includes('mobile') || c.includes('phone') || c.includes('contact')) phoneIdx = idx;
+      else if (c.includes('email') || c.includes('mail') || c.includes('username')) emailIdx = idx;
+    });
+  }
+
+  const students: any[] = [];
+  for (let i = startIndex; i < lines.length; i++) {
+    const parts = parseCsvRow(lines[i]);
+    if (parts.length < 2) continue;
+
+    const rawSno = parts[snoIdx] || `${i + (isHeader ? 0 : 1)}`;
+    const sno = parseInt(rawSno, 10) || (i + (isHeader ? 0 : 1));
+    const rollno = parts[rollIdx] || parts[regIdx] || `24CC0${i}`;
+    const registrationnumber = parts[regIdx] || parts[rollIdx] || `737824140${i}`;
+    const name = parts[nameIdx] || parts[0] || `Student ${i}`;
+    const mobileno = parts[phoneIdx] || '9876543210';
+    let rawEmail = parts[emailIdx] || `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@sece.ac.in`;
+    if (!rawEmail.includes('@')) {
+      rawEmail = `${rawEmail}@sece.ac.in`;
+    }
+
+    students.push({
+      sno,
+      rollno,
+      registrationnumber,
+      name,
+      mobileno,
+      email: rawEmail.toLowerCase(),
+      year: targetYear,
+    });
+  }
+
+  return students;
+}
+
 // POST /api/admin/users/bulk-students
 // Bulk Provisioning API for student databases via Drive link, CSV, or student arrays
 router.post('/users/bulk-students', async (req: AuthenticatedRequest, res: Response) => {
@@ -212,82 +352,29 @@ router.post('/users/bulk-students', async (req: AuthenticatedRequest, res: Respo
     let { students, drive_link, raw_csv, year } = req.body;
     const targetYear = year || '1st Year';
 
-    // If drive_link or raw_csv is provided instead of pre-parsed array
     if (!Array.isArray(students) || students.length === 0) {
       students = [];
 
       let csvText = (raw_csv || '').trim();
 
-      // If drive_link is provided, fetch CSV from Google Sheets export URL in Node.js backend
       if (!csvText && drive_link && typeof drive_link === 'string') {
-        const linkMatch = drive_link.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (linkMatch && linkMatch[1]) {
-          const fileId = linkMatch[1];
-          const exportUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 6000);
-            const fetchRes = await fetch(exportUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (fetchRes.ok) {
-              csvText = await fetchRes.text();
-            }
-          } catch (fetchErr) {
-            console.warn('Backend Drive CSV fetch fallback:', (fetchErr as Error).message);
-          }
+        const fetchedText = await fetchDriveCsvText(drive_link);
+        if (fetchedText) {
+          csvText = fetchedText;
+        } else {
+          return res.status(400).json({
+            error: "Unable to access or parse Google Drive link. Please ensure the Google Sheet access setting is changed to 'Anyone with the link can view' or upload a CSV file."
+          });
         }
       }
 
       if (csvText) {
-        const lines = csvText.split(/\r?\n/);
-        lines.forEach((line: string, index: number) => {
-          if (!line.trim()) return;
-          if (index === 0 && (line.toLowerCase().includes('name') || line.toLowerCase().includes('email') || line.toLowerCase().includes('sno'))) return;
-
-          const parts = line.split(/,|\t|;/).map((p: string) => p.trim());
-          if (parts.length >= 2) {
-            const sno = parseInt(parts[0], 10) || index + 1;
-            const rollno = parts[1] || `24CC0${index + 1}`;
-            const registrationnumber = parts[2] || parts[1] || `737824140${index + 1}`;
-            const name = parts[3] || parts[0];
-            const mobileno = parts[4] || '9876543210';
-            const rawEmail = parts[5] || parts[1] || `${name.toLowerCase().replace(/\s+/g, '.')}@sece.ac.in`;
-            const cleanEmail = rawEmail.includes('@') ? rawEmail : `${rawEmail}@sece.ac.in`;
-
-            students.push({
-              sno,
-              rollno,
-              registrationnumber,
-              name,
-              mobileno,
-              email: cleanEmail,
-              year: targetYear,
-            });
-          }
-        });
-      }
-
-      // Fallback: If drive_link was provided but restricted, generate full batch dataset from Drive ID
-      if (students.length === 0 && drive_link) {
-        const cleanId = (drive_link.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1] || 'DRIVE').slice(0, 6);
-        students = Array.from({ length: 15 }, (_, i) => {
-          const idNum = String(i + 1).padStart(2, '0');
-          return {
-            sno: i + 1,
-            rollno: `24CC${idNum}`,
-            registrationnumber: `737824140${idNum}`,
-            name: `CCE Student ${i + 1} (${cleanId})`,
-            mobileno: `98765432${idNum}`,
-            email: `student${i + 1}.${targetYear.split(' ')[0].toLowerCase()}@sece.ac.in`,
-            year: targetYear,
-          };
-        });
+        students = parseStudentCsv(csvText, targetYear);
       }
     }
 
     if (!Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({ error: 'No student records could be found or parsed from the input.' });
+      return res.status(400).json({ error: 'No student records could be parsed. Check your CSV header format or Drive link access.' });
     }
 
     const created: any[] = [];
@@ -356,21 +443,11 @@ router.post('/users/bulk-students', async (req: AuthenticatedRequest, res: Respo
     await db.logActivity(req.user!.id, 'Bulk Provisioned Students', `Bulk provisioned ${created.length} student accounts.`);
 
     return res.status(201).json({
-      message: `Successfully provisioned ${created.length} student account(s). ${skipped.length} skipped.`,
+      message: `Successfully provisioned ${created.length} student account(s) for ${targetYear}.`,
       createdCount: created.length,
       skippedCount: skipped.length,
       created,
       students: created,
-      skipped,
-    });
-
-    await db.logActivity(req.user!.id, 'Bulk Provisioned Students', `Bulk provisioned ${created.length} student accounts.`);
-
-    return res.status(201).json({
-      message: `Successfully provisioned ${created.length} student account(s). ${skipped.length} skipped.`,
-      createdCount: created.length,
-      skippedCount: skipped.length,
-      created,
       skipped,
     });
   } catch (err: any) {
