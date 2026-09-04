@@ -192,6 +192,22 @@ export const StudentManagement: React.FC = () => {
         }),
       });
 
+      const newRow: StudentCredentialRow = {
+        sno: parseInt(lateralForm.sno, 10) || generatedList.length + 1,
+        registrationnumber: lateralForm.registrationnumber.trim() || lateralForm.rollno.trim(),
+        rollno: lateralForm.rollno.trim() || lateralForm.registrationnumber.trim(),
+        name: lateralForm.name.trim(),
+        username: cleanEmail,
+        password: autoPassword,
+        phone: lateralForm.phone.trim(),
+        year: lateralForm.year,
+      };
+      const currentList = getStoredGeneratedListForYear(lateralForm.year);
+      const filtered = currentList.filter(r => r.username.toLowerCase() !== cleanEmail.toLowerCase());
+      filtered.push(newRow);
+      filtered.sort((a, b) => (a.sno || 0) - (b.sno || 0));
+      saveGeneratedListForYear(lateralForm.year, filtered);
+
       setSuccessMsg(
         `Provisioned lateral entry student "${lateralForm.name}" for ${lateralForm.year}! Username: ${cleanEmail}, Initial Password: ${autoPassword}`
       );
@@ -208,13 +224,78 @@ export const StudentManagement: React.FC = () => {
     }
   };
 
-  const getYearCount = (year: string) => {
-    const label = (batchLabels[year] || DEFAULT_BATCHES[year] || '').toLowerCase();
-    const yearKey = year.split(' ')[0].toLowerCase();
-    return allStudents.filter((s) => {
+  // Persist generated credentials by year in localStorage
+  const saveGeneratedListForYear = (year: string, list: StudentCredentialRow[]) => {
+    try {
+      localStorage.setItem(`ai365_generated_list_${year}`, JSON.stringify(list));
+    } catch (e) {
+      console.error('Failed to persist generated list to localStorage:', e);
+    }
+  };
+
+  const getStoredGeneratedListForYear = (year: string): StudentCredentialRow[] => {
+    try {
+      const saved = localStorage.getItem(`ai365_generated_list_${year}`);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  };
+
+  const loadYearCredentials = (year: string, students: any[]): StudentCredentialRow[] => {
+    const yearCode = year.split(' ')[0].toLowerCase();
+    const batchLabel = (batchLabels[year] || DEFAULT_BATCHES[year] || '').toLowerCase();
+
+    // 1. Get DB students for this year
+    const dbYearStudents = students.filter((s) => {
       const sy = (s.year || '').toLowerCase();
-      return sy === year.toLowerCase() || sy.includes(yearKey) || (label && sy === label);
-    }).length;
+      return sy === year.toLowerCase() || sy.includes(yearCode) || (batchLabel && sy === batchLabel);
+    });
+
+    const dbRows: StudentCredentialRow[] = dbYearStudents.map((s, index) => {
+      const last5 = (s.phone || '12345').replace(/\D/g, '').slice(-5) || '12345';
+      return {
+        sno: index + 1,
+        registrationnumber: s.register_number || `737824140${String(index + 1).padStart(2, '0')}`,
+        rollno: s.register_number || `24CC${String(index + 1).padStart(2, '0')}`,
+        name: s.full_name || s.name,
+        username: s.email || s.username,
+        password: `sece@${last5}`,
+        phone: s.phone || '',
+        year,
+      };
+    });
+
+    // 2. Get local stored generated credentials for this year
+    const storedRows = getStoredGeneratedListForYear(year);
+
+    // Merge: Combine storedRows and dbRows without duplicates (keyed by username/email)
+    const rowMap = new Map<string, StudentCredentialRow>();
+    dbRows.forEach((r) => rowMap.set(r.username.toLowerCase(), r));
+    storedRows.forEach((r) => {
+      if (!rowMap.has(r.username.toLowerCase())) {
+        rowMap.set(r.username.toLowerCase(), r);
+      } else {
+        const existing = rowMap.get(r.username.toLowerCase())!;
+        if (r.password && r.password !== 'sece@12345') {
+          existing.password = r.password;
+        }
+        if (r.sno) existing.sno = r.sno;
+        if (r.registrationnumber) existing.registrationnumber = r.registrationnumber;
+        if (r.rollno) existing.rollno = r.rollno;
+      }
+    });
+
+    const finalRows = Array.from(rowMap.values());
+    finalRows.sort((a, b) => (a.sno || 0) - (b.sno || 0));
+    finalRows.forEach((r, i) => {
+      r.sno = i + 1;
+    });
+
+    return finalRows;
+  };
+
+  const getYearCount = (year: string) => {
+    return loadYearCredentials(year, allStudents).length;
   };
 
   const handleOpenYear = (year: string) => {
@@ -224,27 +305,17 @@ export const StudentManagement: React.FC = () => {
     setSuccessMsg('');
     setSearchTerm('');
 
-    // Load existing database students for this year
-    const yearStudents = allStudents.filter(
-      (s) => s.year?.toLowerCase().includes(year.split(' ')[0].toLowerCase()) || s.year === year
-    );
-
-    const rows: StudentCredentialRow[] = yearStudents.map((s, index) => {
-      const last5 = (s.phone || '12345').replace(/\D/g, '').slice(-5) || '12345';
-      return {
-        sno: index + 1,
-        registrationnumber: s.register_number || `7378241400${index + 1}`,
-        rollno: s.register_number || `24CC00${index + 1}`,
-        name: s.full_name,
-        username: s.email,
-        password: `sece@${last5}`,
-        phone: s.phone || '',
-        year,
-      };
-    });
-
-    setGeneratedList(rows);
+    const loadedRows = loadYearCredentials(year, allStudents);
+    setGeneratedList(loadedRows);
   };
+
+  // Re-sync generated list whenever allStudents or selectedYear changes
+  useEffect(() => {
+    if (selectedYear) {
+      const rows = loadYearCredentials(selectedYear, allStudents);
+      setGeneratedList(rows);
+    }
+  }, [allStudents, selectedYear]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -307,6 +378,7 @@ export const StudentManagement: React.FC = () => {
         };
       });
 
+      saveGeneratedListForYear(selectedYear, newGeneratedRows);
       setGeneratedList(newGeneratedRows);
       fetchStudents();
     } catch (err: any) {
