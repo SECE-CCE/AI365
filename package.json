@@ -14,7 +14,8 @@
     "db:check": "node check_db.mjs",
     "db:seed": "node seed_admin.mjs",
     "db:backup": "node backup_db.mjs",
-    "db:restore": "node restore_db.mjs"
+    "db:restore": "node restore_db.mjs",
+    "test:security": "tsx tests/security/sqli.test.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

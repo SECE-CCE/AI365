@@ -514,8 +514,24 @@ class DbStore {
   }
 
   async updateUser(id: number, data: Partial<UserRow>): Promise<UserRow | undefined> {
-    // Build dynamic SET clause for SQL UPDATE
-    const fields = Object.keys(data) as (keyof UserRow)[];
+    const ALLOWED_USER_COLUMNS = new Set<string>([
+      'full_name',
+      'email',
+      'password',
+      'role',
+      'department',
+      'register_number',
+      'year',
+      'phone',
+      'profile_photo',
+      'gender',
+      'status',
+      'mentor_id',
+      'is_department_wide',
+    ]);
+
+    // Build dynamic SET clause for SQL UPDATE with strict column allowlist check
+    const fields = Object.keys(data).filter((key) => ALLOWED_USER_COLUMNS.has(key)) as (keyof UserRow)[];
     if (fields.length === 0) return this.store.users.find((u: UserRow) => u.id === id);
 
     try {

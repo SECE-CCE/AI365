@@ -9,7 +9,8 @@ if (!DATABASE_URL) {
 }
 const sql = neon(DATABASE_URL);
 
-const adminEmail = 'dhamodharan.s@sece.ac.in';
+const adminEmail = process.env.ADMIN_EMAIL || 'dhamodharan.s@sece.ac.in';
+const adminName = process.env.ADMIN_NAME || 'Dhamodharan S';
 const adminPassword = process.env.ADMIN_PASSWORD;
 
 if (!adminPassword) {
@@ -27,7 +28,7 @@ console.log('✅ Removed mock accounts from Neon DB');
 await sql`
   INSERT INTO users (full_name, email, password, role, department, phone, profile_photo, status, mentor_id, is_department_wide)
   VALUES (
-    'Dhamodharan S',
+    ${adminName},
     ${adminEmail},
     ${hash},
     'admin',

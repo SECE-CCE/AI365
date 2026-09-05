@@ -310,6 +310,15 @@ To make it accessible over the internet with a custom domain while keeping the "
 
 ---
 
+## 🔒 Security Architecture & Threat Model
+
+AI365 @ CCE adheres to comprehensive security practices including HttpOnly JWT session tokens, 1-hour session expiration policies, role-based access control (`roleGuard`), server-side input validation, SQL column allowlists, and persistent PostgreSQL audit logging.
+
+For the formal security specification, threat matrix, and deployment guidelines, see the dedicated security documentation:
+👉 [**Formal Security Architecture & Threat Model (docs/security/SECURITY.md)**](docs/security/SECURITY.md)
+
+---
+
 ## 🧹 Codebase Sanitation & Security Verification
 
 All temporary test strings, hardcoded secrets, and dummy database URLs have been removed from source scripts (`migrate_db.mjs`, `seed_admin.mjs`, `check_db.mjs`, `reset_db.mjs`).
