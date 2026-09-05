@@ -1,41 +1,71 @@
-import React, { useState } from 'react';
-import { Upload, Loader2, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, Loader2, CheckCircle, Image as ImageIcon } from 'lucide-react';
 import { apiFetch } from '../../services/api';
+import { EventItem } from '../../types';
 
 interface EventFormProps {
   onSuccess: () => void;
+  initialData?: EventItem | null;
 }
 
-export const EventForm: React.FC<EventFormProps> = ({ onSuccess }) => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [venue, setVenue] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [eventTime, setEventTime] = useState('10:00 AM');
-  const [maxParticipants, setMaxParticipants] = useState('100');
-  const [category, setCategory] = useState('Workshop');
-  const [posterUrl, setPosterUrl] = useState('');
+export const EventForm: React.FC<EventFormProps> = ({ onSuccess, initialData }) => {
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [venue, setVenue] = useState(initialData?.venue || '');
+  const [eventDate, setEventDate] = useState(initialData?.event_date || '');
+  const [eventTime, setEventTime] = useState(initialData?.event_time || '10:00 AM');
+  const [maxParticipants, setMaxParticipants] = useState(String(initialData?.max_participants || '100'));
+  const [category, setCategory] = useState(initialData?.category || 'Workshop');
+  const [posterUrl, setPosterUrl] = useState(initialData?.poster_url || '');
 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title || '');
+      setDescription(initialData.description || '');
+      setVenue(initialData.venue || '');
+      setEventDate(initialData.event_date || '');
+      setEventTime(initialData.event_time || '10:00 AM');
+      setMaxParticipants(String(initialData.max_participants || 100));
+      setCategory(initialData.category || 'Workshop');
+      setPosterUrl(initialData.poster_url || '');
+    }
+  }, [initialData]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
-    try {
-      const res = await apiFetch<{ url: string }>('/api/upload', {
-        method: 'POST',
-        body: JSON.stringify({ filename: file.name, type: 'poster' }),
-      });
-      setPosterUrl(res.url);
-    } catch (err) {
-      setError('Failed to upload poster image.');
-    } finally {
+    setError('');
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      try {
+        const res = await apiFetch<{ url: string }>('/api/upload/poster', {
+          method: 'POST',
+          body: JSON.stringify({ imageBase64: base64, title }),
+        });
+        if (res?.url) {
+          setPosterUrl(res.url);
+        } else {
+          setPosterUrl(base64);
+        }
+      } catch {
+        setPosterUrl(base64);
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setError('Failed to read image file.');
       setUploading(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,8 +78,12 @@ export const EventForm: React.FC<EventFormProps> = ({ onSuccess }) => {
 
     setSubmitting(true);
     try {
-      await apiFetch('/api/events', {
-        method: 'POST',
+      const isEdit = !!initialData?.id;
+      const url = isEdit ? `/api/events/${initialData.id}` : '/api/events';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      await apiFetch(url, {
+        method,
         body: JSON.stringify({
           title,
           description,
@@ -58,12 +92,12 @@ export const EventForm: React.FC<EventFormProps> = ({ onSuccess }) => {
           event_time: eventTime,
           max_participants: Number(maxParticipants),
           category,
-          poster_url: posterUrl,
+          poster_url: posterUrl || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600',
         }),
       });
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Failed to create event.');
+      setError(err.message || 'Failed to save event.');
     } finally {
       setSubmitting(false);
     }
@@ -166,16 +200,27 @@ export const EventForm: React.FC<EventFormProps> = ({ onSuccess }) => {
 
       <div>
         <label className="block font-bold text-slate-700 mb-1">Upload Event Poster / Banner</label>
-        <div className="flex items-center space-x-3">
-          <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold border border-slate-200 transition-colors">
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin text-[#004990]" /> : <Upload className="w-4 h-4" />}
-            <span>{uploading ? 'Uploading Poster...' : 'Choose Image'}</span>
-            <input type="file" onChange={handleFileUpload} accept="image/*" className="hidden" />
-          </label>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-3">
+            <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold border border-slate-200 transition-colors">
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin text-[#004990]" /> : <Upload className="w-4 h-4" />}
+              <span>{uploading ? 'Uploading Poster...' : 'Choose Image'}</span>
+              <input type="file" onChange={handleFileUpload} accept="image/*" className="hidden" />
+            </label>
+            {posterUrl && (
+              <span className="text-emerald-600 font-medium flex items-center gap-1 text-[11px]">
+                <CheckCircle className="w-3.5 h-3.5" /> Poster Attached
+              </span>
+            )}
+          </div>
+
           {posterUrl && (
-            <span className="text-emerald-600 font-medium flex items-center gap-1 text-[11px]">
-              <CheckCircle className="w-3.5 h-3.5" /> Poster Attached
-            </span>
+            <div className="relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-900">
+              <img src={posterUrl} alt="Poster Preview" className="w-full h-full object-cover" />
+              <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white rounded text-[10px] font-bold flex items-center gap-1">
+                <ImageIcon className="w-3 h-3 text-[#F3B631]" /> Banner Preview
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -183,11 +228,11 @@ export const EventForm: React.FC<EventFormProps> = ({ onSuccess }) => {
       <div className="pt-2 flex justify-end gap-3">
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || uploading}
           className="px-5 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-semibold transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
         >
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          <span>Publish CCE Event</span>
+          <span>{initialData?.id ? 'Update CCE Event' : 'Publish CCE Event'}</span>
         </button>
       </div>
     </form>

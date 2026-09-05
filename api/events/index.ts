@@ -76,6 +76,40 @@ router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: Au
   }
 });
 
+// PUT /api/events/:id (Faculty can edit own created event, Admin can edit any)
+router.put('/:id', authMiddleware, roleGuard(['faculty', 'admin']), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const eventId = Number(req.params.id);
+    const events = await db.getEvents();
+    const existing = events.find(e => e.id === eventId);
+
+    if (!existing) return res.status(404).json({ error: 'Event not found.' });
+
+    if (req.user!.role === 'faculty' && existing.created_by !== req.user!.id && !req.user!.is_department_wide) {
+      return res.status(403).json({ error: 'Forbidden: Faculty can only edit events they created.' });
+    }
+
+    const { title, description, venue, event_date, event_time, max_participants, poster_url, category } = req.body;
+
+    const updatedEvent = await db.updateEvent(eventId, {
+      ...(title !== undefined && { title }),
+      ...(description !== undefined && { description }),
+      ...(venue !== undefined && { venue }),
+      ...(event_date !== undefined && { event_date }),
+      ...(event_time !== undefined && { event_time }),
+      ...(max_participants !== undefined && { max_participants: Number(max_participants) }),
+      ...(poster_url !== undefined && { poster_url }),
+      ...(category !== undefined && { category }),
+    });
+
+    await db.logActivity(req.user!.id, 'Updated CCE Event', `Updated event "${updatedEvent?.title || title}"`);
+
+    return res.json({ message: 'Event updated successfully.', event: updatedEvent });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update event.' });
+  }
+});
+
 // DELETE /api/events/:id (Faculty can delete own created event, Admin can delete any)
 router.delete('/:id', authMiddleware, roleGuard(['faculty', 'admin']), async (req: AuthenticatedRequest, res: Response) => {
   try {

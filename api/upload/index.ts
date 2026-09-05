@@ -10,6 +10,43 @@ export const UPLOADS_BASE_DIR = path.join(process.cwd(), 'assets', 'Documents');
 
 
 
+// POST /api/upload/poster
+// Handles event banner poster image upload, creates assets/Events/ directory if missing,
+// and saves file on server.
+router.post('/poster', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { imageBase64, title = 'Event_Poster' } = req.body;
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return res.status(400).json({ error: 'Poster image data is required.' });
+    }
+
+    const eventsFolder = path.join(process.cwd(), 'assets', 'Events');
+    if (!fs.existsSync(eventsFolder)) {
+      fs.mkdirSync(eventsFolder, { recursive: true });
+    }
+
+    const sanitizedTitle = String(title).trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Poster';
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const filename = `${sanitizedTitle}_${Date.now()}.jpg`;
+    const filePath = path.join(eventsFolder, filename);
+
+    fs.writeFileSync(filePath, buffer);
+
+    const posterUrl = `/assets/Events/${filename}`;
+
+    return res.json({
+      url: posterUrl,
+      filename,
+      uploaded_at: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    console.error('Poster Upload Error:', err);
+    return res.status(500).json({ error: 'Failed to save event poster image on server.' });
+  }
+});
+
 // POST /api/upload/photo
 // Handles compressed photo upload, creates assets/Documents/<User_Name>/photos/ directory,
 // and stores compressed profile picture inside that directory.

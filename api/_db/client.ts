@@ -358,6 +358,38 @@ const initialStore = {
 class DbStore {
   public store = JSON.parse(JSON.stringify(initialStore));
 
+  constructor() {
+    this.loadEventsFromDisk();
+  }
+
+  private loadEventsFromDisk(): void {
+    try {
+      const filePath = path.join(process.cwd(), 'backups', 'registered_events.json');
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.store.events = parsed;
+        }
+      }
+    } catch (err: any) {
+      console.error('⚠️ Failed to load events from backup disk:', err.message);
+    }
+  }
+
+  public async syncEvents(): Promise<void> {
+    try {
+      const backupsDir = path.join(process.cwd(), 'backups');
+      if (!fs.existsSync(backupsDir)) {
+        fs.mkdirSync(backupsDir, { recursive: true });
+      }
+      const filePath = path.join(backupsDir, 'registered_events.json');
+      fs.writeFileSync(filePath, JSON.stringify(this.store.events, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.error('⚠️ Real-time events sync failed:', err.message);
+    }
+  }
+
   // Auto-increment helper
   private nextId(table: keyof typeof initialStore): number {
     const list = this.store[table] as any[];
@@ -1412,6 +1444,7 @@ class DbStore {
 
   // Events
   async getEvents(): Promise<EventRow[]> {
+    this.loadEventsFromDisk();
     return this.store.events;
   }
 
@@ -1422,6 +1455,7 @@ class DbStore {
       created_at: new Date().toISOString(),
     };
     this.store.events.unshift(newEvent);
+    this.syncEvents();
     return newEvent;
   }
 
@@ -1429,6 +1463,7 @@ class DbStore {
     const idx = this.store.events.findIndex((e: EventRow) => e.id === id);
     if (idx === -1) return undefined;
     this.store.events[idx] = { ...this.store.events[idx], ...data };
+    this.syncEvents();
     return this.store.events[idx];
   }
 
@@ -1436,6 +1471,7 @@ class DbStore {
     const len = this.store.events.length;
     this.store.events = this.store.events.filter((e: EventRow) => e.id !== id);
     this.store.event_registrations = this.store.event_registrations.filter((r: EventRegistrationRow) => r.event_id !== id);
+    this.syncEvents();
     return this.store.events.length < len;
   }
 
