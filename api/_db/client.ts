@@ -18,6 +18,13 @@ export const pool = DATABASE_URL
 
 export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
+// Ensure schema compatibility on Neon Postgres
+if (sql) {
+  sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;`.catch((err) => {
+    console.warn('[AI365 DB] Schema auto-migration notice:', err.message || err);
+  });
+}
+
 // Pre-computed fallback bcrypt hash (cost=10) for in-memory emergency bootstrapping
 const HASHED_ADMIN_PASS = '$2b$10$fnHGtIY9MePG3vUlc7M2JeyxmVUiBCtWgaRc7EZIS/SC3R.ft7yAe';
 const HASHED_FACULTY_PASS = '$2b$10$AV6knQtK/66NTqQXBStDVOTPQNvf.UIsdyRA4TVJo40P8PZsFoZDe';
@@ -39,6 +46,7 @@ export interface UserRow {
   mentor_id?: number | null;
   mentor_name?: string | null;
   is_department_wide?: boolean;
+  must_change_password?: boolean;
   created_at: string;
 }
 
@@ -350,6 +358,38 @@ const initialStore = {
 class DbStore {
   public store = JSON.parse(JSON.stringify(initialStore));
 
+  constructor() {
+    this.loadEventsFromDisk();
+  }
+
+  private loadEventsFromDisk(): void {
+    try {
+      const filePath = path.join(process.cwd(), 'backups', 'registered_events.json');
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.store.events = parsed;
+        }
+      }
+    } catch (err: any) {
+      console.error('⚠️ Failed to load events from backup disk:', err.message);
+    }
+  }
+
+  public async syncEvents(): Promise<void> {
+    try {
+      const backupsDir = path.join(process.cwd(), 'backups');
+      if (!fs.existsSync(backupsDir)) {
+        fs.mkdirSync(backupsDir, { recursive: true });
+      }
+      const filePath = path.join(backupsDir, 'registered_events.json');
+      fs.writeFileSync(filePath, JSON.stringify(this.store.events, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.error('⚠️ Real-time events sync failed:', err.message);
+    }
+  }
+
   // Auto-increment helper
   private nextId(table: keyof typeof initialStore): number {
     const list = this.store[table] as any[];
@@ -357,7 +397,16 @@ class DbStore {
     return Math.max(...list.map(item => item.id || 0)) + 1;
   }
 
+  private syncTimer: NodeJS.Timeout | null = null;
+
   public async syncRegisteredUsers(): Promise<void> {
+    if (this.syncTimer) clearTimeout(this.syncTimer);
+    this.syncTimer = setTimeout(() => {
+      this.doSyncRegisteredUsers();
+    }, 150);
+  }
+
+  private async doSyncRegisteredUsers(): Promise<void> {
     try {
       const allUsers = await this.getAllUsers();
       const users = allUsers.filter(u => u.status === 'approved');
@@ -424,8 +473,8 @@ class DbStore {
     if (sql) {
       try {
         const rows = await sql.query(
-          `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, mentor_name, is_department_wide)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          `INSERT INTO users (full_name, email, password, role, department, register_number, year, phone, profile_photo, status, mentor_id, mentor_name, is_department_wide, must_change_password)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            RETURNING *`,
           [
             data.full_name,
@@ -441,6 +490,7 @@ class DbStore {
             data.mentor_id || null,
             data.mentor_name || null,
             data.is_department_wide || false,
+            data.must_change_password || false,
           ]
         );
         if (rows && rows.length > 0) {
@@ -1394,6 +1444,7 @@ class DbStore {
 
   // Events
   async getEvents(): Promise<EventRow[]> {
+    this.loadEventsFromDisk();
     return this.store.events;
   }
 
@@ -1404,6 +1455,7 @@ class DbStore {
       created_at: new Date().toISOString(),
     };
     this.store.events.unshift(newEvent);
+    this.syncEvents();
     return newEvent;
   }
 
@@ -1411,6 +1463,7 @@ class DbStore {
     const idx = this.store.events.findIndex((e: EventRow) => e.id === id);
     if (idx === -1) return undefined;
     this.store.events[idx] = { ...this.store.events[idx], ...data };
+    this.syncEvents();
     return this.store.events[idx];
   }
 
@@ -1418,6 +1471,7 @@ class DbStore {
     const len = this.store.events.length;
     this.store.events = this.store.events.filter((e: EventRow) => e.id !== id);
     this.store.event_registrations = this.store.event_registrations.filter((r: EventRegistrationRow) => r.event_id !== id);
+    this.syncEvents();
     return this.store.events.length < len;
   }
 
@@ -1455,6 +1509,24 @@ class DbStore {
   }
 
   // Notifications
+  async getAdminUserIds(): Promise<number[]> {
+    const admins = await this.getAllUsers({ role: 'admin' });
+    if (admins && admins.length > 0) {
+      return admins.map(a => a.id);
+    }
+    return [1];
+  }
+
+  async notifyAdmins(data: Omit<NotificationRow, 'id' | 'user_id' | 'created_at' | 'is_read'>): Promise<void> {
+    const adminIds = await this.getAdminUserIds();
+    for (const adminId of adminIds) {
+      await this.createNotification({
+        user_id: adminId,
+        ...data,
+      });
+    }
+  }
+
   async getNotifications(userId: number): Promise<NotificationRow[]> {
     return this.store.notifications
       .filter((n: NotificationRow) => n.user_id === userId)

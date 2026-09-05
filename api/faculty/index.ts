@@ -134,6 +134,39 @@ const handleApproveReject = async (req: AuthenticatedRequest, res: Response) => 
       action = 'Rejected';
     }
 
+    // Fetch item first to check student mentee authorization
+    let existingItem: any = null;
+    if (normType === 'learning_hour') {
+      const items = await db.getLearningHours();
+      existingItem = items.find((i: any) => i.id === Number(rawId));
+    } else if (normType === 'certificate') {
+      const items = await db.getCertificates();
+      existingItem = items.find((i: any) => i.id === Number(rawId));
+    } else if (normType === 'research') {
+      const items = await db.getResearchPapers();
+      existingItem = items.find((i: any) => i.id === Number(rawId));
+    } else if (normType === 'project') {
+      const items = await db.getProjects();
+      existingItem = items.find((i: any) => i.id === Number(rawId));
+    } else {
+      return res.status(400).json({ error: 'Invalid submission type provided.' });
+    }
+
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Submission record not found.' });
+    }
+
+    // Authorization check for faculty: must be assigned mentor or have is_department_wide = true
+    if (req.user!.role === 'faculty' && !req.user!.is_department_wide) {
+      const targetStudent = await db.findUserById(existingItem.student_id);
+      if (!targetStudent || targetStudent.mentor_id !== facultyId) {
+        return res.status(403).json({
+          error: 'Forbidden: You are only authorized to review submissions for your assigned mentees.',
+          code: 'MENTEE_SCOPE_RESTRICTED',
+        });
+      }
+    }
+
     let updatedItem: any = null;
     let studentId: number = 0;
     let title: string = '';
@@ -162,12 +195,6 @@ const handleApproveReject = async (req: AuthenticatedRequest, res: Response) => 
         studentId = updatedItem.student_id;
         title = updatedItem.title;
       }
-    } else {
-      return res.status(400).json({ error: 'Invalid submission type provided.' });
-    }
-
-    if (!updatedItem) {
-      return res.status(404).json({ error: 'Submission record not found.' });
     }
 
     // NOTE: Learning hours are credited only by Admin on approval — not faculty.

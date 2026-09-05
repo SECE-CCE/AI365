@@ -153,8 +153,20 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { full_name, email, password, role, department, register_number, year, phone, mentor_id, is_department_wide } = req.body;
 
-    if (!full_name || !email || !password || !role) {
-      return res.status(400).json({ error: 'Full Name, Email, Password, and Role are required.' });
+    // Automatic password generation rule for students: sece@<last 5 digits of phone number>
+    let rawPassword = password;
+    if (role === 'student' && (!rawPassword || rawPassword.trim() === '')) {
+      const cleanPhone = (phone || '12345').replace(/\D/g, '');
+      const last5 = cleanPhone.slice(-5) || '12345';
+      rawPassword = `sece@${last5}`;
+    }
+
+    if (!full_name || !email || !rawPassword || !role) {
+      return res.status(400).json({ error: 'Full Name, Email, Password (or Mobile No for auto-generation), and Role are required.' });
+    }
+
+    if (role === 'student' && !email.toLowerCase().endsWith('@sece.ac.in')) {
+      return res.status(400).json({ error: 'Student official email must end with @sece.ac.in.' });
     }
 
     const existing = await db.findUserByEmail(email);
@@ -162,7 +174,7 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     const newUser = await db.createUser({
       full_name,
@@ -173,18 +185,330 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
       register_number,
       year,
       phone,
-      profile_photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      profile_photo: role === 'student' ? '/boy-avatar.svg' : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       status: 'approved',
       mentor_id: mentor_id ? Number(mentor_id) : null,
       is_department_wide: Boolean(is_department_wide),
+      must_change_password: role === 'student' ? true : false,
     });
 
     await db.logActivity(req.user!.id, 'Created User Account', `Created ${role} account for ${full_name} (${email})`, newUser.id);
 
     const { password: _, ...userWithoutPass } = newUser;
-    return res.status(201).json({ message: 'User created successfully.', user: userWithoutPass });
+    return res.status(201).json({
+      message: 'User created successfully.',
+      user: userWithoutPass,
+      initialPassword: role === 'student' ? rawPassword : undefined,
+    });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to create user.' });
+  }
+});
+
+// Helper function to parse CSV row with quote awareness
+function parseCsvRow(row: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    if (char === '"' || char === "'") {
+      inQuotes = !inQuotes;
+    } else if ((char === ',' || char === '\t' || char === ';') && !inQuotes) {
+      result.push(current.trim().replace(/^["']|["']$/g, ''));
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current || row.endsWith(',') || row.endsWith('\t') || row.endsWith(';')) {
+    result.push(current.trim().replace(/^["']|["']$/g, ''));
+  }
+  return result;
+}
+
+// Helper to fetch CSV text from Google Drive / Sheets URLs
+async function fetchDriveCsvText(drive_link: string): Promise<string | null> {
+  const link = drive_link.trim();
+  const candidates: string[] = [];
+
+  const sheetMatch = link.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (sheetMatch && sheetMatch[1]) {
+    const fileId = sheetMatch[1];
+    candidates.push(`https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`);
+    candidates.push(`https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq?tqx=out:csv`);
+  }
+
+  const pubMatch = link.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
+  if (pubMatch && pubMatch[1]) {
+    candidates.push(`https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pub?output=csv`);
+  }
+
+  const driveFileMatch = link.match(/(?:\/file\/d\/|id=|\/d\/)([a-zA-Z0-9_-]+)/);
+  if (driveFileMatch && driveFileMatch[1]) {
+    const fileId = driveFileMatch[1];
+    candidates.push(`https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`);
+    candidates.push(`https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`);
+  }
+
+  if (candidates.length === 0 && link.startsWith('http')) {
+    candidates.push(link);
+  }
+
+  for (const exportUrl of candidates) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+      const fetchRes = await fetch(exportUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/csv,text/plain,*/*'
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (fetchRes.ok) {
+        const text = await fetchRes.text();
+        if (text && !text.trim().startsWith('<!DOCTYPE') && !text.trim().startsWith('<html')) {
+          return text;
+        }
+      }
+    } catch (e) {
+      // Continue to next candidate
+    }
+  }
+
+  return null;
+}
+
+function isGarbageJsOrHtmlLine(str: string): boolean {
+  if (!str) return false;
+  const lower = str.toLowerCase();
+  const codeKeywords = [
+    'function', 'var ', 'let ', 'const ', 'return', 'pagexoffset', 'pageyoffset',
+    'getboundingclientrect', 'document.', 'window.', 'eval(', 'console.',
+    'c[b]=', '.length', 'prototype', 'typeof', 'undefined', 'null', '==', '=>',
+    '<script', '<div', '<html', '<body', '{', '}', ';', '()', '[]', '='
+  ];
+  return codeKeywords.some((pat) => lower.includes(pat));
+}
+
+function isValidStudentName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (trimmed.length < 2 || trimmed.length > 80) return false;
+  if (isGarbageJsOrHtmlLine(trimmed)) return false;
+  return /^[a-zA-Z\s\.\-']{2,80}$/.test(trimmed);
+}
+
+// Helper to parse student rows from CSV text
+function parseStudentCsv(csvText: string, targetYear: string) {
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const firstRow = parseCsvRow(lines[0]);
+  const isHeader = firstRow.some((col) => {
+    const c = col.toLowerCase();
+    return c.includes('name') || c.includes('email') || c.includes('sno') || c.includes('roll') || c.includes('reg') || c.includes('mobile');
+  });
+
+  let snoIdx = 0;
+  let rollIdx = 1;
+  let regIdx = 2;
+  let nameIdx = 3;
+  let phoneIdx = 4;
+  let emailIdx = 5;
+
+  let startIndex = 0;
+
+  if (isHeader) {
+    startIndex = 1;
+    firstRow.forEach((col, idx) => {
+      const c = col.toLowerCase();
+      if (c.includes('sno') || c.includes('s.no') || c.includes('sl') || c.includes('index') || c === '#') snoIdx = idx;
+      else if (c.includes('roll')) rollIdx = idx;
+      else if (c.includes('reg') || c.includes('register')) regIdx = idx;
+      else if (c.includes('name')) nameIdx = idx;
+      else if (c.includes('mobile') || c.includes('phone') || c.includes('contact')) phoneIdx = idx;
+      else if (c.includes('email') || c.includes('mail') || c.includes('username')) emailIdx = idx;
+    });
+  }
+
+  const students: any[] = [];
+  for (let i = startIndex; i < lines.length; i++) {
+    const parts = parseCsvRow(lines[i]);
+    if (parts.length < 2) continue;
+
+    const rawSno = parts[snoIdx] || `${i + (isHeader ? 0 : 1)}`;
+    const sno = parseInt(rawSno, 10) || i + (isHeader ? 0 : 1);
+    let rollno = isGarbageJsOrHtmlLine(parts[rollIdx]) ? '' : parts[rollIdx] || parts[regIdx] || '';
+    let registrationnumber = isGarbageJsOrHtmlLine(parts[regIdx]) ? '' : parts[regIdx] || parts[rollIdx] || '';
+    let name = parts[nameIdx] || parts[0] || '';
+    let mobileno = isGarbageJsOrHtmlLine(parts[phoneIdx]) ? '' : parts[phoneIdx] || '';
+    let rawEmail = parts[emailIdx] || '';
+
+    // Discard JavaScript / HTML code garbage lines
+    if (isGarbageJsOrHtmlLine(name) || !isValidStudentName(name)) {
+      continue;
+    }
+
+    if (!rawEmail) {
+      rawEmail = `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@sece.ac.in`;
+    } else if (!rawEmail.includes('@')) {
+      rawEmail = `${rawEmail}@sece.ac.in`;
+    }
+
+    if (isGarbageJsOrHtmlLine(rawEmail)) {
+      continue;
+    }
+
+    students.push({
+      sno,
+      rollno: rollno.trim(),
+      registrationnumber: registrationnumber.trim(),
+      name: name.trim(),
+      mobileno: mobileno.trim(),
+      email: rawEmail.toLowerCase().trim(),
+      year: targetYear,
+    });
+  }
+
+  return students;
+}
+
+// POST /api/admin/users/bulk-students
+// Bulk Provisioning API for student databases via Drive link, CSV, or student arrays
+router.post('/users/bulk-students', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    let { students, drive_link, raw_csv, year } = req.body;
+    const targetYear = year || '1st Year';
+
+    if (!Array.isArray(students) || students.length === 0) {
+      students = [];
+
+      let csvText = (raw_csv || '').trim();
+
+      if (!csvText && drive_link && typeof drive_link === 'string') {
+        const fetchedText = await fetchDriveCsvText(drive_link);
+        if (fetchedText) {
+          csvText = fetchedText;
+        } else {
+          return res.status(400).json({
+            error: "Unable to access or parse Google Drive link. Please ensure the Google Sheet access setting is changed to 'Anyone with the link can view' or upload a CSV file."
+          });
+        }
+      }
+
+      if (csvText) {
+        students = parseStudentCsv(csvText, targetYear);
+      }
+    }
+
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ error: 'No student records could be parsed. Check your CSV header format.' });
+    }
+
+    // High-performance parallel provisioning
+    const allExistingUsers = await db.getAllUsers();
+    const existingMap = new Map(allExistingUsers.map((u) => [u.email.toLowerCase(), u]));
+
+    const passwordHashCache = new Map<string, string>();
+    const getHashedPass = async (plain: string) => {
+      if (passwordHashCache.has(plain)) return passwordHashCache.get(plain)!;
+      const h = await bcrypt.hash(plain, 8);
+      passwordHashCache.set(plain, h);
+      return h;
+    };
+
+    const created: any[] = [];
+    const skipped: any[] = [];
+
+    // Process students concurrently in parallel chunks of 15
+    const CHUNK_SIZE = 15;
+    for (let i = 0; i < students.length; i += CHUNK_SIZE) {
+      const chunk = students.slice(i, i + CHUNK_SIZE);
+      await Promise.all(
+        chunk.map(async (item: any, chunkIndex: number) => {
+          const name = item.name || item.full_name;
+          const email = item.email ? String(item.email).toLowerCase().trim() : '';
+          const rollno = item.rollno || item.register_number || item.registrationnumber || '';
+          const mobileno = item.mobileno || item.phone || '';
+          const studentYear = item.year || targetYear;
+          const mentor_name = item.mentor_name || null;
+
+          if (!name || !email) {
+            skipped.push({ email: email || 'Unknown', reason: 'Missing name or email' });
+            return;
+          }
+
+          const cleanPhone = String(mobileno).replace(/\D/g, '');
+          const last5 = cleanPhone.slice(-5) || '12345';
+          const autoPassword = `sece@${last5}`;
+          const hashedPassword = await getHashedPass(autoPassword);
+
+          const existing = existingMap.get(email);
+          let userRecord: any;
+
+          if (existing) {
+            userRecord = await db.updateUser(existing.id, {
+              password: hashedPassword,
+              status: 'approved',
+              must_change_password: true,
+              register_number: rollno || existing.register_number,
+              phone: mobileno || existing.phone,
+              year: studentYear || existing.year,
+            });
+          } else {
+            userRecord = await db.createUser({
+              full_name: name,
+              email,
+              password: hashedPassword,
+              role: 'student',
+              department: 'Computer & Communication Engineering',
+              register_number: rollno || '',
+              year: studentYear,
+              phone: mobileno || '',
+              profile_photo: '/boy-avatar.svg',
+              status: 'approved',
+              mentor_name,
+              is_department_wide: false,
+              must_change_password: true,
+            });
+          }
+
+          if (userRecord) {
+            const { password: _, ...sanitized } = userRecord;
+            created.push({
+              ...sanitized,
+              sno: item.sno || i + chunkIndex + 1,
+              registrationnumber: item.registrationnumber || rollno,
+              rollno,
+              username: email,
+              password: autoPassword,
+              autoPassword,
+            });
+          }
+        })
+      );
+    }
+
+    // Sort created list by S.No
+    created.sort((a, b) => (a.sno || 0) - (b.sno || 0));
+
+    await db.logActivity(req.user!.id, 'Bulk Provisioned Students', `Bulk provisioned ${created.length} student accounts.`);
+
+    return res.status(201).json({
+      message: `Successfully generated credentials for ${created.length} student(s) in ${targetYear}.`,
+      createdCount: created.length,
+      skippedCount: skipped.length,
+      created,
+      students: created,
+      skipped,
+    });
+  } catch (err: any) {
+    console.error('Bulk Provision Error:', err);
+    return res.status(500).json({ error: 'Failed to bulk provision student accounts.' });
   }
 });
 

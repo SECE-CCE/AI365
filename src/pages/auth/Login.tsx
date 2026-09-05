@@ -94,7 +94,7 @@ export const Login: React.FC = () => {
         <div className="w-full max-w-md bg-white rounded-[24px] shadow-xl border border-slate-200/80 p-8">
           <div className="mb-6">
             <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Portal Login</h3>
-            <p className="text-xs text-slate-500 font-medium mt-1">Select your role and enter your CCE credentials.</p>
+            <p className="text-xs text-slate-500 font-medium mt-1">Students sign in with official @sece.ac.in credentials assigned by Admin.</p>
           </div>
 
           {sessionExpiredNotice && (

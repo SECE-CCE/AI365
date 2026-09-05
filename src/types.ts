@@ -12,6 +12,7 @@ export interface User {
   mentor_id?: number | null;
   mentor_name?: string | null;
   is_department_wide?: boolean;
+  must_change_password?: boolean;
   created_at: string;
 }
 

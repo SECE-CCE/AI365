@@ -57,10 +57,17 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
         role,
         event_type: 'LOGIN_FAILED',
         status: 'FAILED',
-        reason: 'User account does not exist',
+        reason: 'User account does not exist in CCE database',
         ip_address,
         user_agent,
       });
+
+      if (role === 'student') {
+        return res.status(401).json({
+          error: 'Access Denied: Your student account has not been imported or provisioned in the CCE Admin Portal. Please contact your CCE Department Administrator.',
+        });
+      }
+
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
@@ -186,87 +193,10 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
 
 // POST /api/auth/register
 router.post('/register', authLimiter, async (req, res) => {
-  try {
-    const {
-      full_name,
-      register_number,
-      department,
-      year,
-      email,
-      phone,
-      password,
-      gender,
-      profile_photo,
-      mentor_name,
-    } = req.body;
-
-    if (!full_name || !email || !password) {
-      return res.status(400).json({ error: 'Full Name, Email, and Password are required.' });
-    }
-
-    if (!register_number) {
-      return res.status(400).json({ error: 'Register Number is required for students.' });
-    }
-
-    if (!year) {
-      return res.status(400).json({ error: 'Academic Year is required.' });
-    }
-
-    if (!mentor_name) {
-      return res.status(400).json({ error: 'Faculty Mentor is required.' });
-    }
-
-    const existing = await db.findUserByEmail(email);
-    if (existing) {
-      return res.status(400).json({ error: 'An account with this email address already exists.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Avatar assignment based on gender selection
-    const defaultAvatar = gender === 'girl'
-      ? '/girl-avatar.svg'
-      : '/boy-avatar.svg';
-
-    const newUser = await db.createUser({
-      full_name,
-      email,
-      password: hashedPassword,
-      role: 'student',
-      department: department || 'Computer & Communication Engineering',
-      register_number: register_number,
-      year: year,
-      phone: phone || '',
-      gender: gender || 'boy',
-      profile_photo: profile_photo || defaultAvatar,
-      status: 'pending_approval',
-      mentor_id: null,
-      mentor_name: mentor_name || null,
-      is_department_wide: false,
-    });
-
-    // Create Notification for Admin (user_id = 1)
-    await db.createNotification({
-      user_id: 1,
-      title: 'New Student Registration Pending',
-      message: `Student ${full_name} (${register_number || 'New'}) registered and requires approval.`,
-      type: 'registration',
-      link: '/admin/users',
-    });
-
-    // Log activity
-    await db.logActivity(newUser.id, 'Registered Student Account', `Student ${full_name} registered and pending approval`, newUser.id);
-
-    const { password: _, ...userWithoutPass } = newUser;
-
-    return res.status(201).json({
-      message: 'Registration successful! Your account is pending CCE Admin approval before you can log in.',
-      user: userWithoutPass,
-    });
-  } catch (err: any) {
-    console.error('Register Error:', err);
-    return res.status(500).json({ error: 'Server error during registration.' });
-  }
+  return res.status(403).json({
+    error: 'Student self-registration is disabled. Student accounts are pre-created by CCE Administration with official email credentials.',
+    code: 'REGISTRATION_DISABLED',
+  });
 });
 
 // POST /api/auth/register-faculty
@@ -300,8 +230,7 @@ router.post('/register-faculty', authLimiter, async (req, res) => {
       is_department_wide: false,
     });
 
-    await db.createNotification({
-      user_id: 1,
+    await db.notifyAdmins({
       title: 'New Faculty Registration Pending',
       message: `Faculty ${full_name} (${designation}) registered and requires admin approval.`,
       type: 'registration',
@@ -340,6 +269,7 @@ router.put('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
     if (profile_photo !== undefined) updates.profile_photo = profile_photo;
     if (password) {
       updates.password = await bcrypt.hash(password, 10);
+      updates.must_change_password = false;
     }
 
     const updatedUser = await db.updateUser(req.user.id, updates);
@@ -352,6 +282,46 @@ router.put('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
   } catch (err: any) {
     console.error('Update Profile Error:', err);
     return res.status(500).json({ error: 'Server error while updating profile.' });
+  }
+});
+
+// POST /api/auth/change-password
+router.post('/change-password', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+    const { current_password, new_password } = req.body;
+
+    if (!new_password || new_password.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    if (current_password) {
+      const valid = await bcrypt.compare(current_password, req.user.password || '');
+      if (!valid) {
+        return res.status(400).json({ error: 'Current password is incorrect.' });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+    const updatedUser = await db.updateUser(req.user.id, {
+      password: hashedPassword,
+      must_change_password: false,
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+
+    await db.logActivity(req.user.id, 'Changed Password', 'Updated user account password on first login.');
+
+    const { password: _, ...userWithoutPass } = updatedUser;
+    return res.json({
+      message: 'Password updated successfully.',
+      user: userWithoutPass,
+    });
+  } catch (err: any) {
+    console.error('Change Password Error:', err);
+    return res.status(500).json({ error: 'Server error while changing password.' });
   }
 });
 

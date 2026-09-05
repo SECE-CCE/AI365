@@ -37,6 +37,7 @@ import { FacultySettings } from './pages/faculty/FacultySettings';
 // Admin
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { UserManagement } from './pages/admin/UserManagement';
+import { StudentManagement } from './pages/admin/StudentManagement';
 import { TargetManagement } from './pages/admin/TargetManagement';
 import { AdminReports } from './pages/admin/AdminReports';
 import { AdminSettings } from './pages/admin/AdminSettings';
@@ -95,6 +96,7 @@ export const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: <AdminDashboard /> },
+      { path: 'students', element: <StudentManagement /> },
       { path: 'users', element: <UserManagement /> },
       { path: 'targets', element: <TargetManagement /> },
       { path: 'events', element: <FacultyEvents /> },
