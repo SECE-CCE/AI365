@@ -36,4 +36,8 @@ assets/Documents/*
 
 # Backups (NEVER commit these!)
 backups/
-deo
+
+# Approval / activity logs (generated at runtime — keep folder, ignore files)
+logs/*.jsonl
+logs/*.csv
+!logs/.gitkeep

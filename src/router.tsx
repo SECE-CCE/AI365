@@ -42,6 +42,7 @@ import { TargetManagement } from './pages/admin/TargetManagement';
 import { AdminReports } from './pages/admin/AdminReports';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
+import { AdminLeaderboard } from './pages/admin/AdminLeaderboard';
 
 export const router = createBrowserRouter([
   // Visitor Public Routes
@@ -103,6 +104,7 @@ export const router = createBrowserRouter([
       { path: 'analytics', element: <AdminAnalytics /> },
       { path: 'reports', element: <AdminReports /> },
       { path: 'settings', element: <AdminSettings /> },
+      { path: 'leaderboard', element: <AdminLeaderboard /> },
     ],
   },
 
