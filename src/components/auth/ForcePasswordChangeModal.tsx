@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, AlertCircle, Loader2, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Lock, AlertCircle, Loader2, CheckCircle2, ShieldAlert, Eye, EyeOff } from 'lucide-react';
 import { apiFetch } from '../../services/api';
 
 interface ForcePasswordChangeModalProps {
@@ -13,6 +13,9 @@ export const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,12 +84,20 @@ export const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> =
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 pointer-events-none" />
               <input
-                type="password"
+                type={showCurrent ? 'text' : 'password'}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Initial password provided by Admin"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:border-[#004990] outline-none transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:border-[#004990] outline-none transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowCurrent(v => !v)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-[#004990] transition-colors"
+                tabIndex={-1}
+              >
+                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -95,13 +106,21 @@ export const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> =
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 pointer-events-none" />
               <input
-                type="password"
+                type={showNew ? 'text' : 'password'}
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:border-[#004990] outline-none transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:border-[#004990] outline-none transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowNew(v => !v)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-[#004990] transition-colors"
+                tabIndex={-1}
+              >
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -110,13 +129,21 @@ export const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> =
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 pointer-events-none" />
               <input
-                type="password"
+                type={showConfirm ? 'text' : 'password'}
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter new password"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:border-[#004990] outline-none transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:border-[#004990] outline-none transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(v => !v)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-[#004990] transition-colors"
+                tabIndex={-1}
+              >
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 

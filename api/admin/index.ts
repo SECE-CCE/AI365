@@ -70,6 +70,20 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
       ...pendingProjects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_link, date: formatDate(p.created_at) })),
     ];
 
+    // Fetch recently approved submissions (last 30 days) for persistent Admin visibility
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const recentApprovedHours = allApprovedHours.filter(h => h.created_at >= thirtyDaysAgo || h.updated_at >= thirtyDaysAgo);
+    const recentApprovedCerts = allApprovedCerts.filter(c => c.created_at >= thirtyDaysAgo || c.updated_at >= thirtyDaysAgo);
+    const recentApprovedPapers = allApprovedPapers.filter(r => r.created_at >= thirtyDaysAgo || r.updated_at >= thirtyDaysAgo);
+    const recentApprovedProjects = allApprovedProjects.filter(p => p.created_at >= thirtyDaysAgo || p.updated_at >= thirtyDaysAgo);
+
+    const recentlyApproved = [
+      ...recentApprovedHours.map(h => ({ ...h, type: 'learning_hour', title: h.activity_name, document_url: h.certificate_url, date: formatDate(h.date), approved_action: 'Approved' })),
+      ...recentApprovedCerts.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url, date: formatDate(c.completion_date), approved_action: 'Approved' })),
+      ...recentApprovedPapers.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url, date: formatDate(r.created_at), approved_action: 'Approved' })),
+      ...recentApprovedProjects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_link, date: formatDate(p.created_at), approved_action: 'Approved' })),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
     const totalHoursCount = allApprovedHours.reduce((acc, h) => acc + Number(h.hours), 0);
     const pendingHoursCount = pendingHours.reduce((acc, h) => acc + Number(h.hours || 0), 0);
     const estimatedPendingCertHours = pendingCerts.length * 20;
@@ -91,6 +105,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
         pendingRegistrations: pendingStudents.length,
         pendingFacultyRegistrations: pendingFaculty.length,
         pendingSubmissionsCount: pendingSubmissions.length,
+        recentlyApprovedCount: recentlyApproved.length,
         totalDepartmentHours: effectiveDeptHours,
         avgAiScore: students.length > 0 ? Math.round((effectiveDeptHours * 2 + 100) / students.length) : 150,
         totalApprovedHoursCount: effectiveDeptHours,
@@ -111,6 +126,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
       pendingUsers: pendingStudents.map(({ password, ...u }) => u),
       pendingFaculty: pendingFaculty.map(({ password, ...u }) => u),
       pendingSubmissions,
+      recentlyApproved,
       latestActivities: activityLogs.slice(0, 15),
     });
   } catch (err: any) {
@@ -759,6 +775,35 @@ router.post('/approvals', async (req: AuthenticatedRequest, res: Response) => {
       `${req.user!.full_name} ${action.toLowerCase()} "${title}" for student ID #${studentId}. Remarks: ${remarks || 'N/A'}`,
       studentId
     );
+
+    // ─── Permanent File Log ───────────────────────────────────────────────────
+    // Write a compact JSON Lines entry to logs/approvals-YYYY-MM.jsonl
+    // Lightweight audit trail that survives DB issues; ~200 bytes per entry.
+    try {
+      const logsDir = path.join(process.cwd(), 'logs');
+      if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+      const now = new Date();
+      const monthTag = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+      const logFile = path.join(logsDir, `approvals-${monthTag}.jsonl`);
+      const logEntry = JSON.stringify({
+        ts: now.toISOString(),
+        admin: req.user!.full_name,
+        student_id: studentId,
+        student_name: updatedItem.student_name || updatedItem.full_name || '',
+        register_number: updatedItem.register_number || '',
+        type: normType,
+        title,
+        action,
+        admin_marks: adminMarks !== undefined ? adminMarks : null,
+        remarks: remarks || '',
+      }) + '\n';
+      fs.appendFileSync(logFile, logEntry, 'utf8');
+      console.log(`📋 Approval log written → ${logFile}`);
+    } catch (logErr: any) {
+      // Non-fatal — never let log IO failure break the approval response
+      console.error('⚠️ Approval log write failed:', logErr.message);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     return res.json({
       message: `Submission successfully ${action.toLowerCase()}.`,

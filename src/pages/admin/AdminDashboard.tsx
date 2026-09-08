@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, UserCheck, Clock, Award, Target, Check, X, ShieldAlert, ArrowRight, FileText, ExternalLink, Calendar } from 'lucide-react';
+import { Users, UserCheck, Clock, Award, Target, Check, X, ShieldAlert, ArrowRight, FileText, ExternalLink, Calendar, CheckCircle2 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
@@ -169,6 +169,7 @@ export const AdminDashboard: React.FC = () => {
   const pendingUsers = dashboardData?.pendingUsers || [];
   const pendingFaculty = dashboardData?.pendingFaculty || [];
   const pendingSubmissions = dashboardData?.pendingSubmissions || [];
+  const recentlyApproved: any[] = dashboardData?.recentlyApproved || [];
 
   const registrationColumns: Column<any>[] = [
     {
@@ -228,7 +229,9 @@ export const AdminDashboard: React.FC = () => {
       cell: (row) => (
         <div>
           <p className="font-bold text-slate-900">{row.student_name}</p>
-          <p className="text-[11px] text-slate-500">{row.register_number || row.year || 'CCE Student'}</p>
+          <p className="text-[11px] text-slate-500">
+            {[row.register_number, row.year].filter(Boolean).join(' • ') || 'CCE Student'}
+          </p>
         </div>
       ),
     },
@@ -373,13 +376,95 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Pending Student Activity Submissions (Certificates, Research Papers, Projects) */}
       <Card
         title={`Pending Activity Submissions (${pendingSubmissions.length})`}
         subtitle="Certificates, Research Papers & Projects submitted by students waiting for Admin / Faculty approval"
       >
         <Table columns={submissionColumns} data={pendingSubmissions} keyExtractor={(r) => `${r.type}-${r.id}`} />
       </Card>
+
+      {/* Recently Approved Submissions — stays visible for 30 days */}
+      <div className="rounded-[20px] border border-emerald-200 bg-emerald-50/40 overflow-hidden">
+        <div className="px-6 py-4 border-b border-emerald-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <div>
+              <p className="font-bold text-slate-900 text-sm">
+                Recently Approved — Last 30 Days
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold">
+                  {recentlyApproved.length}
+                </span>
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Approved submissions remain visible here for 30 days. Data is permanently stored in the database & logs/ folder.
+              </p>
+            </div>
+          </div>
+        </div>
+        {recentlyApproved.length === 0 ? (
+          <div className="py-10 text-center">
+            <CheckCircle2 className="w-10 h-10 text-emerald-300 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-500">No approved submissions in the last 30 days</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-emerald-100/60 text-left">
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Student</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Type</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Title</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Admin Marks</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Date</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Document</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-emerald-100">
+                {recentlyApproved.map((row: any, idx: number) => (
+                  <tr key={`approved-${row.type}-${row.id}-${idx}`} className="hover:bg-emerald-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-bold text-slate-900">{row.student_name}</p>
+                      <p className="text-[10px] text-slate-500">
+                        {[row.register_number, row.year].filter(Boolean).join(' • ') || 'CCE Student'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold uppercase text-[9px] tracking-wider">
+                        {row.type?.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-800 max-w-[200px] truncate">{row.title}</td>
+                    <td className="px-4 py-3">
+                      <span className="font-black text-emerald-700">
+                        {row.admin_marks !== undefined && row.admin_marks !== null ? row.admin_marks : '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{row.date}</td>
+                    <td className="px-4 py-3">
+                      {row.document_url ? (
+                        <a
+                          href={getDocumentUrl(row.document_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#004990] font-bold hover:underline flex items-center gap-1"
+                        >
+                          View <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : <span className="text-slate-400">N/A</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="flex items-center gap-1 text-emerald-700 font-bold">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Approved
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Pending Student Account Registrations Queue */}
       <Card

@@ -65,6 +65,7 @@ export const Sidebar: React.FC = () => {
     { label: 'Student Management', path: '/admin/students', icon: <GraduationCap className="w-5 h-5" /> },
     { label: 'User Directory', path: '/admin/users', icon: <Users className="w-5 h-5" /> },
     { label: 'Target Management', path: '/admin/targets', icon: <Target className="w-5 h-5" /> },
+    { label: 'Leaderboard', path: '/admin/leaderboard', icon: <Trophy className="w-5 h-5" /> },
     { label: 'Manage Events', path: '/admin/events', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Website Analytics', path: '/admin/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     { label: 'Dept Reports', path: '/admin/reports', icon: <FileText className="w-5 h-5" /> },
