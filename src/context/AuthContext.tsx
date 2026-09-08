@@ -9,7 +9,7 @@ import React, {
 import { User } from '../types';
 import { apiFetch } from '../services/api';
 
-const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes (1 hour) session inactivity timeout
+const INACTIVITY_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours session timeout
 
 interface AuthContextType {
   user: User | null;
@@ -111,10 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const data = await apiFetch<{ user: User }>('/api/auth/me');
       setUser(data.user);
-    } catch (err) {
-      setUser(null);
-      setSessionId(null);
-      localStorage.removeItem('ai365_session_id');
+    } catch (err: any) {
+      if (err.message && (err.message.includes('Authentication required') || err.message.includes('Session expired') || err.message.includes('Invalid authentication') || err.message.includes('User account not found'))) {
+        setUser(null);
+        setSessionId(null);
+        localStorage.removeItem('ai365_session_id');
+      }
     } finally {
       setIsLoading(false);
     }

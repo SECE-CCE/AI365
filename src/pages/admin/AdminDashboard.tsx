@@ -33,7 +33,7 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboard();
-    const interval = setInterval(fetchDashboard, 5000);
+    const interval = setInterval(fetchDashboard, 30000);
     const handleVisibility = () => { if (document.visibilityState === 'visible') fetchDashboard(); };
     const handleFocus = () => fetchDashboard();
     const handleUpdated = () => fetchDashboard();

@@ -24,7 +24,7 @@ export const Leaderboard: React.FC = () => {
 
   useEffect(() => {
     fetchLeaderboard();
-    const interval = setInterval(fetchLeaderboard, 5000);
+    const interval = setInterval(fetchLeaderboard, 30000);
     const handleVisibility = () => { if (document.visibilityState === 'visible') fetchLeaderboard(); };
     const handleFocus = () => fetchLeaderboard();
     const handleUpdated = () => fetchLeaderboard();
