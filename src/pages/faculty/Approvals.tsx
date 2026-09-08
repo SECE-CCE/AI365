@@ -33,7 +33,7 @@ export const Approvals: React.FC = () => {
 
   useEffect(() => {
     fetchApprovals();
-    const interval = setInterval(fetchApprovals, 5000);
+    const interval = setInterval(fetchApprovals, 30000);
     const handleVisibility = () => { if (document.visibilityState === 'visible') fetchApprovals(); };
     const handleFocus = () => fetchApprovals();
     const handleUpdated = () => fetchApprovals();

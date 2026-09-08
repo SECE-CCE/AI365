@@ -205,7 +205,7 @@ router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
       status: 'approved',
       mentor_id: mentor_id ? Number(mentor_id) : null,
       is_department_wide: Boolean(is_department_wide),
-      must_change_password: role === 'student' ? true : false,
+      must_change_password: false,
     });
 
     await db.logActivity(req.user!.id, 'Created User Account', `Created ${role} account for ${full_name} (${email})`, newUser.id);
@@ -470,7 +470,7 @@ router.post('/users/bulk-students', async (req: AuthenticatedRequest, res: Respo
             userRecord = await db.updateUser(existing.id, {
               password: hashedPassword,
               status: 'approved',
-              must_change_password: true,
+              must_change_password: false,
               register_number: rollno || existing.register_number,
               phone: mobileno || existing.phone,
               year: studentYear || existing.year,
@@ -489,7 +489,7 @@ router.post('/users/bulk-students', async (req: AuthenticatedRequest, res: Respo
               status: 'approved',
               mentor_name,
               is_department_wide: false,
-              must_change_password: true,
+              must_change_password: false,
             });
           }
 

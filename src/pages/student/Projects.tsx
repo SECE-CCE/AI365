@@ -36,7 +36,7 @@ export const Projects: React.FC = () => {
 
   useEffect(() => {
     fetchProjects();
-    const interval = setInterval(fetchProjects, 5000);
+    const interval = setInterval(fetchProjects, 30000);
     const handleVisibility = () => { if (document.visibilityState === 'visible') fetchProjects(); };
     const handleFocus = () => fetchProjects();
     const handleUpdated = () => fetchProjects();

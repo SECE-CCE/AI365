@@ -261,7 +261,7 @@ async function insertBatch(list, year) {
         VALUES
           (${fullName}, ${email.toLowerCase()}, ${hash}, 'student', ${DEPT},
            ${registerNumber}, ${year}, ${ph},
-           '/boy-avatar.svg', 'approved', true, false)
+           '/boy-avatar.svg', 'approved', false, false)
         ON CONFLICT (email) DO UPDATE SET
           full_name       = EXCLUDED.full_name,
           password        = EXCLUDED.password,

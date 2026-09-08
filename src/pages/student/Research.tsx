@@ -36,7 +36,7 @@ export const Research: React.FC = () => {
 
   useEffect(() => {
     fetchResearch();
-    const interval = setInterval(fetchResearch, 5000);
+    const interval = setInterval(fetchResearch, 30000);
     const handleVisibility = () => { if (document.visibilityState === 'visible') fetchResearch(); };
     const handleFocus = () => fetchResearch();
     const handleUpdated = () => fetchResearch();

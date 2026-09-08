@@ -36,7 +36,7 @@ export const LearningHours: React.FC = () => {
 
   useEffect(() => {
     fetchHours();
-    const interval = setInterval(fetchHours, 5000);
+    const interval = setInterval(fetchHours, 30000);
     const handleVisibility = () => { if (document.visibilityState === 'visible') fetchHours(); };
     const handleFocus = () => fetchHours();
     const handleUpdated = () => fetchHours();

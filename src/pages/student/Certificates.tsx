@@ -36,7 +36,7 @@ export const Certificates: React.FC = () => {
 
   useEffect(() => {
     fetchCertificates();
-    const interval = setInterval(fetchCertificates, 5000);
+    const interval = setInterval(fetchCertificates, 30000);
     const handleVisibility = () => { if (document.visibilityState === 'visible') fetchCertificates(); };
     const handleFocus = () => fetchCertificates();
     const handleUpdated = () => fetchCertificates();

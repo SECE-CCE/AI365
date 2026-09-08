@@ -448,25 +448,61 @@ class DbStore {
     }
   }
 
+  private userCacheById = new Map<number, { user: UserRow; timestamp: number }>();
+  private userCacheByEmail = new Map<string, { user: UserRow; timestamp: number }>();
+  private USER_CACHE_TTL_MS = 60000; // 60s cache for fast auth lookups
+
+  public clearUserCache() {
+    this.userCacheById.clear();
+    this.userCacheByEmail.clear();
+  }
+
   // Users
   async findUserByEmail(email: string): Promise<UserRow | undefined> {
+    const normalized = email.toLowerCase();
+    const cached = this.userCacheByEmail.get(normalized);
+    if (cached && Date.now() - cached.timestamp < this.USER_CACHE_TTL_MS) {
+      return cached.user;
+    }
     try {
-      const rows = await this.queryDb('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
-      if (rows && rows.length > 0) return rows[0] as UserRow;
+      const rows = await this.queryDb('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [normalized]);
+      if (rows && rows.length > 0) {
+        const user = rows[0] as UserRow;
+        this.userCacheById.set(user.id, { user, timestamp: Date.now() });
+        this.userCacheByEmail.set(normalized, { user, timestamp: Date.now() });
+        return user;
+      }
     } catch (err) {
       // Graceful fallback to local store if DB is starting up
     }
-    return this.store.users.find((u: UserRow) => u.email.toLowerCase() === email.toLowerCase());
+    const storeUser = this.store.users.find((u: UserRow) => u.email.toLowerCase() === normalized);
+    if (storeUser) {
+      this.userCacheByEmail.set(normalized, { user: storeUser, timestamp: Date.now() });
+    }
+    return storeUser;
   }
 
   async findUserById(id: number): Promise<UserRow | undefined> {
+    const cached = this.userCacheById.get(id);
+    if (cached && Date.now() - cached.timestamp < this.USER_CACHE_TTL_MS) {
+      return cached.user;
+    }
     try {
       const rows = await this.queryDb('SELECT * FROM users WHERE id = $1', [id]);
-      if (rows && rows.length > 0) return rows[0] as UserRow;
+      if (rows && rows.length > 0) {
+        const user = rows[0] as UserRow;
+        this.userCacheById.set(id, { user, timestamp: Date.now() });
+        this.userCacheByEmail.set(user.email.toLowerCase(), { user, timestamp: Date.now() });
+        return user;
+      }
     } catch (err) {
       // Graceful fallback to local store if DB is starting up
     }
-    return this.store.users.find((u: UserRow) => u.id === id);
+    const storeUser = this.store.users.find((u: UserRow) => u.id === id);
+    if (storeUser) {
+      this.userCacheById.set(id, { user: storeUser, timestamp: Date.now() });
+    }
+    return storeUser;
   }
 
   async createUser(data: Omit<UserRow, 'id' | 'created_at'>): Promise<UserRow> {
@@ -496,6 +532,7 @@ class DbStore {
         if (rows && rows.length > 0) {
           const newUser = rows[0] as UserRow;
           this.store.users.push(newUser);
+          this.clearUserCache();
           this.syncRegisteredUsers();
           return newUser;
         }
@@ -509,6 +546,7 @@ class DbStore {
       created_at: new Date().toISOString(),
     };
     this.store.users.push(newUser);
+    this.clearUserCache();
     this.syncRegisteredUsers();
     return newUser;
   }
@@ -549,6 +587,7 @@ class DbStore {
         const idx = this.store.users.findIndex((u: UserRow) => u.id === id);
         if (idx !== -1) this.store.users[idx] = updatedUser;
         else this.store.users.push(updatedUser);
+        this.clearUserCache();
         this.syncRegisteredUsers();
         return updatedUser;
       }
@@ -560,6 +599,7 @@ class DbStore {
     const idx = this.store.users.findIndex((u: UserRow) => u.id === id);
     if (idx === -1) return undefined;
     this.store.users[idx] = { ...this.store.users[idx], ...data };
+    this.clearUserCache();
     this.syncRegisteredUsers();
     return this.store.users[idx];
   }
@@ -569,6 +609,7 @@ class DbStore {
       const rows = await this.queryDb('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
       if (rows && rows.length > 0) {
         this.store.users = this.store.users.filter((u: UserRow) => u.id !== id);
+        this.clearUserCache();
         this.syncRegisteredUsers();
         return true;
       }
@@ -579,6 +620,7 @@ class DbStore {
     this.store.users = this.store.users.filter((u: UserRow) => u.id !== id);
     const deleted = this.store.users.length < initialLen;
     if (deleted) {
+      this.clearUserCache();
       this.syncRegisteredUsers();
     }
     return deleted;
