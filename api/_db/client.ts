@@ -23,6 +23,15 @@ if (sql) {
   sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;`.catch((err) => {
     console.warn('[AI365 DB] Schema auto-migration notice:', err.message || err);
   });
+  // Add updated_at to all submission tables so "Recently Approved — Last 30 Days" works correctly
+  if (pool) {
+    const submissionTables = ['learning_hours', 'certificates', 'research_papers', 'projects'];
+    for (const tbl of submissionTables) {
+      pool.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`).catch((err: any) => {
+        console.warn(`[AI365 DB] updated_at migration for ${tbl}:`, err.message || err);
+      });
+    }
+  }
 }
 
 // Pre-computed fallback bcrypt hash (cost=10) for in-memory emergency bootstrapping
@@ -64,6 +73,7 @@ export interface LearningHourRow {
   faculty_remarks?: string;
   admin_marks?: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CertificateRow {
@@ -79,6 +89,7 @@ export interface CertificateRow {
   faculty_remarks?: string;
   admin_marks?: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface ResearchPaperRow {
@@ -95,6 +106,7 @@ export interface ResearchPaperRow {
   faculty_remarks?: string;
   admin_marks?: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface ProjectRow {
@@ -112,6 +124,7 @@ export interface ProjectRow {
   faculty_remarks?: string;
   admin_marks?: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface EventRow {
@@ -935,7 +948,7 @@ class DbStore {
   async updateLearningHourStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<LearningHourRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END, updated_at = NOW() WHERE id=$5 RETURNING *`,
         [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
@@ -946,10 +959,10 @@ class DbStore {
       }
     } catch (err) {
       const message = (err as Error).message || '';
-      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"') || message.includes('updated_at')) {
         try {
           const rows = await this.queryDb(
-            `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            `UPDATE learning_hours SET status=$1, faculty_id=$2, faculty_remarks=$3, updated_at = NOW() WHERE id=$4 RETURNING *`,
             [status, facultyId, remarks, id]
           );
           if (rows && rows.length > 0) {
@@ -969,6 +982,7 @@ class DbStore {
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
+    item.updated_at = new Date().toISOString();
     return item;
   }
 
@@ -1022,7 +1036,7 @@ class DbStore {
   async updateCertificateStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<CertificateRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END, updated_at = NOW() WHERE id=$5 RETURNING *`,
         [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
@@ -1033,10 +1047,10 @@ class DbStore {
       }
     } catch (err) {
       const message = (err as Error).message || '';
-      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"') || message.includes('updated_at')) {
         try {
           const rows = await this.queryDb(
-            `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            `UPDATE certificates SET status=$1, faculty_id=$2, faculty_remarks=$3, updated_at = NOW() WHERE id=$4 RETURNING *`,
             [status, facultyId, remarks, id]
           );
           if (rows && rows.length > 0) {
@@ -1056,6 +1070,7 @@ class DbStore {
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
+    item.updated_at = new Date().toISOString();
     return item;
   }
 
@@ -1109,7 +1124,7 @@ class DbStore {
   async updateResearchPaperStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<ResearchPaperRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END, updated_at = NOW() WHERE id=$5 RETURNING *`,
         [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
@@ -1120,10 +1135,10 @@ class DbStore {
       }
     } catch (err) {
       const message = (err as Error).message || '';
-      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"') || message.includes('updated_at')) {
         try {
           const rows = await this.queryDb(
-            `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            `UPDATE research_papers SET status=$1, faculty_id=$2, faculty_remarks=$3, updated_at = NOW() WHERE id=$4 RETURNING *`,
             [status, facultyId, remarks, id]
           );
           if (rows && rows.length > 0) {
@@ -1143,6 +1158,7 @@ class DbStore {
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
+    item.updated_at = new Date().toISOString();
     return item;
   }
 
@@ -1196,7 +1212,7 @@ class DbStore {
   async updateProjectStatus(id: number, status: 'Approved' | 'Rejected', facultyId: number, remarks: string, adminMarks?: number): Promise<ProjectRow | undefined> {
     try {
       const rows = await this.queryDb(
-        `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END WHERE id=$5 RETURNING *`,
+        `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3, admin_marks = CASE WHEN $4::numeric IS NOT NULL THEN $4::numeric ELSE admin_marks END, updated_at = NOW() WHERE id=$5 RETURNING *`,
         [status, facultyId, remarks, adminMarks !== undefined && adminMarks !== null ? adminMarks : null, id]
       );
       if (rows && rows.length > 0) {
@@ -1207,10 +1223,10 @@ class DbStore {
       }
     } catch (err) {
       const message = (err as Error).message || '';
-      if (message.includes('admin_marks') || message.includes('column "admin_marks"')) {
+      if (message.includes('admin_marks') || message.includes('column "admin_marks"') || message.includes('updated_at')) {
         try {
           const rows = await this.queryDb(
-            `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3 WHERE id=$4 RETURNING *`,
+            `UPDATE projects SET status=$1, faculty_id=$2, faculty_remarks=$3, updated_at = NOW() WHERE id=$4 RETURNING *`,
             [status, facultyId, remarks, id]
           );
           if (rows && rows.length > 0) {
@@ -1230,6 +1246,7 @@ class DbStore {
     if (!item) return undefined;
     item.status = status; item.faculty_id = facultyId; item.faculty_remarks = remarks;
     if (adminMarks !== undefined && adminMarks !== null) item.admin_marks = adminMarks;
+    item.updated_at = new Date().toISOString();
     return item;
   }
 
