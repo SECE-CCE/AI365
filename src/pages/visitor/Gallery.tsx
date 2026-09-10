@@ -91,8 +91,7 @@ export const Gallery: React.FC = () => {
           highlights: ['Official CCE Event', 'Certificate of Participation Provided', 'Open to CCE Students'],
           isCustomAdmin: true,
         }));
-        // Merge admin events at top, then default items
-        setItems([...fetchedItems, ...defaultGalleryItems]);
+        setItems(fetchedItems);
       } else {
         setItems(defaultGalleryItems);
       }
