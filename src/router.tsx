@@ -43,6 +43,7 @@ import { AdminReports } from './pages/admin/AdminReports';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import { AdminLeaderboard } from './pages/admin/AdminLeaderboard';
+import { AdminEvents } from './pages/admin/AdminEvents';
 
 export const router = createBrowserRouter([
   // Visitor Public Routes
@@ -100,7 +101,7 @@ export const router = createBrowserRouter([
       { path: 'students', element: <StudentManagement /> },
       { path: 'users', element: <UserManagement /> },
       { path: 'targets', element: <TargetManagement /> },
-      { path: 'events', element: <FacultyEvents /> },
+      { path: 'events', element: <AdminEvents /> },
       { path: 'analytics', element: <AdminAnalytics /> },
       { path: 'reports', element: <AdminReports /> },
       { path: 'settings', element: <AdminSettings /> },

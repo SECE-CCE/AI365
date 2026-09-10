@@ -23,19 +23,108 @@ if (sql) {
   sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;`.catch((err) => {
     console.warn('[AI365 DB] Schema auto-migration notice:', err.message || err);
   });
-  // Add updated_at to all submission tables so "Recently Approved — Last 30 Days" works correctly
-  if (pool) {
-    const submissionTables = ['learning_hours', 'certificates', 'research_papers', 'projects'];
-    for (const tbl of submissionTables) {
-      pool.query(`ALTER TABLE ${tbl} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`).catch((err: any) => {
-        console.warn(`[AI365 DB] updated_at migration for ${tbl}:`, err.message || err);
-      });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS events (
+      id SERIAL PRIMARY KEY,
+      created_by INTEGER,
+      title VARCHAR(500) NOT NULL,
+      description TEXT,
+      venue VARCHAR(500),
+      event_date DATE,
+      event_time VARCHAR(50),
+      max_participants INTEGER DEFAULT 100,
+      poster_url TEXT,
+      category VARCHAR(100),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `.then(async () => {
+    try {
+      const countRes = await sql`SELECT COUNT(*) as c FROM events`;
+      if (countRes && Number(countRes[0].c) === 0) {
+        console.log('[AI365 DB] Seeding default CCE events into Neon Postgres...');
+        const seedEvents = [
+          {
+            id: 1, created_by: 1,
+            title: 'CCE Innovation & AI Hardware Lab',
+            description: 'State-of-the-art laboratory equipped with high-performance GPU workstations, NVIDIA Jetson Orin Nano development kits, edge TPU accelerators, and embedded AI development hardware for student research and innovation projects.',
+            venue: 'CCE Hardware Lab, 2nd Floor, Main Block',
+            event_date: '2026-08-15', event_time: '09:00 AM - 05:00 PM', max_participants: 60,
+            poster_url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
+            category: 'Campus Facilities', created_at: '2026-01-10T10:00:00Z',
+          },
+          {
+            id: 2, created_by: 1,
+            title: 'National AI & Robotics Hackathon 2026',
+            description: 'A national-level 36-hour hackathon bringing together top engineering talent to solve real-world industry challenges using Generative AI, Computer Vision, Autonomous Robotics, and Agentic Workflows.',
+            venue: 'Sri Eshwar Central Auditorium & CCE Computing Labs',
+            event_date: '2026-08-15', event_time: '36-Hour Continuous Build', max_participants: 250,
+            poster_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800',
+            category: 'Department Events', created_at: '2026-01-15T10:00:00Z',
+          },
+          {
+            id: 3, created_by: 1,
+            title: 'NVIDIA Deep Learning Institute Hands-On Workshop',
+            description: 'Certified hands-on workshop on Fundamentals of Deep Learning, Transformer Architecture, and Model Optimization using PyTorch and CUDA.',
+            venue: 'CCE AI Research Lab',
+            event_date: '2026-09-05', event_time: '10:00 AM - 04:30 PM', max_participants: 80,
+            poster_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
+            category: 'Workshops', created_at: '2026-01-20T10:00:00Z',
+          },
+          {
+            id: 4, created_by: 1,
+            title: 'IEEE Research Paper Presentation & AI Symposium',
+            description: 'Departmental symposium featuring peer-reviewed student research presentations, keynotes by distinguished scientists, and poster exhibition of domain-specific AI projects.',
+            venue: 'Seminar Hall 2',
+            event_date: '2026-10-12', event_time: '09:30 AM - 04:00 PM', max_participants: 120,
+            poster_url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800',
+            category: 'Conferences', created_at: '2026-01-25T10:00:00Z',
+          },
+        ];
+        for (const evt of seedEvents) {
+          await sql`
+            INSERT INTO events (id, created_by, title, description, venue, event_date, event_time, max_participants, poster_url, category, created_at)
+            VALUES (${evt.id}, ${evt.created_by}, ${evt.title}, ${evt.description}, ${evt.venue}, ${evt.event_date}, ${evt.event_time}, ${evt.max_participants}, ${evt.poster_url}, ${evt.category}, ${evt.created_at})
+            ON CONFLICT (id) DO NOTHING;
+          `;
+        }
+        await sql`SELECT setval('events_id_seq', (SELECT MAX(id) FROM events));`;
+      }
+    } catch (seedErr: any) {
+      console.warn('[AI365 DB] Events seeding notice:', seedErr.message || seedErr);
     }
+  }).catch((err) => {
+    console.warn('[AI365 DB] Events schema auto-migration notice:', err.message || err);
+  });
+
+  sql`
+    CREATE TABLE IF NOT EXISTS event_registrations (
+      id SERIAL PRIMARY KEY,
+      event_id INTEGER,
+      student_id INTEGER,
+      registered_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `.catch((err) => {
+    console.warn('[AI365 DB] Event registrations auto-migration notice:', err.message || err);
+  });
+
+  // Use Neon HTTP for startup migrations so development does not require a direct TCP connection to port 5432.
+  const updatedAtMigrations = [
+    ['learning_hours', sql`ALTER TABLE learning_hours ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
+    ['certificates', sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
+    ['research_papers', sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
+    ['projects', sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
+  ] as const;
+
+  for (const [tableName, migration] of updatedAtMigrations) {
+    migration.catch((err: any) => {
+      console.warn(`[AI365 DB] updated_at migration for ${tableName}:`, err.message || err);
+    });
   }
 }
 
 // Pre-computed fallback bcrypt hash (cost=10) for in-memory emergency bootstrapping
-const HASHED_ADMIN_PASS = '$2b$10$fnHGtIY9MePG3vUlc7M2JeyxmVUiBCtWgaRc7EZIS/SC3R.ft7yAe';
+const HASHED_ADMIN_PASS = '$2b$10$tcjnSKeSLYswaYMimExry3hPXmnOxla6zHzrTglmjzvLyBjgU3';
 const HASHED_FACULTY_PASS = '$2b$10$AV6knQtK/66NTqQXBStDVOTPQNvf.UIsdyRA4TVJo40P8PZsFoZDe';
 const HASHED_STUDENT_PASS = '$2b$10$myxE12Mu90RdnBya.YejZeipT8BhYV6WIXzXHPM6l28rVWFuW9UT6';
 
@@ -289,7 +378,60 @@ const initialStore = {
   ] as CertificateRow[],
   research_papers: [] as ResearchPaperRow[],
   projects: [] as ProjectRow[],
-  events: [] as EventRow[],
+  events: [
+    {
+      id: 1,
+      created_by: 1,
+      title: 'CCE Innovation & AI Hardware Lab',
+      description: 'State-of-the-art laboratory equipped with high-performance GPU workstations, NVIDIA Jetson Orin Nano development kits, edge TPU accelerators, and embedded AI development hardware for student research and innovation projects.',
+      venue: 'CCE Hardware Lab, 2nd Floor, Main Block',
+      event_date: '2026-08-15',
+      event_time: '09:00 AM - 05:00 PM',
+      max_participants: 60,
+      poster_url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
+      category: 'Campus Facilities',
+      created_at: '2026-01-10T10:00:00Z',
+    },
+    {
+      id: 2,
+      created_by: 1,
+      title: 'National AI & Robotics Hackathon 2026',
+      description: 'A national-level 36-hour hackathon bringing together top engineering talent to solve real-world industry challenges using Generative AI, Computer Vision, Autonomous Robotics, and Agentic Workflows.',
+      venue: 'Sri Eshwar Central Auditorium & CCE Computing Labs',
+      event_date: '2026-08-15',
+      event_time: '36-Hour Continuous Build',
+      max_participants: 250,
+      poster_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800',
+      category: 'Department Events',
+      created_at: '2026-01-15T10:00:00Z',
+    },
+    {
+      id: 3,
+      created_by: 1,
+      title: 'NVIDIA Deep Learning Institute Hands-On Workshop',
+      description: 'Certified hands-on workshop on Fundamentals of Deep Learning, Transformer Architecture, and Model Optimization using PyTorch and CUDA.',
+      venue: 'CCE AI Research Lab',
+      event_date: '2026-09-05',
+      event_time: '10:00 AM - 04:30 PM',
+      max_participants: 80,
+      poster_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
+      category: 'Workshops',
+      created_at: '2026-01-20T10:00:00Z',
+    },
+    {
+      id: 4,
+      created_by: 1,
+      title: 'IEEE Research Paper Presentation & AI Symposium',
+      description: 'Departmental symposium featuring peer-reviewed student research presentations, keynotes by distinguished scientists, and poster exhibition of domain-specific AI projects.',
+      venue: 'Seminar Hall 2',
+      event_date: '2026-10-12',
+      event_time: '09:30 AM - 04:00 PM',
+      max_participants: 120,
+      poster_url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800',
+      category: 'Conferences',
+      created_at: '2026-01-25T10:00:00Z',
+    },
+  ] as EventRow[],
   event_registrations: [] as EventRegistrationRow[],
   notifications: [] as NotificationRow[],
   activity_logs: [] as ActivityLogRow[],
@@ -1519,11 +1661,54 @@ class DbStore {
 
   // Events
   async getEvents(): Promise<EventRow[]> {
+    try {
+      const rows = await this.queryDb(`SELECT * FROM events ORDER BY created_at DESC`);
+      if (rows && Array.isArray(rows) && rows.length > 0) {
+        const formattedRows = rows.map((r: any) => ({
+          ...r,
+          event_date: r.event_date ? (typeof r.event_date === 'string' ? r.event_date.slice(0, 10) : new Date(r.event_date).toISOString().slice(0, 10)) : '',
+        }));
+        this.store.events = formattedRows;
+        return formattedRows as EventRow[];
+      }
+    } catch (err) {
+      console.error('Neon DB getEvents error:', (err as Error).message);
+    }
     this.loadEventsFromDisk();
     return this.store.events;
   }
 
   async createEvent(data: Omit<EventRow, 'id' | 'created_at'>): Promise<EventRow> {
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO events (created_by, title, description, venue, event_date, event_time, max_participants, poster_url, category)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          data.created_by,
+          data.title,
+          data.description || '',
+          data.venue,
+          data.event_date,
+          data.event_time,
+          data.max_participants || 100,
+          data.poster_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
+          data.category || 'Workshop',
+        ]
+      );
+      if (rows && rows.length > 0) {
+        const newEvent = {
+          ...rows[0],
+          event_date: rows[0].event_date ? String(rows[0].event_date).slice(0, 10) : data.event_date,
+        } as EventRow;
+        this.store.events.unshift(newEvent);
+        this.syncEvents();
+        return newEvent;
+      }
+    } catch (err) {
+      console.error('Neon DB createEvent error:', (err as Error).message);
+    }
+
     const newEvent: EventRow = {
       ...data,
       id: this.nextId('events'),
@@ -1535,6 +1720,33 @@ class DbStore {
   }
 
   async updateEvent(id: number, data: Partial<EventRow>): Promise<EventRow | undefined> {
+    try {
+      const ALLOWED_COLUMNS = new Set(['title', 'description', 'venue', 'event_date', 'event_time', 'max_participants', 'poster_url', 'category']);
+      const fields = Object.keys(data).filter((k) => ALLOWED_COLUMNS.has(k)) as (keyof EventRow)[];
+      if (fields.length > 0) {
+        const setClauses = fields.map((k, i) => `${k} = $${i + 1}`).join(', ');
+        const values = fields.map((k) => (data as any)[k]);
+        values.push(id);
+        const rows = await this.queryDb(
+          `UPDATE events SET ${setClauses} WHERE id = $${fields.length + 1} RETURNING *`,
+          values
+        );
+        if (rows && rows.length > 0) {
+          const updated = {
+            ...rows[0],
+            event_date: rows[0].event_date ? String(rows[0].event_date).slice(0, 10) : data.event_date,
+          } as EventRow;
+          const idx = this.store.events.findIndex((e: EventRow) => e.id === id);
+          if (idx !== -1) this.store.events[idx] = updated;
+          else this.store.events.unshift(updated);
+          this.syncEvents();
+          return updated;
+        }
+      }
+    } catch (err) {
+      console.error('Neon DB updateEvent error:', (err as Error).message);
+    }
+
     const idx = this.store.events.findIndex((e: EventRow) => e.id === id);
     if (idx === -1) return undefined;
     this.store.events[idx] = { ...this.store.events[idx], ...data };
@@ -1543,6 +1755,19 @@ class DbStore {
   }
 
   async deleteEvent(id: number): Promise<boolean> {
+    try {
+      await this.queryDb(`DELETE FROM event_registrations WHERE event_id = $1`, [id]);
+      const rows = await this.queryDb(`DELETE FROM events WHERE id = $1 RETURNING id`, [id]);
+      if (rows && rows.length > 0) {
+        this.store.events = this.store.events.filter((e: EventRow) => e.id !== id);
+        this.store.event_registrations = this.store.event_registrations.filter((r: EventRegistrationRow) => r.event_id !== id);
+        this.syncEvents();
+        return true;
+      }
+    } catch (err) {
+      console.error('Neon DB deleteEvent error:', (err as Error).message);
+    }
+
     const len = this.store.events.length;
     this.store.events = this.store.events.filter((e: EventRow) => e.id !== id);
     this.store.event_registrations = this.store.event_registrations.filter((r: EventRegistrationRow) => r.event_id !== id);

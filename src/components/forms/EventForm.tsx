@@ -129,8 +129,12 @@ export const EventForm: React.FC<EventFormProps> = ({ onSuccess, initialData }) 
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
+            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all font-semibold text-slate-800"
           >
+            <option value="Campus Facilities">Campus Facilities</option>
+            <option value="Department Events">Department Events</option>
+            <option value="Workshops">Workshops</option>
+            <option value="Conferences">Conferences</option>
             <option value="Workshop">Workshop</option>
             <option value="Hackathon">Hackathon</option>
             <option value="Seminar">Seminar</option>
