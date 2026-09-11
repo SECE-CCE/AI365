@@ -4,9 +4,16 @@ import path from 'path';
 import pg from 'pg';
 import { neon } from '@neondatabase/serverless';
 
-export const DATABASE_URL = process.env.DATABASE_URL;
+const configuredDatabaseUrl = process.env.DATABASE_URL?.trim();
+const isPlaceholderDatabaseUrl = configuredDatabaseUrl?.includes('ep-example.')
+  || configuredDatabaseUrl?.includes('user:password');
+
+export const DATABASE_URL = configuredDatabaseUrl && !isPlaceholderDatabaseUrl
+  ? configuredDatabaseUrl
+  : undefined;
+
 if (!DATABASE_URL) {
-  console.warn('[AI365] WARNING: DATABASE_URL is not set. DB operations will use in-memory fallback only.');
+  console.warn('[AI365] WARNING: DATABASE_URL is missing or still uses placeholder credentials. DB operations will use in-memory fallback only.');
 } else {
   console.log('[AI365] Connected to Neon Postgres database.');
 }
@@ -38,62 +45,7 @@ if (sql) {
       category VARCHAR(100),
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
-  `.then(async () => {
-    try {
-      const countRes = await sql`SELECT COUNT(*) as c FROM events`;
-      if (countRes && Number(countRes[0].c) === 0) {
-        console.log('[AI365 DB] Seeding default CCE events into Neon Postgres...');
-        const seedEvents = [
-          {
-            id: 1, created_by: 1,
-            title: 'CCE Innovation & AI Hardware Lab',
-            description: 'State-of-the-art laboratory equipped with high-performance GPU workstations, NVIDIA Jetson Orin Nano development kits, edge TPU accelerators, and embedded AI development hardware for student research and innovation projects.',
-            venue: 'CCE Hardware Lab, 2nd Floor, Main Block',
-            event_date: '2026-08-15', event_time: '09:00 AM - 05:00 PM', max_participants: 60,
-            poster_url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
-            category: 'Campus Facilities', created_at: '2026-01-10T10:00:00Z',
-          },
-          {
-            id: 2, created_by: 1,
-            title: 'National AI & Robotics Hackathon 2026',
-            description: 'A national-level 36-hour hackathon bringing together top engineering talent to solve real-world industry challenges using Generative AI, Computer Vision, Autonomous Robotics, and Agentic Workflows.',
-            venue: 'Sri Eshwar Central Auditorium & CCE Computing Labs',
-            event_date: '2026-08-15', event_time: '36-Hour Continuous Build', max_participants: 250,
-            poster_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800',
-            category: 'Department Events', created_at: '2026-01-15T10:00:00Z',
-          },
-          {
-            id: 3, created_by: 1,
-            title: 'NVIDIA Deep Learning Institute Hands-On Workshop',
-            description: 'Certified hands-on workshop on Fundamentals of Deep Learning, Transformer Architecture, and Model Optimization using PyTorch and CUDA.',
-            venue: 'CCE AI Research Lab',
-            event_date: '2026-09-05', event_time: '10:00 AM - 04:30 PM', max_participants: 80,
-            poster_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
-            category: 'Workshops', created_at: '2026-01-20T10:00:00Z',
-          },
-          {
-            id: 4, created_by: 1,
-            title: 'IEEE Research Paper Presentation & AI Symposium',
-            description: 'Departmental symposium featuring peer-reviewed student research presentations, keynotes by distinguished scientists, and poster exhibition of domain-specific AI projects.',
-            venue: 'Seminar Hall 2',
-            event_date: '2026-10-12', event_time: '09:30 AM - 04:00 PM', max_participants: 120,
-            poster_url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800',
-            category: 'Conferences', created_at: '2026-01-25T10:00:00Z',
-          },
-        ];
-        for (const evt of seedEvents) {
-          await sql`
-            INSERT INTO events (id, created_by, title, description, venue, event_date, event_time, max_participants, poster_url, category, created_at)
-            VALUES (${evt.id}, ${evt.created_by}, ${evt.title}, ${evt.description}, ${evt.venue}, ${evt.event_date}, ${evt.event_time}, ${evt.max_participants}, ${evt.poster_url}, ${evt.category}, ${evt.created_at})
-            ON CONFLICT (id) DO NOTHING;
-          `;
-        }
-        await sql`SELECT setval('events_id_seq', (SELECT MAX(id) FROM events));`;
-      }
-    } catch (seedErr: any) {
-      console.warn('[AI365 DB] Events seeding notice:', seedErr.message || seedErr);
-    }
-  }).catch((err) => {
+  `.catch((err) => {
     console.warn('[AI365 DB] Events schema auto-migration notice:', err.message || err);
   });
 
@@ -378,60 +330,7 @@ const initialStore = {
   ] as CertificateRow[],
   research_papers: [] as ResearchPaperRow[],
   projects: [] as ProjectRow[],
-  events: [
-    {
-      id: 1,
-      created_by: 1,
-      title: 'CCE Innovation & AI Hardware Lab',
-      description: 'State-of-the-art laboratory equipped with high-performance GPU workstations, NVIDIA Jetson Orin Nano development kits, edge TPU accelerators, and embedded AI development hardware for student research and innovation projects.',
-      venue: 'CCE Hardware Lab, 2nd Floor, Main Block',
-      event_date: '2026-08-15',
-      event_time: '09:00 AM - 05:00 PM',
-      max_participants: 60,
-      poster_url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
-      category: 'Campus Facilities',
-      created_at: '2026-01-10T10:00:00Z',
-    },
-    {
-      id: 2,
-      created_by: 1,
-      title: 'National AI & Robotics Hackathon 2026',
-      description: 'A national-level 36-hour hackathon bringing together top engineering talent to solve real-world industry challenges using Generative AI, Computer Vision, Autonomous Robotics, and Agentic Workflows.',
-      venue: 'Sri Eshwar Central Auditorium & CCE Computing Labs',
-      event_date: '2026-08-15',
-      event_time: '36-Hour Continuous Build',
-      max_participants: 250,
-      poster_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800',
-      category: 'Department Events',
-      created_at: '2026-01-15T10:00:00Z',
-    },
-    {
-      id: 3,
-      created_by: 1,
-      title: 'NVIDIA Deep Learning Institute Hands-On Workshop',
-      description: 'Certified hands-on workshop on Fundamentals of Deep Learning, Transformer Architecture, and Model Optimization using PyTorch and CUDA.',
-      venue: 'CCE AI Research Lab',
-      event_date: '2026-09-05',
-      event_time: '10:00 AM - 04:30 PM',
-      max_participants: 80,
-      poster_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
-      category: 'Workshops',
-      created_at: '2026-01-20T10:00:00Z',
-    },
-    {
-      id: 4,
-      created_by: 1,
-      title: 'IEEE Research Paper Presentation & AI Symposium',
-      description: 'Departmental symposium featuring peer-reviewed student research presentations, keynotes by distinguished scientists, and poster exhibition of domain-specific AI projects.',
-      venue: 'Seminar Hall 2',
-      event_date: '2026-10-12',
-      event_time: '09:30 AM - 04:00 PM',
-      max_participants: 120,
-      poster_url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800',
-      category: 'Conferences',
-      created_at: '2026-01-25T10:00:00Z',
-    },
-  ] as EventRow[],
+  events: [] as EventRow[],
   event_registrations: [] as EventRegistrationRow[],
   notifications: [] as NotificationRow[],
   activity_logs: [] as ActivityLogRow[],

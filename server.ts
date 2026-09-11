@@ -51,7 +51,7 @@ async function startServer() {
   // Vite middleware for dev or static dist serving for prod
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false },
       appType: 'spa',
     });
     // Document static routes MUST come before Vite so that direct file links

@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
@@ -48,6 +50,8 @@ try {
   console.log('  [x] Cleared: projects');
 
   await sql`DELETE FROM events`;
+  const eventsBackupPath = path.join(process.cwd(), 'backups', 'registered_events.json');
+  fs.writeFileSync(eventsBackupPath, '[]\n', 'utf-8');
   console.log('  [x] Cleared: events');
 
   if (wipeAll) {
@@ -76,6 +80,8 @@ try {
     ON CONFLICT (year) DO NOTHING
   `;
   console.log('  [+] Reset 2026 department targets to default values');
+
+  console.log('  [+] Events table reset: no default events restored');
 
   const users = await sql`SELECT id, full_name, email, role, status FROM users ORDER BY id`;
   console.log('\n📋 Remaining users in Neon DB:');
