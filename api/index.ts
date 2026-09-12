@@ -17,10 +17,11 @@ import analyticsRoutes from './analytics/index.js';
 const app = express();
 
 const enableHsts = process.env.ENABLE_HSTS === 'true';
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
 // Security Middlewares & HTTP Headers
 app.use(helmet({
-  contentSecurityPolicy: {
+  contentSecurityPolicy: isDevelopment ? false : {
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "blob:"],
@@ -32,6 +33,8 @@ app.use(helmet({
       objectSrc: ["'none'"],
     },
   },
+  crossOriginOpenerPolicy: isDevelopment ? false : undefined,
+  originAgentCluster: isDevelopment ? false : undefined,
   xFrameOptions: { action: 'deny' },
   xContentTypeOptions: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },

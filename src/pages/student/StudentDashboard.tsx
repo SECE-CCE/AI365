@@ -92,8 +92,11 @@ export const StudentDashboard: React.FC = () => {
     },
     {
       header: 'Hours',
-      accessorKey: 'hours',
-      className: 'font-semibold text-slate-700',
+      cell: (row) => (
+        <span className="font-semibold text-slate-700">
+          {row.allocated_hours !== undefined && row.allocated_hours !== null ? `${row.allocated_hours} hrs` : row.hours}
+        </span>
+      ),
     },
     {
       header: 'Date',
@@ -117,6 +120,15 @@ export const StudentDashboard: React.FC = () => {
         </span>
       ),
     },
+      {
+        header: 'Total Points Awarded',
+        cell: (row) => (
+          <div>
+            <span className="font-black text-[#004990]">{row.total_points_awarded ?? '—'} pts</span>
+            <p className="text-[10px] text-slate-500">Learning hours: {row.learning_hours_points ?? 0} pts</p>
+          </div>
+        ),
+      },
     {
       header: 'Faculty Remarks',
       cell: (row) => <span className="text-slate-500 italic">{row.remarks}</span>,
