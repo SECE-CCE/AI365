@@ -16,16 +16,18 @@ import analyticsRoutes from './analytics/index.js';
 
 const app = express();
 
+const enableHsts = process.env.ENABLE_HSTS === 'true';
+
 // Security Middlewares & HTTP Headers
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "blob:"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-      imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", "https:", "wss:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+      connectSrc: ["'self'", "https:", "http:", "wss:", "ws:", "data:", "blob:"],
       frameAncestors: ["'none'"],
       objectSrc: ["'none'"],
     },
@@ -33,10 +35,10 @@ app.use(helmet({
   xFrameOptions: { action: 'deny' },
   xContentTypeOptions: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  strictTransportSecurity: {
+  strictTransportSecurity: enableHsts ? {
     maxAge: 31536000,
     includeSubDomains: true,
-  },
+  } : false,
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
