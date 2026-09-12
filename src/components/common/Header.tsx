@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, Calendar as CalendarIcon, Award } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { NotificationBell } from './NotificationBell';

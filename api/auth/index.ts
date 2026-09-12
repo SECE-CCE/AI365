@@ -369,9 +369,17 @@ router.post('/logout', authLimiter, async (req: Request, res: Response) => {
           user_agent,
         });
       } catch (decodeErr) {
-        // Token was malformed, ignore error for logout
+        // Token was malformed, ignore errors for logout
       }
     }
+
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.COOKIE_SECURE === 'true';
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: 'lax',
+    });
+    return res.json({ message: 'Logged out successfully.' });
   } catch (err) {
     console.error('Logout error:', err);
     const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.COOKIE_SECURE === 'true';

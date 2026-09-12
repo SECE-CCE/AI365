@@ -74,10 +74,12 @@ try {
       faculty_id INTEGER,
       faculty_remarks TEXT,
       admin_marks NUMERIC(6,2),
-      created_at TIMESTAMPTZ DEFAULT NOW()
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
   await sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
+  await sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
   console.log('✅ certificates table ready');
 
   await sql`
@@ -94,11 +96,13 @@ try {
       faculty_id INTEGER,
       faculty_remarks TEXT,
       admin_marks NUMERIC(6,2),
-      created_at TIMESTAMPTZ DEFAULT NOW()
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
   await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS total_hours NUMERIC(6,2) DEFAULT 80`;
   await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
+  await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
   console.log('✅ research_papers table ready');
 
   await sql`
@@ -116,10 +120,12 @@ try {
       faculty_id INTEGER,
       faculty_remarks TEXT,
       admin_marks NUMERIC(6,2),
-      created_at TIMESTAMPTZ DEFAULT NOW()
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
   await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
+  await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
   console.log('✅ projects table ready');
 
   await sql`

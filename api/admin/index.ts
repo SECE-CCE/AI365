@@ -72,16 +72,34 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res: Response) => {
 
     // Fetch recently approved submissions (last 30 days) for persistent Admin visibility
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const recentApprovedHours = allApprovedHours.filter(h => h.created_at >= thirtyDaysAgo || h.updated_at >= thirtyDaysAgo);
-    const recentApprovedCerts = allApprovedCerts.filter(c => c.created_at >= thirtyDaysAgo || c.updated_at >= thirtyDaysAgo);
-    const recentApprovedPapers = allApprovedPapers.filter(r => r.created_at >= thirtyDaysAgo || r.updated_at >= thirtyDaysAgo);
-    const recentApprovedProjects = allApprovedProjects.filter(p => p.created_at >= thirtyDaysAgo || p.updated_at >= thirtyDaysAgo);
+    const wasApprovedRecently = (item: { created_at?: string; updated_at?: string }) => {
+      const approvalDate = item.updated_at || item.created_at;
+      const approvalTime = approvalDate ? new Date(approvalDate).getTime() : NaN;
+      return Number.isFinite(approvalTime) && approvalTime >= new Date(thirtyDaysAgo).getTime();
+    };
+    const recentApprovedCerts = allApprovedCerts.filter(wasApprovedRecently);
+    const recentApprovedPapers = allApprovedPapers.filter(wasApprovedRecently);
+    const recentApprovedProjects = allApprovedProjects.filter(wasApprovedRecently);
+
+    const pointsForApprovedWork = (item: any, type: 'certificate' | 'research' | 'project', defaultPoints: number) => {
+      const hasAdminPoints = item.admin_marks !== undefined && item.admin_marks !== null && item.admin_marks !== '' && Number.isFinite(Number(item.admin_marks));
+      const adminPoints = hasAdminPoints ? Number(item.admin_marks) : defaultPoints;
+      const prefix = type === 'certificate' ? 'Verified Certificate' : type === 'research' ? 'Research Paper' : 'AI Project';
+      const creditedLearningHours = allApprovedHours
+        .filter(hour => hour.student_id === item.student_id && hour.activity_name === `${prefix}: ${item.title}`)
+        .reduce((total, hour) => total + Number(hour.hours || 0), 0);
+      const learningHoursPoints = creditedLearningHours * 2;
+      return {
+        ...item,
+        learning_hours_points: learningHoursPoints,
+        total_points_awarded: adminPoints + learningHoursPoints,
+      };
+    };
 
     const recentlyApproved = [
-      ...recentApprovedHours.map(h => ({ ...h, type: 'learning_hour', title: h.activity_name, document_url: h.certificate_url, date: formatDate(h.date), approved_action: 'Approved' })),
-      ...recentApprovedCerts.map(c => ({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url, date: formatDate(c.completion_date), approved_action: 'Approved' })),
-      ...recentApprovedPapers.map(r => ({ ...r, type: 'research', title: r.title, document_url: r.pdf_url, date: formatDate(r.created_at), approved_action: 'Approved' })),
-      ...recentApprovedProjects.map(p => ({ ...p, type: 'project', title: p.title, document_url: p.github_link, date: formatDate(p.created_at), approved_action: 'Approved' })),
+      ...recentApprovedCerts.map(c => pointsForApprovedWork({ ...c, type: 'certificate', title: c.title, document_url: c.certificate_url, date: formatDate(c.completion_date), approved_action: 'Approved' }, 'certificate', 50)),
+      ...recentApprovedPapers.map(r => pointsForApprovedWork({ ...r, type: 'research', title: r.title, document_url: r.pdf_url, date: formatDate(r.created_at), approved_action: 'Approved' }, 'research', 150)),
+      ...recentApprovedProjects.map(p => pointsForApprovedWork({ ...p, type: 'project', title: p.title, document_url: p.github_link, date: formatDate(p.created_at), approved_action: 'Approved' }, 'project', 100)),
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     const totalHoursCount = allApprovedHours.reduce((acc, h) => acc + Number(h.hours), 0);
@@ -618,6 +636,12 @@ router.delete('/users/:id', async (req: AuthenticatedRequest, res: Response) => 
     const userId = Number(req.params.id);
     if (userId === req.user!.id) {
       return res.status(400).json({ error: 'You cannot delete your own admin account.' });
+    }
+
+    const targetUser = await db.findUserById(userId);
+    if (!targetUser) return res.status(404).json({ error: 'User not found.' });
+    if (targetUser.role !== 'student' || targetUser.status !== 'pending_approval') {
+      return res.status(400).json({ error: 'Only pending student registrations can be deleted here.' });
     }
 
     const deleted = await db.deleteUser(userId);

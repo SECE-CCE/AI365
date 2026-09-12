@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, UserCheck, Clock, Award, Target, Check, X, ShieldAlert, ArrowRight, FileText, ExternalLink, Calendar, CheckCircle2 } from 'lucide-react';
+import { Users, UserCheck, Clock, Award, Target, Check, X, Trash2, ShieldAlert, ArrowRight, FileText, ExternalLink, Calendar, CheckCircle2 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Table, Column } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
@@ -65,6 +65,17 @@ export const AdminDashboard: React.FC = () => {
       fetchDashboard();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDeletePendingRegistration = async (userId: number) => {
+    if (!window.confirm('Delete this pending student registration permanently?')) return;
+    try {
+      await apiFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+      fetchDashboard();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Unable to delete the pending registration.');
     }
   };
 
@@ -217,6 +228,12 @@ export const AdminDashboard: React.FC = () => {
             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 border border-rose-200"
           >
             <X className="w-3.5 h-3.5" /> Reject
+          </button>
+          <button
+            onClick={() => handleDeletePendingRegistration(row.id)}
+            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 border border-slate-200"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>
         </div>
       ),
@@ -412,9 +429,9 @@ export const AdminDashboard: React.FC = () => {
               <thead>
                 <tr className="bg-emerald-100/60 text-left">
                   <th className="px-4 py-2.5 font-bold text-slate-700">Student</th>
-                  <th className="px-4 py-2.5 font-bold text-slate-700">Type</th>
-                  <th className="px-4 py-2.5 font-bold text-slate-700">Title</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Approved Work</th>
                   <th className="px-4 py-2.5 font-bold text-slate-700">Admin Marks</th>
+                  <th className="px-4 py-2.5 font-bold text-slate-700">Total Points Awarded</th>
                   <th className="px-4 py-2.5 font-bold text-slate-700">Date</th>
                   <th className="px-4 py-2.5 font-bold text-slate-700">Document</th>
                   <th className="px-4 py-2.5 font-bold text-slate-700">Status</th>
@@ -429,16 +446,20 @@ export const AdminDashboard: React.FC = () => {
                         {[row.register_number, row.year].filter(Boolean).join(' • ') || 'CCE Student'}
                       </p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 max-w-[280px]">
                       <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold uppercase text-[9px] tracking-wider">
                         {row.type?.replace('_', ' ')}
                       </span>
+                      <p className="font-semibold text-slate-800 truncate mt-1">{row.title}</p>
                     </td>
-                    <td className="px-4 py-3 font-semibold text-slate-800 max-w-[200px] truncate">{row.title}</td>
                     <td className="px-4 py-3">
                       <span className="font-black text-emerald-700">
                         {row.admin_marks !== undefined && row.admin_marks !== null ? row.admin_marks : '—'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-black text-[#004990]">{row.total_points_awarded ?? row.admin_marks ?? '—'} pts</span>
+                      <p className="text-[10px] text-slate-500">Learning hours: {row.learning_hours_points ?? 0} pts</p>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{row.date}</td>
                     <td className="px-4 py-3">
@@ -467,12 +488,14 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Pending Student Account Registrations Queue */}
-      <Card
-        title={`Pending Student Account Registrations (${pendingUsers.length})`}
-        subtitle="Approve or reject new student account requests for CCE"
-      >
-        <Table columns={registrationColumns} data={pendingUsers} keyExtractor={(r) => r.id} />
-      </Card>
+      {pendingUsers.length > 0 && (
+        <Card
+          title={`Pending Student Account Registrations (${pendingUsers.length})`}
+          subtitle="Approve or reject new student account requests for CCE"
+        >
+          <Table columns={registrationColumns} data={pendingUsers} keyExtractor={(r) => r.id} />
+        </Card>
+      )}
 
       {/* Pending Faculty Registrations Queue */}
       {pendingFaculty.length > 0 && (
