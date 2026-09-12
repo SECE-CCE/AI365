@@ -2,13 +2,14 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { createServer as createViteServer } from 'vite';
 import cookieParser from 'cookie-parser';
 import { authMiddleware } from './api/_middleware/auth.js';
 import app from './api/index';
 
 async function startServer() {
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   if (!process.env.NODE_ENV) {
     process.env.NODE_ENV = fs.existsSync(path.join(process.cwd(), 'dist', 'index.html')) ? 'production' : 'development';
@@ -51,7 +52,7 @@ async function startServer() {
   // Vite middleware for dev or static dist serving for prod
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true, hmr: false },
+      server: { middlewareMode: true, hmr: false, host: '0.0.0.0' },
       appType: 'spa',
     });
     // Document static routes MUST come before Vite so that direct file links
@@ -82,20 +83,36 @@ async function startServer() {
       }
     });
   } else {
+    const distPath = path.join(process.cwd(), 'dist');
+
     app.use('/documents', cookieParser(), authMiddleware, documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
     app.use('/assets/Documents', cookieParser(), authMiddleware, documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
+    // Serve dist/assets first for compiled bundles, then fallback to root assets
+    app.use('/assets', express.static(path.join(distPath, 'assets')));
     app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
     app.use(express.static(path.join(process.cwd(), 'public')));
-
-    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+
     app.get('/*splat', (req, res) => {
       res.sendFile('index.html', { root: distPath });
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AI365 @ CCE server running on http://localhost:${PORT}`);
+    console.log(`\n======================================================`);
+    console.log(`  🚀 AI365 @ CCE Server is running! [${(process.env.NODE_ENV || 'development').toUpperCase()} MODE]`);
+    console.log(`  - Local:   http://localhost:${PORT}`);
+    
+    // Print all LAN / WiFi IP addresses
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const net of interfaces[name] || []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          console.log(`  - Network: http://${net.address}:${PORT}  (Mobiles / Other devices)`);
+        }
+      }
+    }
+    console.log(`======================================================\n`);
   });
 }
 
