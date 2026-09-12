@@ -157,11 +157,11 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       sessionId = session.id;
     }
 
-    // Set httpOnly cookie
     // Set secure httpOnly cookie
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.COOKIE_SECURE === 'true';
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       maxAge: SESSION_MAX_AGE_MS,
     });
@@ -374,10 +374,10 @@ router.post('/logout', authLimiter, async (req: Request, res: Response) => {
     }
   } catch (err) {
     console.error('Logout error:', err);
-  } finally {
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.COOKIE_SECURE === 'true';
     res.clearCookie('token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
     });
     return res.json({ message: 'Logged out successfully.' });

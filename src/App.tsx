@@ -5,10 +5,12 @@ import { AuthProvider } from './context/AuthContext';
 import { router } from './router';
 
 export function App() {
+  const isProd = typeof window !== 'undefined' && Boolean((import.meta as any).env?.PROD);
+
   return (
     <AuthProvider>
       <RouterProvider router={router} />
-      {typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && <SpeedInsights />}
+      {isProd && <SpeedInsights />}
     </AuthProvider>
   );
 }
