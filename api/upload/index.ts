@@ -8,6 +8,43 @@ const router = Router();
 // BASE DIRECTORY LOCATION FOR USER STORAGE INSIDE ASSETS
 export const UPLOADS_BASE_DIR = path.join(process.cwd(), 'assets', 'Documents');
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract Drive file ID from common sharing URL formats:
+ *  - https://drive.google.com/file/d/<ID>/view
+ *  - https://drive.google.com/open?id=<ID>
+ *  - https://docs.google.com/document/d/<ID>/…
+ */
+function extractDriveFileId(url: string): string | null {
+  // /file/d/<ID>/ or /d/<ID>/
+  const fileMatch = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (fileMatch) return fileMatch[1];
+  // ?id=<ID>
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+  if (idMatch) return idMatch[1];
+  return null;
+}
+
+/**
+ * SSRF guard: only allow requests to drive.google.com and docs.google.com.
+ */
+function isSafeDriveUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'https:' &&
+      (parsed.hostname === 'drive.google.com' ||
+        parsed.hostname === 'docs.google.com' ||
+        parsed.hostname === 'drive.usercontent.google.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
 
 
 // POST /api/upload/poster
@@ -179,7 +216,7 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
   }
 });
 
-// Validates a Google Drive shareable link and returns it as-is.
+// Validates a Google Drive shareable link and returns it as-is (legacy endpoint — preserved for backward compat).
 router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { driveLink } = req.body;
@@ -190,13 +227,13 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
 
     const trimmed = driveLink.trim();
 
-    if (!trimmed.includes('drive.google.com')) {
+    if (!trimmed.includes('drive.google.com') && !trimmed.includes('docs.google.com')) {
       return res.status(400).json({ error: 'Only Google Drive links are accepted (drive.google.com).' });
     }
 
-    const fileIdMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    const viewLink = fileIdMatch
-      ? `https://drive.google.com/file/d/${fileIdMatch[1]}/view`
+    const fileId = extractDriveFileId(trimmed);
+    const viewLink = fileId
+      ? `https://drive.google.com/file/d/${fileId}/view`
       : trimmed;
 
     return res.json({
@@ -206,6 +243,135 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
     });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to process Drive link.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/upload/drive-check
+// Real accessibility verification for Google Drive links.
+// Returns: { accessible, url, fileId, filename, mimeType, sizeBytes }
+// ---------------------------------------------------------------------------
+router.post('/drive-check', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { driveLink } = req.body;
+
+    if (!driveLink || typeof driveLink !== 'string') {
+      return res.status(400).json({ error: 'A Google Drive shareable link is required.' });
+    }
+
+    const trimmed = driveLink.trim();
+
+    // SSRF guard — only allow google.com drive/docs hostnames
+    if (!trimmed.includes('drive.google.com') && !trimmed.includes('docs.google.com')) {
+      return res.status(400).json({ accessible: false, error: 'Only Google Drive links are accepted (drive.google.com).' });
+    }
+
+    const fileId = extractDriveFileId(trimmed);
+    if (!fileId) {
+      return res.status(400).json({ accessible: false, error: 'Could not extract a valid file ID from the provided Drive URL. Ensure the link format is correct.' });
+    }
+
+    // Build the direct download/export URL that bypasses the preview page
+    const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+
+    if (!isSafeDriveUrl(downloadUrl)) {
+      return res.status(400).json({ accessible: false, error: 'Invalid Drive URL.' });
+    }
+
+    let accessible = false;
+    let mimeType = '';
+    let sizeBytes = 0;
+    let filename = 'Google Drive Document';
+    let errorMsg = '';
+
+    try {
+      // Use a HEAD request first to check accessibility without downloading the body
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+      const headResp = await fetch(downloadUrl, {
+        method: 'HEAD',
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'AI365-DriveVerifier/1.0',
+        },
+      });
+      clearTimeout(timeout);
+
+      const contentType = headResp.headers.get('content-type') ?? '';
+
+      if (!headResp.ok) {
+        errorMsg = `Drive returned HTTP ${headResp.status}. The file may be deleted or permission-restricted.`;
+      } else if (contentType.includes('text/html')) {
+        // Google returns HTML when the file is private or requires login
+        // Attempt GET to detect the "virus scan warning" page vs login page
+        const getController = new AbortController();
+        const getTimeout = setTimeout(() => getController.abort(), 8000);
+        const getResp = await fetch(downloadUrl, {
+          method: 'GET',
+          signal: getController.signal,
+          redirect: 'follow',
+          headers: { 'User-Agent': 'AI365-DriveVerifier/1.0' },
+        });
+        clearTimeout(getTimeout);
+        const body = await getResp.text();
+
+        // If the page contains a direct download button (virus scan interstitial), treat as accessible
+        if (body.includes('confirm=') || body.includes('download_warning')) {
+          accessible = true;
+          mimeType = 'application/octet-stream';
+          // Try to get size from the confirm download URL
+          sizeBytes = 0;
+          filename = `drive_file_${fileId}`;
+        } else {
+          errorMsg = 'The file is not publicly accessible. Set sharing to "Anyone with the link can view" and try again.';
+        }
+      } else {
+        accessible = true;
+        mimeType = contentType.split(';')[0].trim();
+        const contentLength = headResp.headers.get('content-length');
+        sizeBytes = contentLength ? parseInt(contentLength, 10) : 0;
+
+        // Try to extract filename from content-disposition
+        const disposition = headResp.headers.get('content-disposition') ?? '';
+        const nameMatch = disposition.match(/filename\*?=['"]?(?:UTF-\d+'[^']*')?([^;"'\r\n]+)/i);
+        if (nameMatch) {
+          filename = decodeURIComponent(nameMatch[1].replace(/"/g, '').trim());
+        } else {
+          filename = `drive_file_${fileId}`;
+        }
+      }
+    } catch (fetchErr: any) {
+      if (fetchErr?.name === 'AbortError') {
+        errorMsg = 'Drive access check timed out. The link may be slow or unavailable.';
+      } else {
+        errorMsg = 'Could not reach Google Drive to verify the link. Check your internet connection.';
+      }
+    }
+
+    const viewLink = `https://drive.google.com/file/d/${fileId}/view`;
+
+    if (!accessible) {
+      return res.status(200).json({
+        accessible: false,
+        url: viewLink,
+        fileId,
+        error: errorMsg || 'File is not accessible.',
+      });
+    }
+
+    return res.json({
+      accessible: true,
+      url: viewLink,
+      fileId,
+      filename,
+      mimeType,
+      sizeBytes,
+    });
+  } catch (err: any) {
+    console.error('Drive Check Error:', err);
+    return res.status(500).json({ accessible: false, error: 'Internal error while checking Drive link.' });
   }
 });
 

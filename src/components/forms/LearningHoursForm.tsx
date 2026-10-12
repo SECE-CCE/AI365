@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link, Loader2, CheckCircle, ExternalLink, Info } from 'lucide-react';
+import { Loader2, Link2, CheckCircle, ExternalLink, XCircle, Info } from 'lucide-react';
 import { apiFetch } from '../../services/api';
-import { getDocumentUrl } from '../../types';
+import { formatBytes } from '../../utils/documentValidator';
 
 interface LearningHoursFormProps {
   onSuccess: () => void;
@@ -13,27 +13,54 @@ export const LearningHoursForm: React.FC<LearningHoursFormProps> = ({ onSuccess 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [hours, setHours] = useState('');
   const [description, setDescription] = useState('');
+
+  // Drive state
   const [driveLink, setDriveLink] = useState('');
   const [certificateUrl, setCertificateUrl] = useState('');
+  const [driveChecking, setDriveChecking] = useState(false);
+  const [driveReady, setDriveReady] = useState(false);
+  const [driveMeta, setDriveMeta] = useState<{ filename: string; sizeBytes: number; mime: string } | null>(null);
+  const [driveError, setDriveError] = useState('');
 
-  const [validating, setValidating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const handleValidateLink = async () => {
-    if (!driveLink.trim()) return setError('Please paste your Google Drive link first.');
+  const handleDriveCheck = async () => {
+    const url = driveLink.trim();
+    if (!url) return setError('Please paste your Google Drive link first.');
     setError('');
-    setValidating(true);
+    setDriveError('');
+    setDriveChecking(true);
+    setDriveReady(false);
+    setDriveMeta(null);
+    setCertificateUrl('');
+
     try {
-      const res = await apiFetch<{ url: string }>('/api/upload', {
+      const res = await apiFetch<{
+        accessible: boolean;
+        url: string;
+        fileId: string;
+        filename: string;
+        mimeType: string;
+        sizeBytes: number;
+        error?: string;
+      }>('/api/upload/drive-check', {
         method: 'POST',
-        body: JSON.stringify({ driveLink }),
+        body: JSON.stringify({ driveLink: url }),
       });
+
+      if (!res.accessible) {
+        setDriveError(res.error ?? 'Drive file is not accessible. Please check sharing settings.');
+        return;
+      }
+
       setCertificateUrl(res.url);
+      setDriveReady(true);
+      setDriveMeta({ filename: res.filename, sizeBytes: res.sizeBytes, mime: res.mimeType });
     } catch (err: any) {
-      setError(err.message || 'Invalid Drive link. Make sure sharing is set to "Anyone with link".');
+      setDriveError(err?.message ?? 'Could not verify the Drive link. Please try again.');
     } finally {
-      setValidating(false);
+      setDriveChecking(false);
     }
   };
 
@@ -48,7 +75,14 @@ export const LearningHoursForm: React.FC<LearningHoursFormProps> = ({ onSuccess 
     try {
       await apiFetch('/api/students/learning-hours', {
         method: 'POST',
-        body: JSON.stringify({ activity_name: activityName, platform, date, hours: Number(hours), description, certificate_url: certificateUrl }),
+        body: JSON.stringify({
+          activity_name: activityName,
+          platform,
+          date,
+          hours: Number(hours),
+          description,
+          certificate_url: certificateUrl,
+        }),
       });
       onSuccess();
     } catch (err: any) {
@@ -97,39 +131,70 @@ export const LearningHoursForm: React.FC<LearningHoursFormProps> = ({ onSuccess 
           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
       </div>
 
-      {/* Google Drive Link Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
-        <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-        <p className="text-blue-700 leading-relaxed">
-          Upload your certificate/proof to <strong>Google Drive</strong>, right-click → <strong>Share</strong> → set to <strong>"Anyone with the link can view"</strong>, then paste the link below. (Optional)
-        </p>
-      </div>
+      {/* Google Drive Link Section — with real accessibility check */}
+      <div className="space-y-2">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
+          <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+          <p className="text-blue-700 leading-relaxed">
+            Upload your certificate/proof to <strong>Google Drive</strong>, right-click → <strong>Share</strong> → set to <strong>"Anyone with the link can view"</strong>, then paste the link below and click <strong>Verify</strong>. (Optional)
+          </p>
+        </div>
 
-      <div>
-        <label className="block font-bold text-slate-700 mb-1">Google Drive Proof Link (Optional)</label>
+        <label className="block font-bold text-slate-700">Google Drive Proof Link (Optional)</label>
         <div className="flex gap-2">
-          <input type="url" value={driveLink} onChange={(e) => { setDriveLink(e.target.value); setCertificateUrl(''); }}
-            placeholder="https://drive.google.com/file/d/..."
-            className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all" />
-          <button type="button" onClick={handleValidateLink} disabled={validating || !driveLink.trim()}
-            className="px-4 py-2.5 bg-slate-700 hover:bg-slate-900 text-white rounded-xl font-semibold flex items-center gap-1.5 disabled:opacity-50 shrink-0">
-            {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link className="w-3.5 h-3.5" />}
-            Validate
+          <input
+            type="url"
+            id="lh-drive-input"
+            value={driveLink}
+            onChange={(e) => {
+              setDriveLink(e.target.value);
+              setDriveReady(false);
+              setDriveMeta(null);
+              setDriveError('');
+              setCertificateUrl('');
+            }}
+            placeholder="https://drive.google.com/file/d/…"
+            className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#004990] outline-none transition-all"
+          />
+          <button
+            type="button"
+            id="lh-drive-verify-btn"
+            onClick={handleDriveCheck}
+            disabled={driveChecking || !driveLink.trim()}
+            className="px-4 py-2.5 bg-slate-700 hover:bg-slate-900 text-white rounded-xl font-semibold flex items-center gap-1.5 disabled:opacity-50 shrink-0 transition-all"
+          >
+            {driveChecking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
+            Verify
           </button>
         </div>
-        {certificateUrl && (
-          <div className="mt-2 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-600" />
-            <span className="text-emerald-700 font-semibold">Link validated!</span>
-            <a href={getDocumentUrl(certificateUrl)} target="_blank" rel="noreferrer" className="text-[#004990] hover:underline flex items-center gap-1">
-              Preview <ExternalLink className="w-3 h-3" />
-            </a>
+
+        {driveError && (
+          <div className="flex items-start gap-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-700">
+            <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>{driveError}</span>
+          </div>
+        )}
+
+        {driveReady && driveMeta && (
+          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] space-y-1">
+            <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              Drive file verified — publicly accessible
+              <a href={certificateUrl} target="_blank" rel="noopener noreferrer"
+                className="ml-auto text-[#004990] hover:underline flex items-center gap-1 font-semibold text-[10px]">
+                Preview <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
+            <div className="flex flex-wrap gap-x-4 text-slate-600">
+              {driveMeta.filename && <span>File: <strong>{driveMeta.filename}</strong></span>}
+              {driveMeta.sizeBytes > 0 && <span>Size: <strong>{formatBytes(driveMeta.sizeBytes)}</strong></span>}
+            </div>
           </div>
         )}
       </div>
 
       <div className="pt-2 flex justify-end">
-        <button type="submit" disabled={submitting}
+        <button type="submit" id="lh-submit-btn" disabled={submitting}
           className="px-5 py-2.5 bg-[#004990] hover:bg-[#002B5C] text-white rounded-xl font-semibold transition-all shadow-md flex items-center gap-2 disabled:opacity-50">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
           Submit for Faculty Approval
