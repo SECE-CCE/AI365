@@ -9,7 +9,7 @@ import {
 interface RoadmapNode {
   id: string;
   phaseNumber: number;
-  month: string;
+  phase: string;
   title: string;
   subtitle: string;
   category: 'curriculum' | 'event' | 'research' | 'certification';
@@ -34,8 +34,8 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m1',
       phaseNumber: 1,
-      month: "July '26 (Month 1-2)",
-      title: 'AI Kickstart & Mathematical Foundations',
+      phase: 'Phase 1',
+      title: 'AI Kickstart',
       subtitle: 'Explorer Tier',
       category: 'curriculum',
       badgeText: 'Core Foundation',
@@ -52,7 +52,7 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m2',
       phaseNumber: 2,
-      month: "Aug '26 (Month 2)",
+      phase: 'Phase 2',
       title: 'Certify AI Marathon',
       subtitle: 'Practitioner Tier',
       category: 'certification',
@@ -70,8 +70,8 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m3',
       phaseNumber: 3,
-      month: "Sep '26 (Month 3-4)",
-      title: 'Classical Machine Learning & AI ResearchX',
+      phase: 'Phase 3',
+      title: 'AI ResearchX',
       subtitle: 'Practitioner Tier',
       category: 'research',
       badgeText: 'Research & ML',
@@ -88,7 +88,7 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m4',
       phaseNumber: 4,
-      month: "Oct '26 (Month 4)",
+      phase: 'Phase 4',
       title: 'AgentX Hackfest',
       subtitle: 'Specialist Tier',
       category: 'event',
@@ -106,8 +106,8 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m5',
       phaseNumber: 5,
-      month: "Nov '26 (Month 5-6)",
-      title: 'Deep Learning & Faculty AI Innovate',
+      phase: 'Phase 5',
+      title: 'Faculty AI Innovate',
       subtitle: 'Specialist Tier',
       category: 'curriculum',
       badgeText: 'Neural Networks',
@@ -124,8 +124,8 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m6',
       phaseNumber: 6,
-      month: "Dec '26 (Month 6)",
-      title: 'PatentX AI Drafting Camp',
+      phase: 'Phase 6',
+      title: 'PatentX AI',
       subtitle: 'Researcher Tier',
       category: 'research',
       badgeText: 'IP & Patents',
@@ -142,8 +142,8 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m7',
       phaseNumber: 7,
-      month: "Jan '27 (Month 7-8)",
-      title: 'Natural Language Processing & Sustain AI',
+      phase: 'Phase 7',
+      title: 'Sustain AI',
       subtitle: 'Specialist Tier',
       category: 'curriculum',
       badgeText: 'NLP & Green Tech',
@@ -160,7 +160,7 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m8',
       phaseNumber: 8,
-      month: "Feb '27 (Month 8)",
+      phase: 'Phase 8',
       title: 'Certify AI Marathon II',
       subtitle: 'Specialist Tier',
       category: 'certification',
@@ -178,8 +178,8 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m9',
       phaseNumber: 9,
-      month: "Mar '27 (Month 9-10)",
-      title: 'Build AI & MLOps Infrastructure',
+      phase: 'Phase 9',
+      title: 'Build AI',
       subtitle: 'Researcher Tier',
       category: 'curriculum',
       badgeText: 'Production Engineering',
@@ -196,7 +196,7 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m10',
       phaseNumber: 10,
-      month: "Apr '27 (Month 10)",
+      phase: 'Phase 10',
       title: 'BuildFest AI — AI Project Expo',
       subtitle: 'Pioneer & Entrepreneur Tier',
       category: 'event',
@@ -214,7 +214,7 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m11',
       phaseNumber: 11,
-      month: "May '27 (Month 11)",
+      phase: 'Phase 11',
       title: 'AI Summer School 2027',
       subtitle: 'Advanced Research Track',
       category: 'curriculum',
@@ -232,8 +232,8 @@ export const RoadmapShFlow: React.FC = () => {
     {
       id: 'p1-m12',
       phaseNumber: 12,
-      month: "June '27 (Month 12)",
-      title: 'AI365 Grand Conclave & Awards 2027',
+      phase: 'Phase 12',
+      title: 'AI365 Conclave & Awards 2027',
       subtitle: 'Pioneer Tier',
       category: 'event',
       badgeText: 'Annual Grand Finale',
@@ -322,7 +322,7 @@ export const RoadmapShFlow: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-black text-white">Phase 1: Foundation, AI Research & Product Build Sprints</h3>
                 <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
-                  Phase 1 covers the initial 12 months designed by CCE department faculty to transition students from core Python &amp; Mathematics to paper publication, MLOps, and the flagship <strong>BuildFest AI Expo</strong>.
+                  Phase 1 covers the initial 12 phases designed by CCE department faculty to transition students from core Python &amp; Mathematics to paper publication, MLOps, and the flagship <strong>BuildFest AI Expo</strong>.
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -435,7 +435,7 @@ export const RoadmapShFlow: React.FC = () => {
                             {node.badgeText}
                           </span>
                           <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
-                            {node.month}
+                            {node.phase}
                           </span>
                         </div>
 
@@ -480,7 +480,7 @@ export const RoadmapShFlow: React.FC = () => {
                         {/* BuildFest Highlight Banner inside Node 10 */}
                         {node.id === 'p1-m10' && (
                           <div className="bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white p-3 rounded-xl text-xs font-bold flex items-center justify-between">
-                            <span>🚀 BuildFest AI Flagship Event (April 2027)</span>
+                            <span>🚀 BuildFest AI Flagship Event</span>
                             <span className="bg-white text-fuchsia-700 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">
                               Campus Expo
                             </span>

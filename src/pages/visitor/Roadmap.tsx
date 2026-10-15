@@ -3,39 +3,39 @@ import { RoadmapShFlow } from '../../components/common/RoadmapShFlow';
 import { EventRoadmap } from '../../components/common/EventRoadmap';
 
 export const Roadmap: React.FC = () => {
-  const roadmapMonths = [
+  const curriculumStages = [
     {
-      month: 'Month 1-2',
+      stage: 'Stage 1',
       title: 'AI Foundations & Mathematical Tools',
       topics: 'Python for Data Science, NumPy, Pandas, Linear Algebra, Calculus, and Data Preprocessing',
       badge: 'Explorer Tier',
     },
     {
-      month: 'Month 3-4',
+      stage: 'Stage 2',
       title: 'Classical Machine Learning & Scikit-Learn',
       topics: 'Supervised Learning, Unsupervised Clustering, Feature Engineering, Model Cross-Validation',
       badge: 'Practitioner Tier',
     },
     {
-      month: 'Month 5-6',
+      stage: 'Stage 3',
       title: 'Deep Learning & Neural Networks',
       topics: 'PyTorch Framework, Convolutional Neural Networks (CNNs), Computer Vision, OpenCV',
       badge: 'Specialist Tier',
     },
     {
-      month: 'Month 7-8',
+      stage: 'Stage 4',
       title: 'Natural Language Processing & Generative AI',
       topics: 'Transformers, Hugging Face, LLMs, Retrieval-Augmented Generation (RAG), Fine-Tuning',
       badge: 'Specialist Tier',
     },
     {
-      month: 'Month 9-10',
+      stage: 'Stage 5',
       title: 'Research Methodology & Paper Writing',
       topics: 'Literature Review, Novel Architecture Design, IEEE/Springer Conference Manuscript Drafting',
       badge: 'Researcher Tier',
     },
     {
-      month: 'Month 11-12',
+      stage: 'Stage 6',
       title: 'MLOps, Cloud Deployment & BuildFest AI Capstone',
       topics: 'Docker, FastAPI, Model Monitoring, AWS SageMaker, Live BuildFest AI Expo & Startup Pitch',
       badge: 'Pioneer & Entrepreneur Tier',
@@ -49,7 +49,7 @@ export const Roadmap: React.FC = () => {
         <RoadmapShFlow />
       </div>
 
-      {/* 12-Month AI Event Roadmap Timeline */}
+      {/* AI Event Roadmap Timeline */}
       <EventRoadmap />
 
       {/* Detailed Module Breakdown */}
@@ -59,7 +59,7 @@ export const Roadmap: React.FC = () => {
             Detailed Module Syllabus
           </span>
           <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            12-Month Academic Curriculum Breakdown (Phase 1)
+            Academic Curriculum Breakdown (Phase 1)
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
             Structured step-by-step milestones created by CCE faculty to take students from basics to deployment, research &amp; BuildFest AI Expo.
@@ -67,11 +67,11 @@ export const Roadmap: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {roadmapMonths.map((m, idx) => (
+          {curriculumStages.map((m, idx) => (
             <div key={idx} className="bg-white rounded-[24px] border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-[#004990] bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                  {m.month}
+                  {m.stage}
                 </span>
                 <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
                   {m.badge}

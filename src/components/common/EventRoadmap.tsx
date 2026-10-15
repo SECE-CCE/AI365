@@ -11,18 +11,18 @@ const TOP_LABEL_TOP = 12;
 const BOTTOM_LABEL_TOP = 494;
 
 const events = [
-  { id: 1,  month: "July '26",  title: 'AI Kickstart',              desc: 'Orientation, team formation & AI fundamentals bootcamp',           position: 'top',    x: 100,  y: 240, icon: Rocket },
-  { id: 2,  month: "Aug '26",   title: 'Certify AI Marathon',        desc: 'Industry certification drives — NPTEL, Google, AWS & more',        position: 'bottom', x: 260,  y: 400, icon: Award },
-  { id: 3,  month: "Sep '26",   title: 'AI ResearchX',              desc: 'Research workshops & IEEE/Springer submissions',                    position: 'top',    x: 420,  y: 240, icon: FlaskConical },
-  { id: 4,  month: "Oct '26",   title: 'AgentX Hackfest',           desc: '48-hr hackathon — build AI agents & autonomous systems',           position: 'bottom', x: 580,  y: 400, icon: Zap },
-  { id: 5,  month: "Nov '26",   title: 'Faculty AI Innovate',        desc: 'Faculty-led AI solution sprints & mentorship sessions',            position: 'top',    x: 740,  y: 240, icon: Lightbulb },
-  { id: 6,  month: "Dec '26",   title: 'PatentX AI',                desc: 'Patent drafting camp — file AI inventions & innovations',          position: 'bottom', x: 900,  y: 400, icon: FileText },
-  { id: 7,  month: "Jan '27",   title: 'Sustain AI',                desc: 'AI for sustainability — green tech projects & deployment',         position: 'top',    x: 1060, y: 240, icon: Leaf },
-  { id: 8,  month: "Feb '27",   title: 'Certify AI Marathon II',     desc: 'Second round of certification drives & skill-gap workshops',       position: 'bottom', x: 1220, y: 400, icon: BookOpen },
-  { id: 9,  month: "Mar '27",   title: 'Build AI',                  desc: 'End-to-end product sprint — from idea to prototype',              position: 'top',    x: 1380, y: 240, icon: Hammer },
-  { id: 10, month: "Apr '27",   title: 'BuildFest AI',              desc: 'AI Project Expo: live demos, pitches & startup launches',          position: 'bottom', x: 1540, y: 400, icon: MonitorPlay },
-  { id: 11, month: "May '27",   title: 'AI Summer School 2027',      desc: 'Intensive summer programme for advanced AI & research',           position: 'top',    x: 1700, y: 240, icon: GraduationCap },
-  { id: 12, month: "June '27",  title: 'AI365 Conclave & Awards',   desc: 'Grand conclave — awards, keynotes & year-end showcase',           position: 'bottom', x: 1860, y: 400, icon: Trophy },
+  { id: 1,  phase: 'Phase 1',  title: 'AI Kickstart',                    desc: 'Orientation, team formation & AI fundamentals bootcamp',           position: 'top',    x: 100,  y: 240, icon: Rocket },
+  { id: 2,  phase: 'Phase 2',  title: 'Certify AI Marathon',              desc: 'Industry certification drives — NPTEL, Google, AWS & more',        position: 'bottom', x: 260,  y: 400, icon: Award },
+  { id: 3,  phase: 'Phase 3',  title: 'AI ResearchX',                    desc: 'Research workshops & IEEE/Springer submissions',                    position: 'top',    x: 420,  y: 240, icon: FlaskConical },
+  { id: 4,  phase: 'Phase 4',  title: 'AgentX Hackfest',                 desc: '48-hr hackathon — build AI agents & autonomous systems',           position: 'bottom', x: 580,  y: 400, icon: Zap },
+  { id: 5,  phase: 'Phase 5',  title: 'Faculty AI Innovate',              desc: 'Faculty-led AI solution sprints & mentorship sessions',            position: 'top',    x: 740,  y: 240, icon: Lightbulb },
+  { id: 6,  phase: 'Phase 6',  title: 'PatentX AI',                      desc: 'Patent drafting camp — file AI inventions & innovations',          position: 'bottom', x: 900,  y: 400, icon: FileText },
+  { id: 7,  phase: 'Phase 7',  title: 'Sustain AI',                      desc: 'AI for sustainability — green tech projects & deployment',         position: 'top',    x: 1060, y: 240, icon: Leaf },
+  { id: 8,  phase: 'Phase 8',  title: 'Certify AI Marathon II',           desc: 'Second round of certification drives & skill-gap workshops',       position: 'bottom', x: 1220, y: 400, icon: BookOpen },
+  { id: 9,  phase: 'Phase 9',  title: 'Build AI',                        desc: 'End-to-end product sprint — from idea to prototype',              position: 'top',    x: 1380, y: 240, icon: Hammer },
+  { id: 10, phase: 'Phase 10', title: 'BuildFest AI — AI Project Expo',  desc: 'AI Project Expo: live demos, pitches & startup launches',          position: 'bottom', x: 1540, y: 400, icon: MonitorPlay },
+  { id: 11, phase: 'Phase 11', title: 'AI Summer School 2027',           desc: 'Intensive summer programme for advanced AI & research',           position: 'top',    x: 1700, y: 240, icon: GraduationCap },
+  { id: 12, phase: 'Phase 12', title: 'AI365 Conclave & Awards 2027',    desc: 'Grand conclave — awards, keynotes & year-end showcase',           position: 'bottom', x: 1860, y: 400, icon: Trophy },
 ];
 
 const ROAD_PATH =
@@ -68,11 +68,11 @@ export const EventRoadmap: React.FC = () => (
             </div>
           </div>
           <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#0B1B3D] tracking-tight uppercase">
-            12-MONTH AI EVENT ROADMAP
+            AI EVENT ROADMAP
           </h2>
         </div>
         <p className="text-xs sm:text-sm text-slate-500 font-semibold max-w-2xl text-center">
-          Department of Computer and Communication Engineering — July 2026 to June 2027
+          Department of Computer and Communication Engineering — Progressive Academic Journey
         </p>
       </div>
 
@@ -134,7 +134,7 @@ export const EventRoadmap: React.FC = () => (
                   style={{ left: nodeCX, top: labelTop, width: 148, transform: 'translateX(-50%)' }}
                 >
                   <span className="inline-block px-2 py-0.5 rounded-full bg-[#FF7A00] text-white text-[9px] font-black uppercase tracking-wider mb-1 shadow-sm whitespace-nowrap">
-                    {e.month}
+                    {e.phase}
                   </span>
                   <p className="text-[11px] font-extrabold text-slate-900 leading-snug">{e.title}</p>
                   <p className="text-[10px] text-slate-500 font-medium mt-0.5 leading-normal">{e.desc}</p>
