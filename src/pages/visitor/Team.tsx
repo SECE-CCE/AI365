@@ -11,11 +11,13 @@ import imgVivek from '../../../assets/Dr.C.Vivek_.jpg';
 import imgDarshan from '../../../assets/DarshanAR.JPG';
 import imgTanya from '../../../assets/Tanya.jpeg';
 import imgGokulnaath from '../../../assets/Gokulnaath.jpeg';
-import imgRupadharan from '../../../assets/RupaDharan.png';
 import imgVarunkumar from '../../../assets/VarunKumar.jpeg';
 import imgNitin from '../../../assets/Nitin.jpeg';
+import imgSudhir from '../../../assets/sudhir.jpg';
 import imgHariNikesh from '../../../assets/Hari_Nikesh_R.jpg';
 import imgNaveenPrasaath from '../../../assets/Naveen_alumini.png';
+import imgSeniorMentor1 from '../../../assets/senior_mentor_1.jpg';
+import imgSeniorMentor2 from '../../../assets/senior_mentor_2.jpg';
 
 
 import imgGanesh from '../../../assets/Dr.C.Ganesh.jpg';
@@ -85,15 +87,49 @@ const alumniMentors = [
   },
 ];
 
+const seniorMentors = [
+  {
+    name: 'Madhesh Kanna',
+    role: 'Senior Mentor',
+    sub: 'Senior Mentor',
+    initials: 'MK',
+    img: imgSeniorMentor1,
+    gradient: 'from-indigo-600 to-blue-500',
+  },
+  {
+    name: 'Yaswanth',
+    role: 'Senior Mentor',
+    sub: 'Senior Mentor',
+    initials: 'Y',
+    img: imgSeniorMentor2,
+    gradient: 'from-blue-600 to-teal-500',
+  },
+];
+
 const developers = [
   { name: 'Tanyasri GR', role: 'Developer', sub: '3rd Year CCE', initials: 'DS', img: imgTanya },
   { name: 'Nitin M', role: 'Developer', sub: '3rd Year CCE', initials: 'NM', img: imgNitin },
+  { name: 'Sudhir D', role: 'Developer', sub: '3rd Year CCE', initials: 'SD', img: imgSudhir, imgClass: 'scale-[1.55] translate-y-3' },
+  { name: 'VarunKumar S N', role: 'Developer', sub: '3rd Year CCE', initials: 'VK', img: imgVarunkumar },
 ];
 
-const studentCoordinators = [
-  { name: 'VarunKumar S N', role: 'Student Coordinator', sub: '3rd Year CCE', initials: 'VK', img: imgVarunkumar },
-  { name: 'Gokulnath N', role: 'Student Coordinator', sub: '3rd Year CCE', initials: 'GK', img: imgGokulnaath },
-  { name: 'Rupadharan', role: 'Student Coordinator', sub: '2nd Year CCE', initials: 'RP', img: imgRupadharan },
+const techTeamHead = {
+  name: 'Gokulnath N',
+  role: 'Head of Tech Team',
+  sub: '3rd Year CCE',
+  initials: 'GK',
+  img: imgGokulnaath,
+  badge: 'Head of Tech Team',
+};
+
+const techTeamMembers = [
+  'Hari Prasanna R',
+  'Arockia Sterin S',
+  'Sujith Manthira Moorthi K R',
+  'Oviya C',
+  'Sribhavan V',
+  'Vignesh M',
+  'Harini N',
 ];
 
 const studentGradients = [
@@ -287,9 +323,38 @@ export const Team: React.FC = () => (
         </div>
       </section>
 
-      {/* ── Student Team & Developers ────────────────────────────────────── */}
+      {/* ── Senior Mentors ─────────────────────────────────────────────── */}
+      <section className="space-y-8">
+        <SectionHeader icon={Users} label="Peer Mentors" title="Senior Mentors" color="bg-indigo-50 text-indigo-700 border-indigo-200" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl mx-auto">
+          {seniorMentors.map((s) => (
+            <div key={s.name} className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-4 sm:p-5 flex flex-col items-center text-center group hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 w-full">
+              <span className="px-3 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-full border border-indigo-200 mb-3">
+                Senior Mentor
+              </span>
+              <div className="w-full aspect-[3/4] max-w-[200px] rounded-xl overflow-hidden shadow-sm border border-slate-100 relative group-hover:shadow-md transition-shadow mb-3">
+                {s.img ? (
+                  <img src={s.img} alt={s.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                ) : (
+                  <div className={`w-full h-full bg-gradient-to-br ${s.gradient} flex items-center justify-center`}>
+                    <span className="text-3xl font-black text-white">{s.initials}</span>
+                  </div>
+                )}
+              </div>
+              <h4 className="text-base sm:text-lg font-black text-slate-900 leading-snug group-hover:text-[#004990] transition-colors">
+                {s.name}
+              </h4>
+              <p className="text-xs text-slate-500 font-semibold mt-1">
+                {s.sub}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Core Team & Developers ────────────────────────────────────────── */}
       <section className="space-y-10">
-        <SectionHeader icon={Users} label="Student Team" title="Student Team & Developers" color="bg-emerald-50 text-emerald-700 border-emerald-200" />
+        <SectionHeader icon={Users} label="Core Team" title="Core Team & Developers" color="bg-emerald-50 text-emerald-700 border-emerald-200" />
 
         {/* Featured: Darshan AR */}
         <div className="max-w-[260px] sm:max-w-[280px] mx-auto">
@@ -322,15 +387,15 @@ export const Team: React.FC = () => (
           </div>
         </div>
 
-        {/* Developers Row (Tanyasri GR, Nitin M) */}
-        <div className="max-w-xl mx-auto">
+        {/* Developers Row (Tanyasri GR, Nitin M, Sudhir D, VarunKumar S N) */}
+        <div className="max-w-4xl mx-auto">
           <p className="text-xs font-black uppercase tracking-widest text-slate-400 text-center mb-3">Developers</p>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
             {developers.map((s, idx) => (
               <div key={s.name} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
                 <div className={`w-full aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br ${studentGradients[idx % studentGradients.length]} flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 mb-3 border border-slate-100`}>
                   {s.img ? (
-                    <img src={s.img} alt={s.name} className="w-full h-full object-cover object-top" />
+                    <img src={s.img} alt={s.name} className={`w-full h-full object-cover object-top ${(s as any).imgClass || ''}`} />
                   ) : (
                     <span className="text-2xl sm:text-3xl font-black text-white">{s.initials}</span>
                   )}
@@ -349,30 +414,44 @@ export const Team: React.FC = () => (
           </div>
         </div>
 
-        {/* Student Coordinators Row (VarunKumar S N, Gokulnath N, Rupadharan) */}
-        <div className="max-w-3xl mx-auto">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400 text-center mb-3">Student Coordinators</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {studentCoordinators.map((s, idx) => (
-              <div key={s.name} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-                <div className={`w-full aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br ${studentGradients[(idx + 2) % studentGradients.length]} flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 mb-3 border border-slate-100`}>
-                  {s.img ? (
-                    <img src={s.img} alt={s.name} className="w-full h-full object-cover object-top" />
-                  ) : (
-                    <span className="text-2xl sm:text-3xl font-black text-white">{s.initials}</span>
-                  )}
-                </div>
-                <span className="inline-block px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full mb-1 border border-emerald-100">
-                  Coordinator
-                </span>
-                <p className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">
-                  {s.name}
-                </p>
-                <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5">
-                  {s.sub}
-                </p>
+        {/* Tech Team */}
+        <div className="max-w-4xl mx-auto space-y-6">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-400 text-center mb-3">Tech Team</p>
+
+          {/* Gokulnath N - Head of Tech Team */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-[220px] sm:w-[calc(25%-0.95rem)] bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+              <div className="w-full aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 mb-3 border border-slate-100">
+                <img src={techTeamHead.img} alt={techTeamHead.name} className="w-full h-full object-cover object-top" />
               </div>
-            ))}
+              <span className="inline-block px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full mb-1 border bg-amber-50 text-amber-800 border-amber-200">
+                {techTeamHead.badge}
+              </span>
+              <p className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">
+                {techTeamHead.name}
+              </p>
+              <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5">
+                {techTeamHead.sub}
+              </p>
+            </div>
+          </div>
+
+          {/* Team Members Names */}
+          <div className="max-w-2xl mx-auto text-center space-y-3 pt-1">
+            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+              Tech Team Members
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {techTeamMembers.map((name) => (
+                <span
+                  key={name}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200/90 rounded-full text-xs font-bold text-slate-700 shadow-xs hover:border-[#004990] hover:text-[#004990] transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>

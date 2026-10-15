@@ -59,18 +59,18 @@ const ParticleCanvas: React.FC = () => {
 
 /* ─── Phase Data ────────────────────────────────────────────────────────── */
 const phases = [
-  { phase: 'Phase 1',  month: "July '26",  title: 'AI Kickstart',                    desc: 'Orientation, team formation & AI fundamentals bootcamp',              icon: Rocket,        color: 'from-violet-500 to-purple-600',  badge: 'bg-violet-100 text-violet-700',  dot: 'bg-violet-500' },
-  { phase: 'Phase 2',  month: "Aug '26",   title: 'Certify AI Marathon',              desc: 'Industry certification drives — NPTEL, Google, AWS & more',           icon: Award,         color: 'from-blue-500 to-indigo-600',    badge: 'bg-blue-100 text-blue-700',      dot: 'bg-blue-500' },
-  { phase: 'Phase 3',  month: "Sep '26",   title: 'AI ResearchX',                    desc: 'Research paper writing workshops & IEEE/Springer submissions',         icon: FlaskConical,  color: 'from-cyan-500 to-teal-600',      badge: 'bg-cyan-100 text-cyan-700',      dot: 'bg-cyan-500' },
-  { phase: 'Phase 4',  month: "Oct '26",   title: 'AgentX Hackfest',                 desc: '48-hour hackathon — build AI agents & autonomous systems',            icon: Zap,           color: 'from-amber-500 to-orange-600',   badge: 'bg-amber-100 text-amber-700',    dot: 'bg-amber-500' },
-  { phase: 'Phase 5',  month: "Nov '26",   title: 'Faculty AI Innovate',              desc: 'Faculty-led AI solution sprints & mentorship sessions',               icon: Lightbulb,     color: 'from-yellow-400 to-amber-500',   badge: 'bg-yellow-100 text-yellow-700',  dot: 'bg-yellow-500' },
-  { phase: 'Phase 6',  month: "Dec '26",   title: 'PatentX AI',                      desc: 'Patent drafting camp — file AI inventions & innovations',             icon: FileCheck,     color: 'from-rose-500 to-pink-600',      badge: 'bg-rose-100 text-rose-700',      dot: 'bg-rose-500' },
-  { phase: 'Phase 7',  month: "Jan '27",   title: 'Sustain AI',                      desc: 'AI for sustainability — green tech projects & deployment',            icon: Leaf,          color: 'from-emerald-500 to-green-600',  badge: 'bg-emerald-100 text-emerald-700',dot: 'bg-emerald-500' },
-  { phase: 'Phase 8',  month: "Feb '27",   title: 'Certify AI Marathon II',           desc: 'Second round of certification drives & skill-gap workshops',          icon: BookOpen,      color: 'from-sky-500 to-blue-600',       badge: 'bg-sky-100 text-sky-700',        dot: 'bg-sky-500' },
-  { phase: 'Phase 9',  month: "Mar '27",   title: 'Build AI',                        desc: 'End-to-end product build sprint — from idea to prototype',           icon: Hammer,        color: 'from-orange-500 to-red-600',     badge: 'bg-orange-100 text-orange-700',  dot: 'bg-orange-500' },
-  { phase: 'Phase 10', month: "Apr '27",   title: 'BuildFest AI — AI Project Expo',  desc: 'Public expo: live demos, investor pitches & startup launches',        icon: MonitorPlay,   color: 'from-fuchsia-500 to-purple-700', badge: 'bg-fuchsia-100 text-fuchsia-700',dot: 'bg-fuchsia-500' },
-  { phase: 'Phase 11', month: "May '27",   title: 'AI Summer School 2027',           desc: 'Intensive summer programme for advanced AI & research tracks',        icon: GraduationCap, color: 'from-teal-500 to-cyan-600',      badge: 'bg-teal-100 text-teal-700',      dot: 'bg-teal-500' },
-  { phase: 'Phase 12', month: "June '27",  title: 'AI365 Conclave & Awards 2027',    desc: 'Annual grand conclave — awards, keynotes & year-end showcase',       icon: Trophy,        color: 'from-gold-500 to-amber-600',     badge: 'bg-amber-100 text-amber-800',    dot: 'bg-amber-600' },
+  { phase: 'Phase 1',  title: 'AI Kickstart',                    desc: 'Orientation, team formation & AI fundamentals bootcamp',              icon: Rocket,        color: 'from-violet-500 to-purple-600',  badge: 'bg-violet-100 text-violet-700',  dot: 'bg-violet-500' },
+  { phase: 'Phase 2',  title: 'Certify AI Marathon',              desc: 'Industry certification drives — NPTEL, Google, AWS & more',           icon: Award,         color: 'from-blue-500 to-indigo-600',    badge: 'bg-blue-100 text-blue-700',      dot: 'bg-blue-500' },
+  { phase: 'Phase 3',  title: 'AI ResearchX',                    desc: 'Research paper writing workshops & IEEE/Springer submissions',         icon: FlaskConical,  color: 'from-cyan-500 to-teal-600',      badge: 'bg-cyan-100 text-cyan-700',      dot: 'bg-cyan-500' },
+  { phase: 'Phase 4',  title: 'AgentX Hackfest',                 desc: '48-hour hackathon — build AI agents & autonomous systems',            icon: Zap,           color: 'from-amber-500 to-orange-600',   badge: 'bg-amber-100 text-amber-700',    dot: 'bg-amber-500' },
+  { phase: 'Phase 5',  title: 'Faculty AI Innovate',              desc: 'Faculty-led AI solution sprints & mentorship sessions',               icon: Lightbulb,     color: 'from-yellow-400 to-amber-500',   badge: 'bg-yellow-100 text-yellow-700',  dot: 'bg-yellow-500' },
+  { phase: 'Phase 6',  title: 'PatentX AI',                      desc: 'Patent drafting camp — file AI inventions & innovations',             icon: FileCheck,     color: 'from-rose-500 to-pink-600',      badge: 'bg-rose-100 text-rose-700',      dot: 'bg-rose-500' },
+  { phase: 'Phase 7',  title: 'Sustain AI',                      desc: 'AI for sustainability — green tech projects & deployment',            icon: Leaf,          color: 'from-emerald-500 to-green-600',  badge: 'bg-emerald-100 text-emerald-700',dot: 'bg-emerald-500' },
+  { phase: 'Phase 8',  title: 'Certify AI Marathon II',           desc: 'Second round of certification drives & skill-gap workshops',          icon: BookOpen,      color: 'from-sky-500 to-blue-600',       badge: 'bg-sky-100 text-sky-700',        dot: 'bg-sky-500' },
+  { phase: 'Phase 9',  title: 'Build AI',                        desc: 'End-to-end product build sprint — from idea to prototype',           icon: Hammer,        color: 'from-orange-500 to-red-600',     badge: 'bg-orange-100 text-orange-700',  dot: 'bg-orange-500' },
+  { phase: 'Phase 10', title: 'BuildFest AI — AI Project Expo',  desc: 'Public expo: live demos, investor pitches & startup launches',        icon: MonitorPlay,   color: 'from-fuchsia-500 to-purple-700', badge: 'bg-fuchsia-100 text-fuchsia-700',dot: 'bg-fuchsia-500' },
+  { phase: 'Phase 11', title: 'AI Summer School 2027',           desc: 'Intensive summer programme for advanced AI & research tracks',        icon: GraduationCap, color: 'from-teal-500 to-cyan-600',      badge: 'bg-teal-100 text-teal-700',      dot: 'bg-teal-500' },
+  { phase: 'Phase 12', title: 'AI365 Conclave & Awards 2027',    desc: 'Annual grand conclave — awards, keynotes & year-end showcase',       icon: Trophy,        color: 'from-gold-500 to-amber-600',     badge: 'bg-amber-100 text-amber-800',    dot: 'bg-amber-600' },
 ];
 
 /* ─── Home Page ─────────────────────────────────────────────────────────── */
@@ -148,7 +148,7 @@ export const Home: React.FC = () => {
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-violet-100 to-blue-100 text-[#4F46E5] font-bold text-xs uppercase tracking-widest border border-violet-200/60">
-            <Target className="w-3.5 h-3.5" /> 12-Month AI Event Calendar
+            <Target className="w-3.5 h-3.5" /> AI Event Roadmap &amp; Journey
           </span>
           <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
             The AI365 Journey
@@ -171,13 +171,10 @@ export const Home: React.FC = () => {
                 <div className={`h-1.5 w-full bg-gradient-to-r ${p.color}`} />
 
                 <div className="p-5 space-y-4">
-                  {/* Phase label + month */}
+                  {/* Phase label */}
                   <div className="flex items-center justify-between">
                     <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${p.badge}`}>
                       {p.phase}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
-                      {p.month}
                     </span>
                   </div>
 
@@ -211,7 +208,7 @@ export const Home: React.FC = () => {
               <div key={idx} className="flex items-center">
                 <div className="flex flex-col items-center gap-1">
                   <div className={`w-3 h-3 rounded-full ${p.dot} shadow ring-2 ring-white`} />
-                  <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">{p.month}</span>
+                  <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">{p.phase}</span>
                 </div>
                 {idx < phases.length - 1 && (
                   <div className="w-16 h-0.5 bg-gradient-to-r from-slate-300 to-slate-200 mx-1" />
