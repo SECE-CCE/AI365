@@ -1,12 +1,27 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
+import { db } from '../_db/client.js';
 
 const router = Router();
 
 // BASE DIRECTORY LOCATION FOR USER STORAGE INSIDE ASSETS
 export const UPLOADS_BASE_DIR = path.join(process.cwd(), 'assets', 'Documents');
+
+function detectMimeType(base64Str: string, ext?: string): string {
+  const match = base64Str.match(/^data:([^;]+);base64,/);
+  if (match) return match[1];
+  const cleanExt = (ext || '').replace(/^\./, '').toLowerCase();
+  switch (cleanExt) {
+    case 'pdf': return 'application/pdf';
+    case 'png': return 'image/png';
+    case 'webp': return 'image/webp';
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    default: return 'application/octet-stream';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,7 +86,25 @@ router.post('/poster', authMiddleware, async (req: AuthenticatedRequest, res: Re
 
     fs.writeFileSync(filePath, buffer);
 
+    // Also mirror to public/assets/Events if available for static serving
+    try {
+      const publicEvents = path.join(process.cwd(), 'public', 'assets', 'Events');
+      if (!fs.existsSync(publicEvents)) fs.mkdirSync(publicEvents, { recursive: true });
+      fs.writeFileSync(path.join(publicEvents, filename), buffer);
+    } catch (_) {}
+
     const posterUrl = `/assets/Events/${filename}`;
+
+    // Store uploaded poster directly in the database
+    await db.saveUploadedFile({
+      file_url: posterUrl,
+      file_name: filename,
+      mime_type: 'image/jpeg',
+      file_size: buffer.length,
+      file_data: base64Data,
+      user_id: req.user?.id,
+      category: 'poster',
+    });
 
     return res.json({
       url: posterUrl,
@@ -112,7 +145,26 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
 
     fs.writeFileSync(filePath, buffer);
 
-    const photoUrl = `/assets/Documents/${sanitizedUserName}/photos/${photoFilename}?t=${Date.now()}`;
+    // Mirror to public/assets for immediate static resolution
+    try {
+      const publicPhotosFolder = path.join(process.cwd(), 'public', 'assets', 'Documents', sanitizedUserName, 'photos');
+      if (!fs.existsSync(publicPhotosFolder)) fs.mkdirSync(publicPhotosFolder, { recursive: true });
+      fs.writeFileSync(path.join(publicPhotosFolder, photoFilename), buffer);
+    } catch (_) {}
+
+    const cleanPhotoUrl = `/assets/Documents/${sanitizedUserName}/photos/${photoFilename}`;
+    const photoUrl = `${cleanPhotoUrl}?t=${Date.now()}`;
+
+    // Store uploaded photo directly in the database
+    await db.saveUploadedFile({
+      file_url: cleanPhotoUrl,
+      file_name: photoFilename,
+      mime_type: 'image/jpeg',
+      file_size: buffer.length,
+      file_data: base64Data,
+      user_id: req.user?.id,
+      category: 'photo',
+    });
 
     return res.json({
       url: photoUrl,
@@ -158,6 +210,18 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
 
     const certificateUrl = `/assets/Documents/${sanitizedUserName}/certificates/${certificateFilename}`;
 
+    // Store uploaded certificate directly in the database
+    const mimeType = detectMimeType(fileBase64, cleanExt);
+    await db.saveUploadedFile({
+      file_url: certificateUrl,
+      file_name: certificateFilename,
+      mime_type: mimeType,
+      file_size: buffer.length,
+      file_data: base64Data,
+      user_id: req.user?.id,
+      category: 'certificate',
+    });
+
     return res.json({
       url: certificateUrl,
       folderPath: certificatesFolder,
@@ -201,6 +265,17 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
     fs.writeFileSync(filePath, buffer);
 
     const paperUrl = `/assets/Documents/${sanitizedUserName}/papers/${paperFilename}`;
+
+    // Store uploaded research paper directly in the database
+    await db.saveUploadedFile({
+      file_url: paperUrl,
+      file_name: paperFilename,
+      mime_type: 'application/pdf',
+      file_size: buffer.length,
+      file_data: base64Data,
+      user_id: req.user?.id,
+      category: 'paper',
+    });
 
     return res.json({
       url: paperUrl,
@@ -372,6 +447,30 @@ router.post('/drive-check', authMiddleware, async (req: AuthenticatedRequest, re
   } catch (err: any) {
     console.error('Drive Check Error:', err);
     return res.status(500).json({ accessible: false, error: 'Internal error while checking Drive link.' });
+  }
+});
+
+// GET /api/upload/file/*splat
+// Retrieves and streams any file stored in the database by its relative path or URL
+router.get('/file/*splat', async (req: Request, res: Response) => {
+  try {
+    const rawPath = (req.params as any).splat || (req.params as any)[0] || '';
+    const fullUrl = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+    const altUrl = `/assets/Documents/${rawPath.replace(/^\/+/, '')}`;
+
+    const file = (await db.getUploadedFileByUrl(fullUrl, rawPath)) || (await db.getUploadedFileByUrl(altUrl, rawPath));
+    if (!file || !file.file_data) {
+      return res.status(404).json({ error: 'File not found in database or server.' });
+    }
+
+    const buffer = Buffer.from(file.file_data, 'base64');
+    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.file_name)}"`);
+    return res.end(buffer);
+  } catch (err: any) {
+    console.error('File retrieve error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve file from database.' });
   }
 });
 

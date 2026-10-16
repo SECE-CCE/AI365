@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS certificates (
   issuer VARCHAR(255) NOT NULL,
   completion_date DATE NOT NULL,
   certificate_url TEXT NOT NULL,
+  file_data TEXT,
   skills_learned TEXT,
   status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
   faculty_id INT REFERENCES users(id) ON DELETE SET NULL,
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS research_papers (
   authors VARCHAR(255) NOT NULL,
   abstract TEXT,
   pdf_url TEXT NOT NULL,
+  file_data TEXT,
   status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
   faculty_id INT REFERENCES users(id) ON DELETE SET NULL,
   faculty_remarks TEXT,
@@ -198,3 +200,17 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   user_agent TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS uploaded_files (
+  id SERIAL PRIMARY KEY,
+  file_url TEXT UNIQUE NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  file_size INT NOT NULL,
+  file_data TEXT NOT NULL,
+  user_id INT REFERENCES users(id) ON DELETE SET NULL,
+  category VARCHAR(50) DEFAULT 'document',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_uploaded_files_file_url ON uploaded_files(file_url);

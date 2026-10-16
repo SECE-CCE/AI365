@@ -64,13 +64,29 @@ if (sql) {
   const updatedAtMigrations = [
     ['learning_hours', sql`ALTER TABLE learning_hours ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
     ['certificates', sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
+    ['certificates_file_data', sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS file_data TEXT;`],
     ['research_papers', sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
+    ['research_papers_file_data', sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS file_data TEXT;`],
     ['projects', sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`],
+    ['uploaded_files', sql`
+      CREATE TABLE IF NOT EXISTS uploaded_files (
+        id SERIAL PRIMARY KEY,
+        file_url TEXT UNIQUE NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        mime_type VARCHAR(100) NOT NULL,
+        file_size INTEGER NOT NULL,
+        file_data TEXT NOT NULL,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        category VARCHAR(50) DEFAULT 'document',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `],
+    ['uploaded_files_idx', sql`CREATE INDEX IF NOT EXISTS idx_uploaded_files_file_url ON uploaded_files(file_url);`],
   ] as const;
 
   for (const [tableName, migration] of updatedAtMigrations) {
     migration.catch((err: any) => {
-      console.warn(`[AI365 DB] updated_at migration for ${tableName}:`, err.message || err);
+      console.warn(`[AI365 DB] migration notice for ${tableName}:`, err.message || err);
     });
   }
 }
@@ -125,6 +141,7 @@ export interface CertificateRow {
   completion_date: string;
   certificate_url: string;
   skills_learned: string;
+  file_data?: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
@@ -142,12 +159,25 @@ export interface ResearchPaperRow {
   total_hours?: number;
   abstract: string;
   pdf_url: string;
+  file_data?: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   faculty_id?: number | null;
   faculty_remarks?: string;
   admin_marks?: number;
   created_at: string;
   updated_at?: string;
+}
+
+export interface UploadedFileRow {
+  id: number;
+  file_url: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  file_data: string;
+  user_id?: number | null;
+  category?: string;
+  created_at: string;
 }
 
 export interface ProjectRow {
@@ -337,6 +367,7 @@ const initialStore = {
   student_usage_sessions: [] as UsageSessionRow[],
   analytics_events: [] as AnalyticsEventRow[],
   auth_logs: [] as AuthLogRow[],
+  uploaded_files: [] as UploadedFileRow[],
 
   targets: [
     {
@@ -1064,8 +1095,8 @@ class DbStore {
   async createCertificate(data: Omit<CertificateRow, 'id' | 'created_at'>): Promise<CertificateRow> {
     try {
       const rows = await this.queryDb(
-        `INSERT INTO certificates (student_id, title, issuer, completion_date, certificate_url, skills_learned, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [data.student_id, data.title, data.issuer, data.completion_date, data.certificate_url, data.skills_learned, data.status, data.faculty_id || null, data.faculty_remarks || '']
+        `INSERT INTO certificates (student_id, title, issuer, completion_date, certificate_url, skills_learned, status, faculty_id, faculty_remarks, file_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [data.student_id, data.title, data.issuer, data.completion_date, data.certificate_url, data.skills_learned, data.status, data.faculty_id || null, data.faculty_remarks || '', data.file_data || null]
       );
       if (rows && rows.length > 0) { const item = rows[0] as CertificateRow; this.store.certificates.unshift(item); return item; }
     } catch (err) { console.error('Neon DB createCertificate error:', (err as Error).message); }
@@ -1152,8 +1183,8 @@ class DbStore {
   async createResearchPaper(data: Omit<ResearchPaperRow, 'id' | 'created_at'>): Promise<ResearchPaperRow> {
     try {
       const rows = await this.queryDb(
-        `INSERT INTO research_papers (student_id, title, conference_journal, authors, total_hours, abstract, pdf_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-        [data.student_id, data.title, data.conference_journal, data.authors, data.total_hours || 80, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
+        `INSERT INTO research_papers (student_id, title, conference_journal, authors, total_hours, abstract, pdf_url, status, faculty_id, faculty_remarks, file_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [data.student_id, data.title, data.conference_journal, data.authors, data.total_hours || 80, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '', data.file_data || null]
       );
       if (rows && rows.length > 0) { const item = rows[0] as ResearchPaperRow; this.store.research_papers.unshift(item); return item; }
     } catch (err) { console.error('Neon DB createResearchPaper error:', (err as Error).message); }
@@ -1976,6 +2007,102 @@ class DbStore {
       targets: target,
       roadmap: this.store.roadmap,
     };
+  }
+
+  // Uploaded Files Persistence
+  async saveUploadedFile(file: {
+    file_url: string;
+    file_name: string;
+    mime_type: string;
+    file_size: number;
+    file_data: string;
+    user_id?: number | null;
+    category?: string;
+  }): Promise<UploadedFileRow> {
+    const now = new Date().toISOString();
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO uploaded_files (file_url, file_name, mime_type, file_size, file_data, user_id, category, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (file_url) DO UPDATE SET
+           file_name = EXCLUDED.file_name,
+           mime_type = EXCLUDED.mime_type,
+           file_size = EXCLUDED.file_size,
+           file_data = EXCLUDED.file_data,
+           user_id = EXCLUDED.user_id,
+           category = EXCLUDED.category,
+           created_at = NOW()
+         RETURNING *`,
+        [
+          file.file_url,
+          file.file_name,
+          file.mime_type,
+          file.file_size,
+          file.file_data,
+          file.user_id || null,
+          file.category || 'document',
+        ]
+      );
+      if (rows && rows.length > 0) {
+        const item = rows[0] as UploadedFileRow;
+        const idx = this.store.uploaded_files.findIndex((f: UploadedFileRow) => f.file_url === file.file_url);
+        if (idx !== -1) this.store.uploaded_files[idx] = item;
+        else this.store.uploaded_files.unshift(item);
+        return item;
+      }
+    } catch (err) {
+      console.error('Neon DB saveUploadedFile error:', (err as Error).message);
+    }
+    const existingIdx = this.store.uploaded_files.findIndex((f: UploadedFileRow) => f.file_url === file.file_url);
+    const item: UploadedFileRow = {
+      id: existingIdx !== -1 ? this.store.uploaded_files[existingIdx].id : this.nextId('uploaded_files'),
+      file_url: file.file_url,
+      file_name: file.file_name,
+      mime_type: file.mime_type,
+      file_size: file.file_size,
+      file_data: file.file_data,
+      user_id: file.user_id,
+      category: file.category,
+      created_at: now,
+    };
+    if (existingIdx !== -1) this.store.uploaded_files[existingIdx] = item;
+    else this.store.uploaded_files.unshift(item);
+    return item;
+  }
+
+  async getUploadedFileByUrl(url: string, pathFallback?: string): Promise<UploadedFileRow | undefined> {
+    try {
+      // 1. Exact match on file_url
+      let rows = await this.queryDb(`SELECT * FROM uploaded_files WHERE file_url = $1`, [url]);
+      if (rows && rows.length > 0) return rows[0] as UploadedFileRow;
+
+      // 2. Partial match or basename fallback
+      if (pathFallback) {
+        const cleanPath = pathFallback.replace(/\\/g, '/').replace(/^\/+/, '');
+        const baseName = path.basename(cleanPath);
+        rows = await this.queryDb(
+          `SELECT * FROM uploaded_files WHERE file_url LIKE $1 OR file_url LIKE $2 OR file_name = $3 ORDER BY id DESC LIMIT 1`,
+          [`%${cleanPath}%`, `%${encodeURIComponent(cleanPath)}%`, baseName]
+        );
+        if (rows && rows.length > 0) return rows[0] as UploadedFileRow;
+      }
+    } catch (err) {
+      console.error('Neon DB getUploadedFileByUrl error:', (err as Error).message);
+    }
+
+    return this.store.uploaded_files.find(
+      (f: UploadedFileRow) => f.file_url === url || (pathFallback && (f.file_url.includes(pathFallback) || f.file_name === path.basename(pathFallback)))
+    );
+  }
+
+  async getUploadedFileById(id: number): Promise<UploadedFileRow | undefined> {
+    try {
+      const rows = await this.queryDb(`SELECT * FROM uploaded_files WHERE id = $1`, [id]);
+      if (rows && rows.length > 0) return rows[0] as UploadedFileRow;
+    } catch (err) {
+      console.error('Neon DB getUploadedFileById error:', (err as Error).message);
+    }
+    return this.store.uploaded_files.find((f: UploadedFileRow) => f.id === id);
   }
 }
 

@@ -80,6 +80,7 @@ try {
   `;
   await sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
   await sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
+  await sql`ALTER TABLE certificates ADD COLUMN IF NOT EXISTS file_data TEXT`;
   console.log('✅ certificates table ready');
 
   await sql`
@@ -103,6 +104,7 @@ try {
   await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS total_hours NUMERIC(6,2) DEFAULT 80`;
   await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS admin_marks NUMERIC(6,2)`;
   await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
+  await sql`ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS file_data TEXT`;
   console.log('✅ research_papers table ready');
 
   await sql`
@@ -271,6 +273,22 @@ try {
     )
   `;
   console.log('✅ analytics_events table ready');
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS uploaded_files (
+      id SERIAL PRIMARY KEY,
+      file_url TEXT UNIQUE NOT NULL,
+      file_name VARCHAR(255) NOT NULL,
+      mime_type VARCHAR(100) NOT NULL,
+      file_size INTEGER NOT NULL,
+      file_data TEXT NOT NULL,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      category VARCHAR(50) DEFAULT 'document',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_uploaded_files_file_url ON uploaded_files(file_url)`;
+  console.log('✅ uploaded_files table ready');
 
   // Check user count
   const count = await sql`SELECT COUNT(*) as c FROM users`;

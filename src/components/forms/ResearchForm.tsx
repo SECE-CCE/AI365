@@ -75,6 +75,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSuccess }) => {
           total_hours: totalHours,
           abstract,
           pdf_url: pdfUrl,
+          file_data: docPayload.mode === 'file' ? docPayload.base64?.replace(/^data:[^;]+;base64,/, '') : undefined,
         }),
       });
       onSuccess();

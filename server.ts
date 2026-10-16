@@ -6,6 +6,7 @@ import os from 'os';
 import { createServer as createViteServer } from 'vite';
 import cookieParser from 'cookie-parser';
 import { authMiddleware } from './api/_middleware/auth.js';
+import { db } from './api/_db/client.js';
 import app from './api/index';
 
 async function startServer() {
@@ -29,7 +30,7 @@ async function startServer() {
   });
 
   // Middleware to resolve document paths (with or without extension fallback) for intranet access
-  const documentsMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const documentsMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const reqPath = decodeURIComponent(req.path);
     const fullPath = path.join(process.cwd(), 'assets', 'Documents', reqPath);
 
@@ -44,6 +45,33 @@ async function startServer() {
       if (fs.existsSync(fileWithExt) && fs.statSync(fileWithExt).isFile()) {
         return res.sendFile(path.basename(fileWithExt), { root: path.dirname(fileWithExt) });
       }
+    }
+
+    // Database fallback from uploaded_files table
+    try {
+      const cleanPath = reqPath.startsWith('/') ? reqPath : `/${reqPath}`;
+      const fileUrl1 = `/assets/Documents${cleanPath}`;
+      const fileUrl2 = `/documents${cleanPath}`;
+      const dbFile = (await db.getUploadedFileByUrl(fileUrl1, reqPath)) || (await db.getUploadedFileByUrl(fileUrl2, reqPath));
+
+      if (dbFile && dbFile.file_data) {
+        const buffer = Buffer.from(dbFile.file_data, 'base64');
+        res.setHeader('Content-Type', dbFile.mime_type || 'application/octet-stream');
+        res.setHeader('Content-Length', buffer.length);
+        const fileName = dbFile.file_name || path.basename(reqPath);
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+
+        // Cache file to disk for faster future access
+        try {
+          const dir = path.dirname(fullPath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(fullPath, buffer);
+        } catch (_) {}
+
+        return res.end(buffer);
+      }
+    } catch (dbErr) {
+      console.error('[Document Middleware DB Lookup Error]:', dbErr);
     }
 
     next();
@@ -67,8 +95,24 @@ async function startServer() {
     app.use(vite.middlewares);
 
     // Generic /assets and public static come after Vite so Vite can handle module imports first
+    app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
     app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
     app.use(express.static(path.join(process.cwd(), 'public')));
+
+    // Database fallback for /assets/* requests before SPA routing
+    app.use('/assets', async (req, res, next) => {
+      try {
+        const assetUrl = `/assets${req.path}`;
+        const dbFile = await db.getUploadedFileByUrl(assetUrl, req.path);
+        if (dbFile && dbFile.file_data) {
+          const buffer = Buffer.from(dbFile.file_data, 'base64');
+          res.setHeader('Content-Type', dbFile.mime_type || 'application/octet-stream');
+          res.setHeader('Content-Length', buffer.length);
+          return res.end(buffer);
+        }
+      } catch (_) {}
+      next();
+    });
 
     app.use('/*splat', async (req, res, next) => {
       if (req.originalUrl.startsWith('/api')) return next();
@@ -89,9 +133,25 @@ async function startServer() {
     app.use('/assets/Documents', cookieParser(), authMiddleware, documentsMiddleware, express.static(path.join(process.cwd(), 'assets', 'Documents')));
     // Serve dist/assets first for compiled bundles, then fallback to root assets
     app.use('/assets', express.static(path.join(distPath, 'assets')));
+    app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
     app.use('/assets', express.static(path.join(process.cwd(), 'assets')));
     app.use(express.static(path.join(process.cwd(), 'public')));
     app.use(express.static(distPath));
+
+    // Database fallback for /assets/* requests in production before SPA routing
+    app.use('/assets', async (req, res, next) => {
+      try {
+        const assetUrl = `/assets${req.path}`;
+        const dbFile = await db.getUploadedFileByUrl(assetUrl, req.path);
+        if (dbFile && dbFile.file_data) {
+          const buffer = Buffer.from(dbFile.file_data, 'base64');
+          res.setHeader('Content-Type', dbFile.mime_type || 'application/octet-stream');
+          res.setHeader('Content-Length', buffer.length);
+          return res.end(buffer);
+        }
+      } catch (_) {}
+      next();
+    });
 
     app.get('/*splat', (req, res) => {
       res.sendFile('index.html', { root: distPath });

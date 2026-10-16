@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Sparkles, LogIn, UserPlus, Menu, X } from 'lucide-react';
 import seceLogo from '../../assets/sece_logo.png';
+import { WelcomeExperience } from '../components/common/WelcomeExperience';
 
 export const VisitorLayout: React.FC = () => {
   const location = useLocation();
@@ -20,6 +21,7 @@ export const VisitorLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-['Poppins',sans-serif]">
+      <WelcomeExperience />
       {!isAuthPage && (
         <header className="sticky top-0 z-50 bg-[#002B5C] text-white border-b border-slate-700/60 shadow-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">

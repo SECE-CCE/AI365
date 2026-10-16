@@ -62,9 +62,17 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, aiScore }) => {
           {/* Avatar */}
           <div className="pl-2 border-l border-slate-200">
             <img
-              src={getDocumentUrl(user.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getDocumentUrl(user.profile_photo) || (user.role === 'admin' ? '/assets/Dr.S.Dhamodharan.jpg' : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150')}
               alt={user.full_name}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover ring-2 ring-[#004990]"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (user.role === 'admin' && !target.src.includes('Dr.S.Dhamodharan')) {
+                  target.src = '/assets/Dr.S.Dhamodharan.jpg';
+                } else if (!target.src.includes('avatar')) {
+                  target.src = user.gender === 'girl' ? '/girl-avatar.svg' : '/boy-avatar.svg';
+                }
+              }}
             />
           </div>
         </div>

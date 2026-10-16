@@ -68,6 +68,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({ onSuccess }) =
           completion_date: completionDate,
           skills_learned: skillsLearned,
           certificate_url: certificateUrl,
+          file_data: docPayload.mode === 'file' ? docPayload.base64?.replace(/^data:[^;]+;base64,/, '') : undefined,
         }),
       });
       onSuccess();

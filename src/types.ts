@@ -8,6 +8,7 @@ export interface User {
   year?: string;
   phone?: string;
   profile_photo?: string;
+  gender?: 'boy' | 'girl';
   status: 'pending_approval' | 'approved' | 'rejected';
   mentor_id?: number | null;
   mentor_name?: string | null;

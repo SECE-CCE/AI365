@@ -277,8 +277,19 @@ export const UserManagement: React.FC = () => {
       header: 'User',
       cell: (row) => (
         <div className="flex items-center gap-3">
-          <img src={getDocumentUrl(row.profile_photo) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-            alt={row.full_name} className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-200" />
+          <img 
+            src={getDocumentUrl(row.profile_photo) || (row.role === 'admin' ? '/assets/Dr.S.Dhamodharan.jpg' : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150')}
+            alt={row.full_name} 
+            className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-200"
+            onError={(e) => {
+              const target = e.currentTarget;
+              if (row.role === 'admin' && !target.src.includes('Dr.S.Dhamodharan')) {
+                target.src = '/assets/Dr.S.Dhamodharan.jpg';
+              } else if (!target.src.includes('avatar')) {
+                target.src = row.gender === 'girl' ? '/girl-avatar.svg' : '/boy-avatar.svg';
+              }
+            }}
+          />
           <div>
             <p className="font-bold text-slate-900">{row.full_name}</p>
             <p className="text-[11px] text-slate-500">{row.email}</p>
