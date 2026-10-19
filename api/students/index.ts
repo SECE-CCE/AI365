@@ -216,7 +216,7 @@ router.get('/certificates', async (req: AuthenticatedRequest, res: Response) => 
 router.post('/certificates', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const studentId = req.user!.id;
-    const { title, issuer, completion_date, certificate_url, skills_learned } = req.body;
+    const { title, issuer, completion_date, certificate_url, skills_learned, file_data } = req.body;
 
     const cleanTitle = sanitizeString(title, 255);
     const cleanIssuer = sanitizeString(issuer, 255);
@@ -248,6 +248,7 @@ router.post('/certificates', async (req: AuthenticatedRequest, res: Response) =>
       certificate_url: cleanCertUrl,
       skills_learned: cleanSkills,
       status: 'Pending',
+      file_data: typeof file_data === 'string' ? file_data : null,
     });
 
     if (req.user!.mentor_id) {
@@ -280,7 +281,7 @@ router.get('/research', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const studentId = req.user!.id;
-    const { title, conference_journal, authors, total_hours, abstract, pdf_url } = req.body;
+    const { title, conference_journal, authors, total_hours, abstract, pdf_url, file_data } = req.body;
 
     const cleanTitle = sanitizeString(title, 255);
     const cleanConf = sanitizeString(conference_journal, 255);
@@ -316,6 +317,7 @@ router.post('/research', async (req: AuthenticatedRequest, res: Response) => {
       abstract: cleanAbstract,
       pdf_url: cleanPdfUrl,
       status: 'Pending',
+      file_data: typeof file_data === 'string' ? file_data : null,
     });
 
     if (req.user!.mentor_id) {

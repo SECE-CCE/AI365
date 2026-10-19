@@ -131,6 +131,7 @@ export interface CertificateRow {
   admin_marks?: number;
   created_at: string;
   updated_at?: string;
+  file_data?: string | null;
 }
 
 export interface ResearchPaperRow {
@@ -148,6 +149,19 @@ export interface ResearchPaperRow {
   admin_marks?: number;
   created_at: string;
   updated_at?: string;
+  file_data?: string | null;
+}
+
+export interface UploadedFileRow {
+  id: number;
+  file_url?: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  file_data: string;
+  user_id?: number | null;
+  category: string;
+  created_at?: string;
 }
 
 export interface ProjectRow {
@@ -337,6 +351,7 @@ const initialStore = {
   student_usage_sessions: [] as UsageSessionRow[],
   analytics_events: [] as AnalyticsEventRow[],
   auth_logs: [] as AuthLogRow[],
+  uploaded_files: [] as UploadedFileRow[],
 
   targets: [
     {
@@ -1061,14 +1076,33 @@ class DbStore {
     });
   }
 
+  async getCertificateById(id: number): Promise<CertificateRow | undefined> {
+    try {
+      const rows = await this.queryDb(`SELECT c.*, u.full_name AS student_name, u.register_number, u.year FROM certificates c LEFT JOIN users u ON c.student_id = u.id WHERE c.id = $1`, [id]);
+      if (rows && rows.length > 0) return rows[0] as CertificateRow;
+    } catch (err) { console.error('Neon DB getCertificateById error:', (err as Error).message); }
+    return this.store.certificates.find((c: CertificateRow) => c.id === id);
+  }
+
   async createCertificate(data: Omit<CertificateRow, 'id' | 'created_at'>): Promise<CertificateRow> {
     try {
       const rows = await this.queryDb(
-        `INSERT INTO certificates (student_id, title, issuer, completion_date, certificate_url, skills_learned, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [data.student_id, data.title, data.issuer, data.completion_date, data.certificate_url, data.skills_learned, data.status, data.faculty_id || null, data.faculty_remarks || '']
+        `INSERT INTO certificates (student_id, title, issuer, completion_date, certificate_url, skills_learned, status, faculty_id, faculty_remarks, file_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [data.student_id, data.title, data.issuer, data.completion_date, data.certificate_url, data.skills_learned, data.status, data.faculty_id || null, data.faculty_remarks || '', data.file_data || null]
       );
       if (rows && rows.length > 0) { const item = rows[0] as CertificateRow; this.store.certificates.unshift(item); return item; }
-    } catch (err) { console.error('Neon DB createCertificate error:', (err as Error).message); }
+    } catch (err) {
+      console.warn('Neon DB createCertificate error, retrying without file_data:', (err as Error).message);
+      try {
+        const rows = await this.queryDb(
+          `INSERT INTO certificates (student_id, title, issuer, completion_date, certificate_url, skills_learned, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+          [data.student_id, data.title, data.issuer, data.completion_date, data.certificate_url, data.skills_learned, data.status, data.faculty_id || null, data.faculty_remarks || '']
+        );
+        if (rows && rows.length > 0) { const item = rows[0] as CertificateRow; this.store.certificates.unshift(item); return item; }
+      } catch (retryErr) {
+        console.error('Neon DB retry createCertificate error:', (retryErr as Error).message);
+      }
+    }
     const newItem: CertificateRow = { ...data, id: this.nextId('certificates'), created_at: new Date().toISOString() };
     this.store.certificates.unshift(newItem);
     return newItem;
@@ -1149,14 +1183,33 @@ class DbStore {
     });
   }
 
+  async getResearchPaperById(id: number): Promise<ResearchPaperRow | undefined> {
+    try {
+      const rows = await this.queryDb(`SELECT rp.*, u.full_name AS student_name, u.register_number, u.year FROM research_papers rp LEFT JOIN users u ON rp.student_id = u.id WHERE rp.id = $1`, [id]);
+      if (rows && rows.length > 0) return rows[0] as ResearchPaperRow;
+    } catch (err) { console.error('Neon DB getResearchPaperById error:', (err as Error).message); }
+    return this.store.research_papers.find((p: ResearchPaperRow) => p.id === id);
+  }
+
   async createResearchPaper(data: Omit<ResearchPaperRow, 'id' | 'created_at'>): Promise<ResearchPaperRow> {
     try {
       const rows = await this.queryDb(
-        `INSERT INTO research_papers (student_id, title, conference_journal, authors, total_hours, abstract, pdf_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-        [data.student_id, data.title, data.conference_journal, data.authors, data.total_hours || 80, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
+        `INSERT INTO research_papers (student_id, title, conference_journal, authors, total_hours, abstract, pdf_url, status, faculty_id, faculty_remarks, file_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [data.student_id, data.title, data.conference_journal, data.authors, data.total_hours || 80, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '', data.file_data || null]
       );
       if (rows && rows.length > 0) { const item = rows[0] as ResearchPaperRow; this.store.research_papers.unshift(item); return item; }
-    } catch (err) { console.error('Neon DB createResearchPaper error:', (err as Error).message); }
+    } catch (err) {
+      console.warn('Neon DB createResearchPaper error, retrying without file_data:', (err as Error).message);
+      try {
+        const rows = await this.queryDb(
+          `INSERT INTO research_papers (student_id, title, conference_journal, authors, total_hours, abstract, pdf_url, status, faculty_id, faculty_remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+          [data.student_id, data.title, data.conference_journal, data.authors, data.total_hours || 80, data.abstract, data.pdf_url, data.status, data.faculty_id || null, data.faculty_remarks || '']
+        );
+        if (rows && rows.length > 0) { const item = rows[0] as ResearchPaperRow; this.store.research_papers.unshift(item); return item; }
+      } catch (retryErr) {
+        console.error('Neon DB retry createResearchPaper error:', (retryErr as Error).message);
+      }
+    }
     const newItem: ResearchPaperRow = { ...data, id: this.nextId('research_papers'), created_at: new Date().toISOString() };
     this.store.research_papers.unshift(newItem);
     return newItem;
@@ -1976,6 +2029,61 @@ class DbStore {
       targets: target,
       roadmap: this.store.roadmap,
     };
+  }
+
+  // Uploaded Files (Direct Database Storage for Vercel & Intranet)
+  async saveUploadedFile(data: Omit<UploadedFileRow, 'id' | 'created_at'>): Promise<UploadedFileRow> {
+    const tempUrl = data.file_url || `/api/upload/file/pending_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+    try {
+      const rows = await this.queryDb(
+        `INSERT INTO uploaded_files (file_name, mime_type, file_size, file_data, user_id, category, file_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [data.file_name, data.mime_type, data.file_size, data.file_data, data.user_id || null, data.category, tempUrl]
+      );
+      if (rows && rows.length > 0) {
+        const item = rows[0] as UploadedFileRow;
+        const finalUrl = `/api/upload/file/${item.id}`;
+        try {
+          await this.queryDb(`UPDATE uploaded_files SET file_url = $1 WHERE id = $2`, [finalUrl, item.id]);
+          item.file_url = finalUrl;
+        } catch {
+          // Keep tempUrl if update fails
+        }
+        this.store.uploaded_files.unshift(item);
+        return item;
+      }
+    } catch (err) {
+      console.error('Neon DB saveUploadedFile error:', (err as Error).message);
+    }
+    const id = this.nextId('uploaded_files');
+    const newItem: UploadedFileRow = {
+      ...data,
+      id,
+      created_at: new Date().toISOString(),
+      file_url: `/api/upload/file/${id}`,
+    };
+    this.store.uploaded_files.unshift(newItem);
+    return newItem;
+  }
+
+  async getUploadedFileById(id: number): Promise<UploadedFileRow | undefined> {
+    try {
+      const rows = await this.queryDb(`SELECT * FROM uploaded_files WHERE id = $1`, [id]);
+      if (rows && rows.length > 0) return rows[0] as UploadedFileRow;
+    } catch (err) {
+      console.error('Neon DB getUploadedFileById error:', (err as Error).message);
+    }
+    return this.store.uploaded_files.find((f: UploadedFileRow) => f.id === id);
+  }
+
+  async updateUploadedFileUrl(id: number, fileUrl: string): Promise<void> {
+    try {
+      await this.queryDb(`UPDATE uploaded_files SET file_url = $1 WHERE id = $2`, [fileUrl, id]);
+    } catch (err) {
+      console.error('Neon DB updateUploadedFileUrl error:', (err as Error).message);
+    }
+    const item = this.store.uploaded_files.find((f: UploadedFileRow) => f.id === id);
+    if (item) item.file_url = fileUrl;
   }
 }
 
