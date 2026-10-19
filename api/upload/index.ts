@@ -1,6 +1,7 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { db } from '../_db/client.js';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
 
 const router = Router();
@@ -47,9 +48,47 @@ function isSafeDriveUrl(url: string): boolean {
 
 
 
+// GET /api/upload/file/:id
+// Serves files stored directly inside Neon PostgreSQL (100% compatible with Vercel and local dev)
+router.get('/file/:id', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) return res.status(400).send('Invalid file ID');
+
+    const file = await db.getUploadedFileById(id);
+    if (!file || !file.file_data) {
+      return res.status(404).send('File not found in Neon DB');
+    }
+
+    const matches = file.file_data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).send('Corrupted file data in Neon DB');
+    }
+
+    const mimeType = matches[1] || file.mime_type || 'application/octet-stream';
+    const buffer = Buffer.from(matches[2], 'base64');
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.file_name)}"`);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.send(buffer);
+  } catch (err: any) {
+    console.error('Neon DB File Serve Error:', err);
+    return res.status(500).send('Failed to retrieve file from Neon DB');
+  }
+});
+
+// GET /api/upload/poster
+router.get('/poster', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/poster endpoint only accepts HTTP POST requests with poster image data.',
+  });
+});
+
 // POST /api/upload/poster
-// Handles event banner poster image upload, creates assets/Events/ directory if missing,
-// and saves file on server.
+// Handles event banner poster image upload, saves to Neon DB, and caches locally if writable.
 router.post('/poster', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { imageBase64, title = 'Event_Poster' } = req.body;
@@ -57,36 +96,59 @@ router.post('/poster', authMiddleware, async (req: AuthenticatedRequest, res: Re
       return res.status(400).json({ error: 'Poster image data is required.' });
     }
 
-    const eventsFolder = path.join(process.cwd(), 'assets', 'Events');
-    if (!fs.existsSync(eventsFolder)) {
-      fs.mkdirSync(eventsFolder, { recursive: true });
-    }
-
     const sanitizedTitle = String(title).trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Poster';
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-
     const filename = `${sanitizedTitle}_${Date.now()}.jpg`;
-    const filePath = path.join(eventsFolder, filename);
+    const fullDataUrl = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${base64Data}`;
 
-    fs.writeFileSync(filePath, buffer);
+    // 1. Store in Neon DB
+    const saved = await db.saveUploadedFile({
+      file_name: filename,
+      mime_type: 'image/jpeg',
+      file_size: buffer.length,
+      file_data: fullDataUrl,
+      user_id: req.user?.id || null,
+      category: 'poster',
+    });
 
-    const posterUrl = `/assets/Events/${filename}`;
+    const posterUrl = `/api/upload/file/${saved.id}`;
+    await db.updateUploadedFileUrl(saved.id, posterUrl);
+
+    // 2. Optional local filesystem backup
+    try {
+      const eventsFolder = path.join(process.cwd(), 'assets', 'Events');
+      if (!fs.existsSync(eventsFolder)) {
+        fs.mkdirSync(eventsFolder, { recursive: true });
+      }
+      const filePath = path.join(eventsFolder, filename);
+      fs.writeFileSync(filePath, buffer);
+    } catch {
+      // Ignored in read-only serverless environments
+    }
 
     return res.json({
       url: posterUrl,
+      fileId: saved.id,
       filename,
       uploaded_at: new Date().toISOString(),
     });
   } catch (err: any) {
     console.error('Poster Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save event poster image on server.' });
+    return res.status(500).json({ error: 'Failed to save event poster image in Neon DB.' });
   }
 });
 
+// GET /api/upload/photo
+router.get('/photo', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/photo endpoint only accepts HTTP POST requests with photo image data.',
+  });
+});
+
 // POST /api/upload/photo
-// Handles compressed photo upload, creates assets/Documents/<User_Name>/photos/ directory,
-// and stores compressed profile picture inside that directory.
+// Handles compressed photo upload, saves directly into Neon DB, and caches locally if writable.
 router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { imageBase64 } = req.body;
@@ -95,40 +157,59 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
     }
 
     const userName = req.user?.full_name || 'User';
-    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-
-    // Create subfolder photos/ inside user directory: assets/Documents/<Sanitized_User_Name>/photos/
-    const photosFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'photos');
-    if (!fs.existsSync(photosFolder)) {
-      fs.mkdirSync(photosFolder, { recursive: true });
-    }
-
+    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'User';
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-
-    // Custom filename: <Sanitized_User_Name>_Profile.jpg (matches certificate/paper naming convention)
     const photoFilename = `${sanitizedUserName}_Profile.jpg`;
-    const filePath = path.join(photosFolder, photoFilename);
+    const fullDataUrl = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${base64Data}`;
 
-    fs.writeFileSync(filePath, buffer);
+    // 1. Store directly into Neon DB
+    const saved = await db.saveUploadedFile({
+      file_name: photoFilename,
+      mime_type: 'image/jpeg',
+      file_size: buffer.length,
+      file_data: fullDataUrl,
+      user_id: req.user?.id || null,
+      category: 'photo',
+    });
 
-    const photoUrl = `/assets/Documents/${sanitizedUserName}/photos/${photoFilename}?t=${Date.now()}`;
+    const photoUrl = `/api/upload/file/${saved.id}`;
+    await db.updateUploadedFileUrl(saved.id, photoUrl);
+
+    // 2. Optional local filesystem backup
+    try {
+      const photosFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'photos');
+      if (!fs.existsSync(photosFolder)) {
+        fs.mkdirSync(photosFolder, { recursive: true });
+      }
+      const filePath = path.join(photosFolder, photoFilename);
+      fs.writeFileSync(filePath, buffer);
+    } catch {
+      // Ignored in read-only serverless environments
+    }
 
     return res.json({
       url: photoUrl,
-      folderPath: photosFolder,
+      fileId: saved.id,
       filename: photoFilename,
       uploaded_at: new Date().toISOString(),
     });
   } catch (err: any) {
     console.error('Photo Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save compressed profile photo on server.' });
+    return res.status(500).json({ error: 'Failed to save compressed profile photo in Neon DB.' });
   }
 });
 
+// GET /api/upload/certificate - returns informative 405 Method Not Allowed
+router.get('/certificate', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/certificate endpoint only accepts HTTP POST requests with certificate data (fileBase64, certificateTitle, extension). Direct GET access via the browser address bar is not supported.',
+  });
+});
+
 // POST /api/upload/certificate
-// Handles certificate upload, creates assets/Documents/<User_Name>/certificates/ directory,
-// formats filename as <User_Name>_<Certificate_Title>.<ext>, and stores file inside that directory.
+// Handles certificate upload, saves file directly into Neon DB, and caches locally if writable.
 router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { fileBase64, extension = 'jpg', certificateTitle = 'Certificate' } = req.body;
@@ -136,43 +217,71 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
       return res.status(400).json({ error: 'Certificate file data is required.' });
     }
 
-    const userName = req.user?.full_name || 'User';
-    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-    const sanitizedTitle = certificateTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const rawTitle = typeof certificateTitle === 'string' ? certificateTitle : 'Certificate';
+    const rawExt = typeof extension === 'string' ? extension : 'jpg';
 
-    // Create subfolder certificates/ inside user directory: assets/Documents/<Sanitized_User_Name>/certificates/
-    const certificatesFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'certificates');
-    if (!fs.existsSync(certificatesFolder)) {
-      fs.mkdirSync(certificatesFolder, { recursive: true });
-    }
+    const userName = req.user?.full_name || 'User';
+    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'User';
+    const sanitizedTitle = rawTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Certificate';
+    const cleanExt = rawExt.replace(/^\./, '').trim() || 'jpg';
+    const mimeType = cleanExt === 'pdf' ? 'application/pdf' : 'image/jpeg';
 
     const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-
-    // Custom filename: <Sanitized_User_Name>_<Sanitized_Certificate_Title>.<ext>
-    const cleanExt = extension.replace(/^\./, '');
     const certificateFilename = `${sanitizedUserName}_${sanitizedTitle}.${cleanExt}`;
-    const filePath = path.join(certificatesFolder, certificateFilename);
+    const fullDataUrl = fileBase64.startsWith('data:') ? fileBase64 : `data:${mimeType};base64,${base64Data}`;
 
-    fs.writeFileSync(filePath, buffer);
+    // 1. Save directly into Neon DB (uploaded_files table)
+    const saved = await db.saveUploadedFile({
+      file_name: certificateFilename,
+      mime_type: mimeType,
+      file_size: buffer.length,
+      file_data: fullDataUrl,
+      user_id: req.user?.id || null,
+      category: 'certificate',
+    });
 
-    const certificateUrl = `/assets/Documents/${sanitizedUserName}/certificates/${certificateFilename}`;
+    const certificateUrl = `/api/upload/file/${saved.id}`;
+    await db.updateUploadedFileUrl(saved.id, certificateUrl);
+
+    // 2. Optional local filesystem backup (ignored on read-only environments like Vercel)
+    try {
+      const certificatesFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'certificates');
+      if (!fs.existsSync(certificatesFolder)) {
+        fs.mkdirSync(certificatesFolder, { recursive: true });
+      }
+      const filePath = path.join(certificatesFolder, certificateFilename);
+      fs.writeFileSync(filePath, buffer);
+    } catch {
+      // Ignored in read-only serverless environments
+    }
 
     return res.json({
       url: certificateUrl,
-      folderPath: certificatesFolder,
+      fileId: saved.id,
       filename: certificateFilename,
+      file_data: fullDataUrl,
       uploaded_at: new Date().toISOString(),
     });
   } catch (err: any) {
     console.error('Certificate Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save certificate on server.' });
+    return res.status(500).json({
+      error: 'Failed to save certificate in Neon DB.',
+      details: err?.message || 'Unknown internal error',
+    });
   }
 });
 
+// GET /api/upload/paper
+router.get('/paper', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/paper endpoint only accepts HTTP POST requests with PDF document data.',
+  });
+});
+
 // POST /api/upload/paper
-// Handles research paper upload in PDF format, creates assets/Documents/<User_Name>/papers/ directory,
-// formats filename as <User_Name>_<Paper_Title>.<ext>, compresses and stores file inside that folder.
+// Handles research paper upload in PDF format, saves directly to Neon DB, and caches locally if writable.
 router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { fileBase64, extension = 'pdf', paperTitle = 'Research_Paper' } = req.body;
@@ -180,39 +289,59 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
       return res.status(400).json({ error: 'Paper PDF file data is required.' });
     }
 
-    const userName = req.user?.full_name || 'User';
-    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-    const sanitizedTitle = paperTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const rawTitle = typeof paperTitle === 'string' ? paperTitle : 'Research_Paper';
+    const rawExt = typeof extension === 'string' ? extension : 'pdf';
 
-    // Create subfolder papers/ inside user directory: assets/Documents/<Sanitized_User_Name>/papers/
-    const papersFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'papers');
-    if (!fs.existsSync(papersFolder)) {
-      fs.mkdirSync(papersFolder, { recursive: true });
-    }
+    const userName = req.user?.full_name || 'User';
+    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'User';
+    const sanitizedTitle = rawTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Research_Paper';
+    const cleanExt = rawExt.replace(/^\./, '').trim() || 'pdf';
 
     const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-
-    // Custom filename: <Sanitized_User_Name>_<Sanitized_Paper_Title>.<ext>
-    const cleanExt = extension.replace(/^\./, '');
     const paperFilename = `${sanitizedUserName}_${sanitizedTitle}.${cleanExt}`;
-    const filePath = path.join(papersFolder, paperFilename);
+    const fullDataUrl = fileBase64.startsWith('data:') ? fileBase64 : `data:application/pdf;base64,${base64Data}`;
 
-    fs.writeFileSync(filePath, buffer);
+    // 1. Save directly into Neon DB (uploaded_files table)
+    const saved = await db.saveUploadedFile({
+      file_name: paperFilename,
+      mime_type: 'application/pdf',
+      file_size: buffer.length,
+      file_data: fullDataUrl,
+      user_id: req.user?.id || null,
+      category: 'paper',
+    });
 
-    const paperUrl = `/assets/Documents/${sanitizedUserName}/papers/${paperFilename}`;
+    const paperUrl = `/api/upload/file/${saved.id}`;
+    await db.updateUploadedFileUrl(saved.id, paperUrl);
+
+    // 2. Optional local filesystem backup
+    try {
+      const papersFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'papers');
+      if (!fs.existsSync(papersFolder)) {
+        fs.mkdirSync(papersFolder, { recursive: true });
+      }
+      const filePath = path.join(papersFolder, paperFilename);
+      fs.writeFileSync(filePath, buffer);
+    } catch {
+      // Ignored in read-only serverless environments
+    }
 
     return res.json({
       url: paperUrl,
-      folderPath: papersFolder,
+      fileId: saved.id,
       filename: paperFilename,
+      file_data: fullDataUrl,
       sizeBytes: buffer.length,
       compressed: true,
       uploaded_at: new Date().toISOString(),
     });
   } catch (err: any) {
     console.error('Paper Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save research paper PDF on server.' });
+    return res.status(500).json({
+      error: 'Failed to save research paper PDF in Neon DB.',
+      details: err?.message || 'Unknown internal error',
+    });
   }
 });
 
@@ -246,7 +375,14 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
   }
 });
 
-// ---------------------------------------------------------------------------
+// GET /api/upload/drive-check
+router.get('/drive-check', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/drive-check endpoint only accepts HTTP POST requests with a driveLink parameter.',
+  });
+});
+
 // POST /api/upload/drive-check
 // Real accessibility verification for Google Drive links.
 // Returns: { accessible, url, fileId, filename, mimeType, sizeBytes }
