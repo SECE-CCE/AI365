@@ -70,7 +70,7 @@ router.post('/register', authMiddleware, roleGuard(['student']), async (req: Aut
 // POST /api/events (Faculty/Admin create event)
 router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { title, description, venue, event_date, event_time, max_participants, poster_url, category } = req.body;
+    const { title, description, venue, event_date, event_time, max_participants, poster_url, category, registration_link } = req.body;
 
     const cleanTitle = sanitizeString(title, 255);
     const cleanVenue = sanitizeString(venue, 255);
@@ -78,6 +78,7 @@ router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: Au
     const cleanTime = sanitizeString(event_time, 50);
     const cleanPoster = sanitizeString(poster_url, 2048);
     const cleanCategory = sanitizeString(category, 100);
+    const cleanRegLink = sanitizeString(registration_link, 2048);
 
     if (!cleanTitle || !cleanVenue || !event_date || !cleanTime) {
       return res.status(400).json({ error: 'Title, Venue, Event Date, and Event Time are required.' });
@@ -105,6 +106,7 @@ router.post('/', authMiddleware, roleGuard(['faculty', 'admin']), async (req: Au
       max_participants: parsedMax,
       poster_url: cleanPoster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600',
       category: cleanCategory || 'Workshop',
+      registration_link: cleanRegLink || '',
     });
 
     await db.logActivity(req.user!.id, 'Created CCE Event', `Created event "${cleanTitle}" on ${event_date}`);
@@ -128,7 +130,7 @@ router.put('/:id', authMiddleware, roleGuard(['faculty', 'admin']), async (req: 
       return res.status(403).json({ error: 'Forbidden: Faculty can only edit events they created.' });
     }
 
-    const { title, description, venue, event_date, event_time, max_participants, poster_url, category } = req.body;
+    const { title, description, venue, event_date, event_time, max_participants, poster_url, category, registration_link } = req.body;
 
     const updatedEvent = await db.updateEvent(eventId, {
       ...(title !== undefined && { title }),
@@ -139,6 +141,7 @@ router.put('/:id', authMiddleware, roleGuard(['faculty', 'admin']), async (req: 
       ...(max_participants !== undefined && { max_participants: Number(max_participants) }),
       ...(poster_url !== undefined && { poster_url }),
       ...(category !== undefined && { category }),
+      ...(registration_link !== undefined && { registration_link: sanitizeString(registration_link, 2048) }),
     });
 
     await db.logActivity(req.user!.id, 'Updated CCE Event', `Updated event "${updatedEvent?.title || title}"`);

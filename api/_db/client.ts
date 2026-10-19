@@ -43,10 +43,15 @@ if (sql) {
       max_participants INTEGER DEFAULT 100,
       poster_url TEXT,
       category VARCHAR(100),
+      registration_link TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `.catch((err) => {
     console.warn('[AI365 DB] Events schema auto-migration notice:', err.message || err);
+  });
+
+  sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS registration_link TEXT;`.catch((err) => {
+    console.warn('[AI365 DB] Events schema registration_link auto-migration notice:', err.message || err);
   });
 
   sql`
@@ -179,6 +184,7 @@ export interface EventRow {
   max_participants: number;
   poster_url: string;
   category: string;
+  registration_link?: string;
   created_at: string;
 }
 
@@ -1580,8 +1586,8 @@ class DbStore {
   async createEvent(data: Omit<EventRow, 'id' | 'created_at'>): Promise<EventRow> {
     try {
       const rows = await this.queryDb(
-        `INSERT INTO events (created_by, title, description, venue, event_date, event_time, max_participants, poster_url, category)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO events (created_by, title, description, venue, event_date, event_time, max_participants, poster_url, category, registration_link)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           data.created_by,
@@ -1593,6 +1599,7 @@ class DbStore {
           data.max_participants || 100,
           data.poster_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
           data.category || 'Workshop',
+          data.registration_link || '',
         ]
       );
       if (rows && rows.length > 0) {
@@ -1620,7 +1627,7 @@ class DbStore {
 
   async updateEvent(id: number, data: Partial<EventRow>): Promise<EventRow | undefined> {
     try {
-      const ALLOWED_COLUMNS = new Set(['title', 'description', 'venue', 'event_date', 'event_time', 'max_participants', 'poster_url', 'category']);
+      const ALLOWED_COLUMNS = new Set(['title', 'description', 'venue', 'event_date', 'event_time', 'max_participants', 'poster_url', 'category', 'registration_link']);
       const fields = Object.keys(data).filter((k) => ALLOWED_COLUMNS.has(k)) as (keyof EventRow)[];
       if (fields.length > 0) {
         const setClauses = fields.map((k, i) => `${k} = $${i + 1}`).join(', ');

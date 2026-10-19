@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Clock, Award, FileText, Code, ArrowRight, Maximize2, Download, Eye, Target,
   Rocket, FlaskConical, Zap, Lightbulb, FileCheck, Leaf, BookOpen, Hammer,
   MonitorPlay, GraduationCap, Trophy, ChevronRight, MapPin, Users, Sparkles, Calendar,
 } from 'lucide-react';
 import { apiFetch } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 /* ─── Particle Canvas ───────────────────────────────────────────────────── */
 const ParticleCanvas: React.FC = () => {
@@ -75,9 +76,43 @@ const phases = [
 
 /* ─── Home Page ─────────────────────────────────────────────────────────── */
 export const Home: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [visitorStats, setVisitorStats] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [showPosterModal, setShowPosterModal] = useState(false);
+
+  const handleRegisterClick = (evt: any) => {
+    if (!user) {
+      // If User is NOT Logged In:
+      // Clicking "Register" must redirect the user to the /login page first.
+      // Save the target event in state/redirect query parameter.
+      navigate(`/login?redirect=event&eventId=${evt.id}`, {
+        state: {
+          eventId: evt.id,
+          event: evt,
+          redirect: 'event',
+        },
+      });
+      return;
+    }
+
+    // Already Logged In:
+    if (evt.registration_link && evt.registration_link.trim()) {
+      // Case 1 (External Link Provided): Automatically redirect the user to the external Google Sheet / Excel registration form.
+      const raw = evt.registration_link.trim();
+      const targetUrl = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+      window.location.href = targetUrl;
+    } else {
+      // Case 2 (No External Link Provided): Redirect the user to the Gallery page and display the complete details/description modal of that particular event.
+      navigate(`/gallery?eventId=${evt.id}`, {
+        state: {
+          eventId: evt.id,
+          event: evt,
+        },
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchStats = () => {
@@ -284,13 +319,14 @@ export const Home: React.FC = () => {
                 </div>
 
                 <div className="p-5 pt-0">
-                  <Link
-                    to="/login"
-                    className="w-full py-2.5 bg-blue-50 hover:bg-[#004990] text-[#004990] hover:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-blue-100"
+                  <button
+                    type="button"
+                    onClick={() => handleRegisterClick(evt)}
+                    className="w-full py-2.5 bg-blue-50 hover:bg-[#004990] text-[#004990] hover:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-blue-100 cursor-pointer"
                   >
-                    <span>Sign In to Register</span>
+                    <span>Register</span>
                     <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))}

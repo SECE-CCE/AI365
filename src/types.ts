@@ -102,6 +102,7 @@ export interface EventItem {
   max_participants: number;
   poster_url: string;
   category: string;
+  registration_link?: string;
   created_at: string;
 }
 

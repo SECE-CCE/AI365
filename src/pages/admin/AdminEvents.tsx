@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit2, Trash2, MapPin, Clock, Users, Tag, Filter, CheckCircle, RefreshCw, AlertTriangle, Sparkles, Building, Award } from 'lucide-react';
+import { Calendar, Plus, Edit2, Trash2, MapPin, Clock, Users, Tag, Filter, CheckCircle, RefreshCw, AlertTriangle, Sparkles, Building, Award, ExternalLink, FileSpreadsheet } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { EventForm } from '../../components/forms/EventForm';
@@ -16,6 +16,7 @@ interface Event {
   max_participants: number;
   poster_url: string;
   category: string;
+  registration_link?: string;
   created_at: string;
 }
 
@@ -338,6 +339,21 @@ export const AdminEvents: React.FC = () => {
                     <p className="text-xs sm:text-sm text-slate-600 line-clamp-3 leading-relaxed font-medium">
                       {evt.description}
                     </p>
+                  )}
+
+                  {evt.registration_link && (
+                    <div className="pt-1">
+                      <a
+                        href={evt.registration_link.startsWith('http') ? evt.registration_link : `https://${evt.registration_link}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-[#004990] rounded-lg text-[11px] font-bold border border-blue-200 transition-colors"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-[#004990]" />
+                        <span>External Form / Sheet Configured</span>
+                        <ExternalLink className="w-3 h-3 text-[#004990]" />
+                      </a>
+                    </div>
                   )}
 
                   {/* Metadata */}

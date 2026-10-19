@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Sparkles, Lock, Mail, UserCheck, AlertCircle, Loader2, Clock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../services/api';
 
 export const Login: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'student' | 'faculty' | 'admin'>('student');
@@ -14,14 +16,54 @@ export const Login: React.FC = () => {
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login } = useAuth();
+  const { login, user: currentUser } = useAuth();
   const navigate = useNavigate();
+
+  const targetEventId = searchParams.get('eventId') || (location.state as any)?.eventId;
+  const targetEvent = (location.state as any)?.event;
+  const isEventRedirect = searchParams.get('redirect') === 'event' || Boolean(targetEventId);
 
   useEffect(() => {
     if (searchParams.get('session_expired') === 'true' || searchParams.get('expired') === 'true') {
       setSessionExpiredNotice(true);
     }
   }, [searchParams]);
+
+  // If already logged in and redirected with an event, redirect immediately
+  useEffect(() => {
+    if (currentUser && isEventRedirect && targetEventId) {
+      const handleExistingSessionRedirect = async () => {
+        let eventToUse = targetEvent;
+        if (!eventToUse || String(eventToUse.id) !== String(targetEventId)) {
+          try {
+            const data = await apiFetch<{ events: any[] }>('/api/events');
+            if (data?.events) {
+              eventToUse = data.events.find((e) => String(e.id) === String(targetEventId));
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        }
+
+        const externalLink = eventToUse?.registration_link?.trim();
+        if (externalLink) {
+          const targetUrl = externalLink.startsWith('http://') || externalLink.startsWith('https://')
+            ? externalLink
+            : `https://${externalLink}`;
+          window.location.href = targetUrl;
+        } else {
+          navigate(`/gallery?eventId=${targetEventId}`, {
+            replace: true,
+            state: {
+              eventId: targetEventId,
+              event: eventToUse,
+            },
+          });
+        }
+      };
+      handleExistingSessionRedirect();
+    }
+  }, [currentUser, isEventRedirect, targetEventId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +77,42 @@ export const Login: React.FC = () => {
     setLoading(true);
     try {
       const user = await login(email, password, role);
+
+      // Event registration redirection logic
+      if (isEventRedirect && targetEventId) {
+        let eventToUse = targetEvent;
+        if (!eventToUse || String(eventToUse.id) !== String(targetEventId)) {
+          try {
+            const data = await apiFetch<{ events: any[] }>('/api/events');
+            if (data?.events) {
+              eventToUse = data.events.find((e) => String(e.id) === String(targetEventId));
+            }
+          } catch (fetchErr) {
+            console.error('Failed to resolve event for redirect:', fetchErr);
+          }
+        }
+
+        const externalLink = eventToUse?.registration_link?.trim();
+        if (externalLink) {
+          // Case 1 (External Link Provided): Automatically redirect the user to the external Google Sheet / Excel registration form.
+          const targetUrl = externalLink.startsWith('http://') || externalLink.startsWith('https://')
+            ? externalLink
+            : `https://${externalLink}`;
+          window.location.href = targetUrl;
+          return;
+        } else {
+          // Case 2 (No External Link Provided): Redirect the user to the Gallery page and display the complete details/description modal of that particular event.
+          navigate(`/gallery?eventId=${targetEventId}`, {
+            replace: true,
+            state: {
+              eventId: targetEventId,
+              event: eventToUse,
+            },
+          });
+          return;
+        }
+      }
+
       if (user.role === 'admin') navigate('/admin');
       else if (user.role === 'faculty') navigate('/faculty');
       else navigate('/student');
@@ -97,6 +175,13 @@ export const Login: React.FC = () => {
             <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Portal Login</h3>
             <p className="text-xs text-slate-500 font-medium mt-1">Students sign in with official @sece.ac.in credentials assigned by Admin.</p>
           </div>
+
+          {isEventRedirect && targetEventId && (
+            <div className="mb-4 p-3.5 bg-blue-50 text-[#004990] text-xs rounded-xl border border-blue-200 font-semibold flex items-center gap-2.5 animate-in fade-in duration-200">
+              <Sparkles className="w-4 h-4 shrink-0 text-[#F3B631]" />
+              <span>Please sign in to proceed with your event registration.</span>
+            </div>
+          )}
 
           {sessionExpiredNotice && (
             <div className="mb-4 p-3.5 bg-amber-50 text-amber-800 text-xs rounded-xl border border-amber-200 font-medium flex items-start gap-2 animate-in fade-in duration-200">
