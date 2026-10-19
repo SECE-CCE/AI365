@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { authMiddleware, AuthenticatedRequest } from '../_middleware/auth.js';
@@ -47,6 +47,14 @@ function isSafeDriveUrl(url: string): boolean {
 
 
 
+// GET /api/upload/poster
+router.get('/poster', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/poster endpoint only accepts HTTP POST requests with poster image data.',
+  });
+});
+
 // POST /api/upload/poster
 // Handles event banner poster image upload, creates assets/Events/ directory if missing,
 // and saves file on server.
@@ -82,6 +90,14 @@ router.post('/poster', authMiddleware, async (req: AuthenticatedRequest, res: Re
     console.error('Poster Upload Error:', err);
     return res.status(500).json({ error: 'Failed to save event poster image on server.' });
   }
+});
+
+// GET /api/upload/photo
+router.get('/photo', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/photo endpoint only accepts HTTP POST requests with photo image data.',
+  });
 });
 
 // POST /api/upload/photo
@@ -126,6 +142,14 @@ router.post('/photo', authMiddleware, async (req: AuthenticatedRequest, res: Res
   }
 });
 
+// GET /api/upload/certificate - returns informative 405 Method Not Allowed
+router.get('/certificate', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/certificate endpoint only accepts HTTP POST requests with certificate data (fileBase64, certificateTitle, extension). Direct GET access via the browser address bar is not supported.',
+  });
+});
+
 // POST /api/upload/certificate
 // Handles certificate upload, creates assets/Documents/<User_Name>/certificates/ directory,
 // formats filename as <User_Name>_<Certificate_Title>.<ext>, and stores file inside that directory.
@@ -136,9 +160,12 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
       return res.status(400).json({ error: 'Certificate file data is required.' });
     }
 
+    const rawTitle = typeof certificateTitle === 'string' ? certificateTitle : 'Certificate';
+    const rawExt = typeof extension === 'string' ? extension : 'jpg';
+
     const userName = req.user?.full_name || 'User';
-    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-    const sanitizedTitle = certificateTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'User';
+    const sanitizedTitle = rawTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Certificate';
 
     // Create subfolder certificates/ inside user directory: assets/Documents/<Sanitized_User_Name>/certificates/
     const certificatesFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'certificates');
@@ -150,7 +177,7 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
     const buffer = Buffer.from(base64Data, 'base64');
 
     // Custom filename: <Sanitized_User_Name>_<Sanitized_Certificate_Title>.<ext>
-    const cleanExt = extension.replace(/^\./, '');
+    const cleanExt = rawExt.replace(/^\./, '').trim() || 'jpg';
     const certificateFilename = `${sanitizedUserName}_${sanitizedTitle}.${cleanExt}`;
     const filePath = path.join(certificatesFolder, certificateFilename);
 
@@ -166,8 +193,19 @@ router.post('/certificate', authMiddleware, async (req: AuthenticatedRequest, re
     });
   } catch (err: any) {
     console.error('Certificate Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save certificate on server.' });
+    return res.status(500).json({
+      error: 'Failed to save certificate on server.',
+      details: err?.message || 'Unknown internal error',
+    });
   }
+});
+
+// GET /api/upload/paper
+router.get('/paper', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/paper endpoint only accepts HTTP POST requests with PDF document data.',
+  });
 });
 
 // POST /api/upload/paper
@@ -180,9 +218,12 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
       return res.status(400).json({ error: 'Paper PDF file data is required.' });
     }
 
+    const rawTitle = typeof paperTitle === 'string' ? paperTitle : 'Research_Paper';
+    const rawExt = typeof extension === 'string' ? extension : 'pdf';
+
     const userName = req.user?.full_name || 'User';
-    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-    const sanitizedTitle = paperTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sanitizedUserName = userName.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'User';
+    const sanitizedTitle = rawTitle.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Research_Paper';
 
     // Create subfolder papers/ inside user directory: assets/Documents/<Sanitized_User_Name>/papers/
     const papersFolder = path.join(UPLOADS_BASE_DIR, sanitizedUserName, 'papers');
@@ -194,7 +235,7 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
     const buffer = Buffer.from(base64Data, 'base64');
 
     // Custom filename: <Sanitized_User_Name>_<Sanitized_Paper_Title>.<ext>
-    const cleanExt = extension.replace(/^\./, '');
+    const cleanExt = rawExt.replace(/^\./, '').trim() || 'pdf';
     const paperFilename = `${sanitizedUserName}_${sanitizedTitle}.${cleanExt}`;
     const filePath = path.join(papersFolder, paperFilename);
 
@@ -212,7 +253,10 @@ router.post('/paper', authMiddleware, async (req: AuthenticatedRequest, res: Res
     });
   } catch (err: any) {
     console.error('Paper Upload Error:', err);
-    return res.status(500).json({ error: 'Failed to save research paper PDF on server.' });
+    return res.status(500).json({
+      error: 'Failed to save research paper PDF on server.',
+      details: err?.message || 'Unknown internal error',
+    });
   }
 });
 
@@ -246,7 +290,14 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
   }
 });
 
-// ---------------------------------------------------------------------------
+// GET /api/upload/drive-check
+router.get('/drive-check', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/upload/drive-check endpoint only accepts HTTP POST requests with a driveLink parameter.',
+  });
+});
+
 // POST /api/upload/drive-check
 // Real accessibility verification for Google Drive links.
 // Returns: { accessible, url, fileId, filename, mimeType, sizeBytes }
