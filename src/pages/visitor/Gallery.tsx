@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Calendar, MapPin, Clock, Users, ArrowRight, Sparkles, X, CheckCircle2, ExternalLink } from 'lucide-react';
 import { apiFetch } from '../../services/api';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 interface GalleryItem {
   id: string | number;
@@ -15,6 +16,7 @@ interface GalleryItem {
   description?: string;
   highlights?: string[];
   isCustomAdmin?: boolean;
+  registration_link?: string;
 }
 
 const defaultGalleryItems: GalleryItem[] = [];
@@ -24,6 +26,12 @@ export const Gallery: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [activeItem, setActiveItem] = useState<GalleryItem | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [notification, setNotification] = useState<string | null>(null);
+
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const fetchEvents = async () => {
     try {
@@ -41,6 +49,7 @@ export const Gallery: React.FC = () => {
           description: evt.description || 'Department event organized by CCE faculty and student coordinators.',
           highlights: ['Official CCE Event', 'Certificate of Participation Provided', 'Open to CCE Students'],
           isCustomAdmin: true,
+          registration_link: evt.registration_link || '',
         }));
         setItems(fetchedItems);
       } else {
@@ -57,6 +66,64 @@ export const Gallery: React.FC = () => {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  // Handle immediate opening if event was passed via state
+  useEffect(() => {
+    const stateEvent = (location.state as any)?.event;
+    if (stateEvent && !activeItem) {
+      setActiveItem({
+        id: stateEvent.id,
+        title: stateEvent.title,
+        category: stateEvent.category || 'Department Events',
+        poster_url: stateEvent.poster_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
+        venue: stateEvent.venue || 'CCE Department',
+        event_date: stateEvent.event_date || 'Upcoming',
+        event_time: stateEvent.event_time || 'TBA',
+        max_participants: stateEvent.max_participants || 100,
+        description: stateEvent.description || 'Department event organized by CCE faculty and student coordinators.',
+        highlights: ['Official CCE Event', 'Certificate of Participation Provided', 'Open to CCE Students'],
+        isCustomAdmin: true,
+        registration_link: stateEvent.registration_link,
+      });
+    }
+  }, [location.state]);
+
+  // Handle opening target event by eventId query parameter or location state
+  useEffect(() => {
+    const targetEventId = searchParams.get('eventId') || (location.state as any)?.eventId;
+    if (targetEventId && items.length > 0) {
+      const found = items.find((i) => String(i.id) === String(targetEventId));
+      if (found) {
+        setActiveItem(found);
+      }
+    }
+  }, [searchParams, location.state, items]);
+
+  const handleRegisterClick = (item: GalleryItem) => {
+    if (!user) {
+      // Non-logged in: redirect to /login first, saving target event in query param and location state
+      setActiveItem(null);
+      navigate(`/login?redirect=event&eventId=${item.id}`, {
+        state: {
+          eventId: item.id,
+          event: item,
+          redirect: 'event',
+        },
+      });
+      return;
+    }
+
+    if (item.registration_link && item.registration_link.trim()) {
+      // Case 1: External Link Provided -> Automatically redirect to Google Sheet / Excel
+      const raw = item.registration_link.trim();
+      const targetUrl = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+      window.location.href = targetUrl;
+    } else {
+      // Case 2: No External Link Provided -> Display full modal details
+      setNotification('You are currently viewing full event details and schedule.');
+      setTimeout(() => setNotification(null), 3500);
+    }
+  };
 
   const categories = ['All', ...Array.from(new Set(items.map((i) => i.category)))];
 
@@ -290,18 +357,26 @@ export const Gallery: React.FC = () => {
                   >
                     Close
                   </button>
-                  <Link
-                    to="/login"
-                    onClick={() => setActiveItem(null)}
-                    className="flex-1 sm:flex-none px-6 py-3 bg-[#002B5C] hover:bg-[#004990] text-[#F3B631] rounded-xl font-black text-xs transition-all shadow-md flex items-center justify-center gap-2"
+                  <button
+                    type="button"
+                    onClick={() => handleRegisterClick(activeItem)}
+                    className="flex-1 sm:flex-none px-6 py-3 bg-[#002B5C] hover:bg-[#004990] text-[#F3B631] rounded-xl font-black text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Login to Register</span>
+                    <span>Register</span>
                     <ArrowRight className="w-4 h-4" />
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-6 right-6 z-50 bg-[#002B5C] text-white px-5 py-3 rounded-2xl shadow-2xl border border-white/20 text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top duration-300">
+          <Sparkles className="w-4 h-4 text-[#F3B631]" />
+          <span>{notification}</span>
         </div>
       )}
     </div>
